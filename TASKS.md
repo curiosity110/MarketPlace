@@ -42,3 +42,11 @@
 - [ ] Zod validation everywhere
 - [ ] Basic tests + E2E smoke tests
 - [ ] DEPLOYMENT.md finalized
+
+## Autopilot hardening (current pass)
+- [x] Supabase magic-link callback stores httpOnly cookies (prod-only secure)
+- [x] Server auth uses cookie token as source of truth (getSessionUser)
+- [x] Middleware protects /sell and /admin (ADMIN-only)
+- [x] Login UX cooldown + rate-limit message
+- [x] Theme tokens + shared UI primitives across pages
+

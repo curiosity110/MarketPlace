@@ -3,21 +3,32 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAccessToken, supabaseServer } from "@/lib/supabase/server";
 
-export async function getSessionUser() {
+export type SessionUser = {
+  id: string;
+  email: string;
+  role: Role;
+};
+
+export async function getSessionUser(): Promise<SessionUser | null> {
   const token = await getAccessToken();
   if (!token) return null;
+
   const supabase = supabaseServer();
-  const { data } = await supabase.auth.getUser(token);
-  if (!data.user?.email) return null;
+  const { data, error } = await supabase.auth.getUser(token);
+  const email = data.user?.email?.toLowerCase();
+
+  if (error || !email) return null;
 
   const user = await prisma.user.upsert({
-    where: { email: data.user.email.toLowerCase() },
+    where: { email },
     update: {},
-    create: { email: data.user.email.toLowerCase() },
+    create: { email },
+    select: { id: true, email: true, role: true, bannedAt: true },
   });
 
   if (user.bannedAt) return null;
-  return user;
+
+  return { id: user.id, email: user.email, role: user.role };
 }
 
 export async function requireUser() {
@@ -28,6 +39,6 @@ export async function requireUser() {
 
 export async function requireAdmin() {
   const user = await requireUser();
-  if (user.role !== Role.ADMIN) redirect("/");
+  if (user.role !== Role.ADMIN) redirect("/login");
   return user;
 }

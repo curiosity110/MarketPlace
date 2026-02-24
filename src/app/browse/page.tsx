@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { ListingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ListingCard } from "@/components/listing-card";
 
 export default async function BrowsePage({
   searchParams,
@@ -19,14 +24,10 @@ export default async function BrowsePage({
   const maxRaw = sp.max ? Number(sp.max) : undefined;
 
   const minCents =
-    minRaw !== undefined && Number.isFinite(minRaw) && minRaw >= 0
-      ? Math.floor(minRaw * 100)
-      : undefined;
+    minRaw !== undefined && Number.isFinite(minRaw) && minRaw >= 0 ? Math.floor(minRaw * 100) : undefined;
 
   const maxCents =
-    maxRaw !== undefined && Number.isFinite(maxRaw) && maxRaw >= 0
-      ? Math.floor(maxRaw * 100)
-      : undefined;
+    maxRaw !== undefined && Number.isFinite(maxRaw) && maxRaw >= 0 ? Math.floor(maxRaw * 100) : undefined;
 
   const priceCents: Prisma.IntFilter = {
     ...(minCents !== undefined ? { gte: minCents } : {}),
@@ -60,59 +61,52 @@ export default async function BrowsePage({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Browse listings</h1>
-      <form className="grid md:grid-cols-4 gap-2">
-        <input
-          name="q"
-          defaultValue={search}
-          placeholder="Search"
-          className="rounded border p-2"
-        />
-        <select
-          name="category"
-          defaultValue={category}
-          className="rounded border p-2"
-        >
-          <option value="">Any category</option>
-          {categories.map((c) => (
-            <option value={c.id} key={c.id}>
-              {c.name}
-            </option>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Browse listings</h1>
+        <Link href="/browse" className="text-sm text-muted-foreground hover:underline">Clear filters</Link>
+      </div>
+
+      <Card>
+        <CardContent>
+          <form className="grid gap-2 md:grid-cols-6">
+            <Input name="q" defaultValue={search} placeholder="Search" className="md:col-span-2" />
+            <Select name="category" defaultValue={category}>
+              <option value="">Any category</option>
+              {categories.map((c) => (
+                <option value={c.id} key={c.id}>{c.name}</option>
+              ))}
+            </Select>
+            <Select name="city" defaultValue={city}>
+              <option value="">Any city</option>
+              {cities.map((c) => (
+                <option value={c.id} key={c.id}>{c.name}</option>
+              ))}
+            </Select>
+            <Select name="sort" defaultValue={sort}>
+              <option value="newest">Newest</option>
+              <option value="price-asc">Price ↑</option>
+              <option value="price-desc">Price ↓</option>
+            </Select>
+            <Button variant="outline" type="submit">Apply</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {listings.length === 0 ? (
+        <Card>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">No listings match your filters.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <ul className="grid gap-3">
+          {listings.map((listing) => (
+            <li key={listing.id}>
+              <ListingCard listing={listing} />
+            </li>
           ))}
-        </select>
-        <select name="city" defaultValue={city} className="rounded border p-2">
-          <option value="">Any city</option>
-          {cities.map((c) => (
-            <option value={c.id} key={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select name="sort" defaultValue={sort} className="rounded border p-2">
-          <option value="newest">Newest</option>
-          <option value="price-asc">Price ↑</option>
-          <option value="price-desc">Price ↓</option>
-        </select>
-        <button className="rounded border px-3 py-2" type="submit">
-          Apply
-        </button>
-      </form>
-      <ul className="grid gap-3">
-        {listings.map((listing) => (
-          <li key={listing.id} className="rounded border p-3">
-            <Link
-              className="font-semibold underline"
-              href={`/listings/${listing.id}`}
-            >
-              {listing.title}
-            </Link>
-            <p>
-              {listing.city.name} • {(listing.priceCents / 100).toFixed(2)}{" "}
-              {listing.currency}
-            </p>
-          </li>
-        ))}
-      </ul>
+        </ul>
+      )}
     </div>
   );
 }

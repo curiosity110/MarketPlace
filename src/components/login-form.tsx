@@ -1,37 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+
+const COOLDOWN_SECONDS = 60;
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string>();
+  const [cooldown, setCooldown] = useState(0);
 
-  const sendLink = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setInterval(() => setCooldown((v) => Math.max(0, v - 1)), 1000);
+    return () => clearInterval(id);
+  }, [cooldown]);
+
+  const sendLink = async (e: FormEvent) => {
     e.preventDefault();
+    if (cooldown > 0) return;
+
     const supabase = supabaseBrowser();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${location.origin}/api/auth/callback` },
-      // options: { emailRedirectTo: `${location.origin}/auth/finish` },
     });
-    setMessage(error ? error.message : "Check your email for a magic link.");
+
+    if (error) {
+      const looksRateLimited = /rate|security purposes|wait/i.test(error.message);
+      setMessage(
+        looksRateLimited
+          ? "Too many requests. Please wait a minute before requesting another magic link."
+          : error.message,
+      );
+      if (looksRateLimited) setCooldown(COOLDOWN_SECONDS);
+      return;
+    }
+
+    setMessage("Check your email for a magic link.");
+    setCooldown(COOLDOWN_SECONDS);
   };
 
   return (
-    <form onSubmit={sendLink} className="space-y-3 max-w-md">
-      <input
-        className="w-full rounded border p-2"
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="email@example.com"
-      />
-      <button className="rounded border px-3 py-2" type="submit">
-        Send magic link
-      </button>
-      {message && <p>{message}</p>}
-    </form>
+    <Card className="max-w-md">
+      <CardContent className="space-y-3">
+        <form onSubmit={sendLink} className="space-y-3">
+          <Input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="email@example.com"
+          />
+          <Button className="w-full" type="submit" disabled={cooldown > 0}>
+            {cooldown > 0 ? `Send magic link (${cooldown}s)` : "Send magic link"}
+          </Button>
+        </form>
+        {message && <p className="text-sm text-muted-foreground">{message}</p>}
+      </CardContent>
+    </Card>
   );
 }

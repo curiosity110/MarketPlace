@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
+import { Container } from "@/components/ui/container";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
@@ -14,10 +15,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} antialiased bg-white text-black dark:bg-zinc-950 dark:text-zinc-100`}>
+      <body className={`${geistSans.variable} min-h-screen bg-background text-foreground antialiased`}>
         <ThemeProvider>
-          <Nav />
-          <main className="mx-auto max-w-6xl p-4">{children}</main>
+          <div className="min-h-screen bg-background text-foreground">
+            <Nav />
+            <Container className="py-6">{children}</Container>
+          </div>
         </ThemeProvider>
       </body>
     </html>

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getCookieOptions, SB_ACCESS_COOKIE, SB_REFRESH_COOKIE } from "@/lib/supabase/cookies";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -24,21 +25,8 @@ export async function GET(request: Request) {
   }
 
   const jar = await cookies();
-  const isProd = process.env.NODE_ENV === "production";
-
-  jar.set("sb-access-token", data.session.access_token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProd,
-    path: "/",
-  });
-
-  jar.set("sb-refresh-token", data.session.refresh_token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProd,
-    path: "/",
-  });
+  jar.set(SB_ACCESS_COOKIE, data.session.access_token, getCookieOptions());
+  jar.set(SB_REFRESH_COOKIE, data.session.refresh_token, getCookieOptions());
 
   return NextResponse.redirect(`${origin}/browse`);
 }
