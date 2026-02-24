@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 
 const COOLDOWN_SECONDS = 60;
+const devPasswordEnabled = process.env.NEXT_PUBLIC_ENABLE_DEV_PASSWORD_LOGIN === "true";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string>();
   const [cooldown, setCooldown] = useState(0);
 
@@ -26,7 +28,9 @@ export function LoginForm() {
     const supabase = supabaseBrowser();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/api/auth/callback` },
+      options: {
+        emailRedirectTo: `${location.origin}/api/auth/callback?next=/browse`,
+      },
     });
 
     if (error) {
@@ -44,6 +48,20 @@ export function LoginForm() {
     setCooldown(COOLDOWN_SECONDS);
   };
 
+  const loginWithPassword = async (e: FormEvent) => {
+    e.preventDefault();
+
+    const supabase = supabaseBrowser();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    window.location.href = "/browse";
+  };
+
   return (
     <Card className="max-w-md">
       <CardContent className="space-y-3">
@@ -59,6 +77,22 @@ export function LoginForm() {
             {cooldown > 0 ? `Send magic link (${cooldown}s)` : "Send magic link"}
           </Button>
         </form>
+
+        {devPasswordEnabled && (
+          <form onSubmit={loginWithPassword} className="space-y-3">
+            <Input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Dev password"
+            />
+            <Button className="w-full" type="submit" variant="secondary">
+              Login with password (dev)
+            </Button>
+          </form>
+        )}
+
         {message && <p className="text-sm text-muted-foreground">{message}</p>}
       </CardContent>
     </Card>

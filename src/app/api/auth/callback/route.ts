@@ -5,28 +5,23 @@ import { getCookieOptions, SB_ACCESS_COOKIE, SB_REFRESH_COOKIE } from "@/lib/sup
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const origin = url.origin;
+  const code = url.searchParams.get("code");
+  const next = url.searchParams.get("next") ?? "/browse";
 
-  const token_hash = url.searchParams.get("token_hash");
-  const type = url.searchParams.get("type");
-
-  if (!token_hash || !type) {
-    return NextResponse.redirect(`${origin}/login`);
+  if (!code) {
+    return NextResponse.redirect(new URL("/login", url.origin));
   }
 
   const supabase = supabaseServer();
-  const { data, error } = await supabase.auth.verifyOtp({
-    type: type as "magiclink",
-    token_hash,
-  });
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.session) {
-    return NextResponse.redirect(`${origin}/login`);
+    return NextResponse.redirect(new URL("/login", url.origin));
   }
 
   const jar = await cookies();
   jar.set(SB_ACCESS_COOKIE, data.session.access_token, getCookieOptions());
   jar.set(SB_REFRESH_COOKIE, data.session.refresh_token, getCookieOptions());
 
-  return NextResponse.redirect(`${origin}/browse`);
+  return NextResponse.redirect(new URL(next.startsWith("/") ? next : "/browse", url.origin));
 }

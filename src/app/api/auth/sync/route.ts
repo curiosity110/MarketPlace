@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
 
 export async function POST() {
-  supabaseServer();
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: false, message: "Deprecated. Use /api/auth/callback." }, { status: 410 });
 }
