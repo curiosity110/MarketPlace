@@ -1,64 +1,68 @@
-You are CODEx AUTOPILOT building a production-ready Macedonia-only marketplace.
-
-GOAL (LOCKED)
-- Free register/login (email magic link), free browse.
-- To publish a listing, user pays €2–3 PER LISTING.
-- Payment unlocks that listing for 30 days (ACTIVE_UNTIL).
-- After expiration listing becomes INACTIVE; user can pay again to renew.
-- No subscriptions. No auto-renew.
-- Users can contact off-platform; we provide moderation consequences only (reports, bans).
-- UI minimal, readable, clean. Dark/light toggle. “Single-page feel” with fast navigation.
-- English first, but i18n-ready so Macedonian can be added later.
-
-HARD RULES
-- TEXT FILES ONLY in git. Do not add binaries. No images committed. No PDFs.
-- If you need images, use placeholder URLs. Real uploads go to object storage (S3/R2) in runtime.
-- Use deterministic structure. Every change must be via commit-friendly edits.
-- Write all specs, plans, and progress inside repo markdown: DECISIONS.md, ROADMAP.md, TASKS.md, ARCHITECTURE.md.
-- Never stop to ask “what next” — always choose the best default and proceed.
-- If secrets are needed, create .env.example placeholders and continue.
+You are CODEX AUTOPILOT building a production-ready Macedonia-only marketplace.
 
 STACK
-- Next.js (App Router) + TypeScript
-- Tailwind + shadcn/ui + next-themes
+- Next.js App Router + TypeScript
+- Tailwind
 - Prisma + PostgreSQL
-- Auth.js (NextAuth v5) with Email magic-link provider
-- Stripe Checkout for payments
-- Stripe webhooks with signature verification
-- Zod for validation
-- RBAC: USER, ADMIN
+- Supabase Auth (magic link)
+- Supabase Storage
+- Stripe Checkout (Phase 2)
+- Zod validation
+- RBAC roles: USER, ADMIN
 
-CORE FEATURES
-1) Auth: email magic link login/logout, session handling, protected routes.
-2) Marketplace:
-   - Listings CRUD: create/edit (draft), pay-to-publish, activate, browse, search, filter, sort.
-   - Categories: curated top-level categories + city filter for Macedonia.
-   - Filters: category, price range, condition, city, sort (newest, price).
-3) Payment model:
-   - “Pay to publish” creates Stripe Checkout session tied to listingId.
-   - Webhook on successful payment marks listing ACTIVE and sets activeUntil = now + 30d.
-   - Renewal flow repeats same and extends activeUntil.
-4) Expiration:
-   - Listing visibility respects activeUntil (server-side).
-   - Implement simplest reliable approach: query hides expired + optional cleanup endpoint.
-5) Moderation:
-   - Report listing/user.
-   - Admin panel to review reports, remove listing, ban user, audit log.
+HARD RULES
+- TEXT FILES ONLY in git
+- No binaries committed
+- No secrets in code
+- .env.example must exist
+- Idempotent Stripe webhook (Phase 2)
+- Deterministic structure
+- Update TASKS.md checkboxes automatically
 
-IMPLEMENTATION PLAN (EXECUTE)
-A) Scaffold repo: Next app, tooling, lint, prettier, env templates.
-B) Prisma schema: User, Listing, Category, City, ListingImage, Payment, Report, AdminAction.
-C) Auth.js config: email login, RBAC role in session.
-D) UI: minimal layout + nav + theme toggle.
-E) Listings: browse page, listing page, create listing, edit listing, manage listings.
-F) Stripe: checkout route + webhook route (signature verified, raw body).
-G) Activation: set listing.status=ACTIVE and activeUntil=now+30d on payment success.
-H) Admin: reports queue + ban/remove actions.
-I) i18n readiness: translation helper + locale structure.
+PHASE 1 (EXECUTE NOW)
+1. Supabase Auth integration (server-side session validation)
+2. RBAC middleware (USER, ADMIN)
+3. Prisma schema:
+   - User
+   - Category
+   - City
+   - Listing
+   - ListingImage
+   - Report
+   - AdminAction
+4. Seed:
+   - Macedonian cities
+   - Top categories
+   - Admin bootstrap user
+5. Listings:
+   - Create (DRAFT)
+   - Edit
+   - Delete
+   - Browse
+   - Search (ILIKE)
+   - Filters (category, city, price, condition)
+   - Sort (newest, price)
+6. Expiration logic:
+   - Listing has activeUntil
+   - Queries only show ACTIVE listings with activeUntil > now
+7. Admin panel:
+   - View reports
+   - Remove listing
+   - Ban user
+   - Audit log
+8. UI:
+   - Minimal layout
+   - Navigation
+   - Dark/light toggle
+   - i18n-ready structure
 
-OUTPUT
-- Ensure “pnpm install && pnpm dev” works.
-- Provide deployment instructions in DEPLOYMENT.md.
-- Provide Stripe setup instructions in STRIPE.md.
-- Provide i18n instructions in I18N.md.
-Proceed now without asking questions; pick best defaults and continue.
+PHASE 2 (Stripe – scaffold only if env exists)
+- Checkout session route
+- Webhook route
+- Activate listing on payment
+- Renewal extends activeUntil
+
+Do not ask questions.
+Choose best defaults.
+Complete all layers.
+Ensure pnpm install && pnpm dev works.

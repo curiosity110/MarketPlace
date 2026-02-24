@@ -1,45 +1,55 @@
 # Locked Decisions (Do Not Re-litigate)
 
-## Market + Scope
+## Scope
 
-- Marketplace is for **North Macedonia only** (cities list seeded).
-- Users can contact **off-platform** (no built-in chat for MVP).
+- Marketplace for **North Macedonia only**
+- Users contact off-platform
+- No built-in chat for MVP
+- Moderation only (reports + bans)
 
-## Monetization (Locked)
+## Monetization Model (Phase 2)
 
-- Free register/login.
-- Free browse.
-- **To publish a listing:** pay **€2–3** **per listing**.
-- Payment unlocks **that specific listing**.
-- Listing is active for **30 days** from payment success.
-- After expiration listing becomes **inactive**.
-- Seller can pay again to **renew**.
-- No subscriptions, no auto-renew.
+- Free register/login (Supabase magic link)
+- Free browse
+- Pay €3 per listing to publish
+- Listing active for 30 days
+- Expired listings become INACTIVE
+- Seller can pay again to renew
+- No subscriptions
+- No auto-renew
 
-## Product UX
+## Phase Plan
 
-- Minimal UI, readable, clean.
-- Dark/light toggle.
-- “Single-page feel” (fast navigation) but normal routes are allowed.
+PHASE 1:
 
-## Language Strategy
+- Auth
+- Listings CRUD
+- Browse + search + filters
+- Admin moderation
+- Expiration logic (without payment)
 
-- Build in English first.
-- System is i18n-ready from day 1 so Macedonian can be added later by filling translations.
+PHASE 2:
 
-## Enforcement & Consequences
+- Stripe checkout
+- Webhook activation
+- Renewal logic
 
-- Since contact is off-platform, platform enforcement is **moderation-only**:
-  - report listing/user
-  - admin reviews
-  - remove listing / ban user
-  - optional reputation later (not MVP)
+## UI Philosophy
 
-## Tech Stack (Default)
+- Minimal
+- Fast
+- Clean
+- Dark/light toggle
+- No overdesign
+- Single-page feel via fast routing
+
+## Tech Stack (Locked)
 
 - Next.js App Router + TypeScript
-- Prisma + PostgreSQL
-- Supabase Auth (magic link)
-- Stripe Checkout + Webhooks
-- Tailwind + shadcn/ui + next-themes
-- Vercel deploy (default)
+- Tailwind
+- Prisma
+- Supabase Postgres
+- Supabase Auth
+- Supabase Storage
+- Stripe (Phase 2)
+- Zod validation
