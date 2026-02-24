@@ -13,14 +13,24 @@ export function LoginForm() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${location.origin}/api/auth/callback` },
+      // options: { emailRedirectTo: `${location.origin}/auth/finish` },
     });
     setMessage(error ? error.message : "Check your email for a magic link.");
   };
 
   return (
     <form onSubmit={sendLink} className="space-y-3 max-w-md">
-      <input className="w-full rounded border p-2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" />
-      <button className="rounded border px-3 py-2" type="submit">Send magic link</button>
+      <input
+        className="w-full rounded border p-2"
+        type="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="email@example.com"
+      />
+      <button className="rounded border px-3 py-2" type="submit">
+        Send magic link
+      </button>
       {message && <p>{message}</p>}
     </form>
   );

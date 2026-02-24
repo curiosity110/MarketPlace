@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { en } from "@/messages/en";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 export async function Nav() {
   const user = await getSessionUser();
@@ -13,7 +13,7 @@ export async function Nav() {
     const jar = await cookies();
     jar.delete("sb-access-token");
     jar.delete("sb-refresh-token");
-    redirect("/");
+    redirect("/browse");
   }
 
   return (
@@ -24,10 +24,15 @@ export async function Nav() {
         <Link href="/sell">{en.nav.sell}</Link>
         {user?.role === "ADMIN" && <Link href="/admin">{en.nav.admin}</Link>}
       </div>
+
       <div className="flex items-center gap-3">
         <ThemeToggle />
         {user ? (
-          <form action={logout}><button className="rounded border px-2 py-1" type="submit">{en.nav.logout}</button></form>
+          <form action={logout}>
+            <button className="rounded border px-2 py-1" type="submit">
+              {en.nav.logout}
+            </button>
+          </form>
         ) : (
           <Link href="/login">{en.nav.login}</Link>
         )}

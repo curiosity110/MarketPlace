@@ -3,17 +3,42 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const token_hash = searchParams.get("token_hash");
-  const type = searchParams.get("type");
-  if (token_hash && type) {
-    const supabase = supabaseServer();
-    const { data } = await supabase.auth.verifyOtp({ type: type as "magiclink", token_hash });
-    const jar = await cookies();
-    if (data.session?.access_token) {
-      jar.set("sb-access-token", data.session.access_token, { httpOnly: true, sameSite: "lax", secure: true, path: "/" });
-      jar.set("sb-refresh-token", data.session.refresh_token, { httpOnly: true, sameSite: "lax", secure: true, path: "/" });
-    }
+  const url = new URL(request.url);
+  const origin = url.origin;
+
+  const token_hash = url.searchParams.get("token_hash");
+  const type = url.searchParams.get("type");
+
+  if (!token_hash || !type) {
+    return NextResponse.redirect(`${origin}/login`);
   }
-  return NextResponse.redirect(`${origin}/`);
+
+  const supabase = supabaseServer();
+  const { data, error } = await supabase.auth.verifyOtp({
+    type: type as "magiclink",
+    token_hash,
+  });
+
+  if (error || !data.session) {
+    return NextResponse.redirect(`${origin}/login`);
+  }
+
+  const jar = await cookies();
+  const isProd = process.env.NODE_ENV === "production";
+
+  jar.set("sb-access-token", data.session.access_token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProd,
+    path: "/",
+  });
+
+  jar.set("sb-refresh-token", data.session.refresh_token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProd,
+    path: "/",
+  });
+
+  return NextResponse.redirect(`${origin}/browse`);
 }
