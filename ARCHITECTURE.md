@@ -4,8 +4,8 @@
 - Frontend: Next.js (App Router) with minimal pages
 - Backend: Next.js Route Handlers (server-side) + Prisma
 - DB: Postgres
-- Auth: Auth.js Email magic-link
-- Payments: Stripe Checkout + Webhooks
+- Auth: Supabase Auth (magic link)
+- Payments: Stripe Checkout + Webhooks ( THIS CAN BE SKIPPED NOT OF MUCH IMPORTANCE FOR PHASE 1)
 - Images: Object storage (S3/R2). Store URLs in DB.
 
 ## Key constraints
