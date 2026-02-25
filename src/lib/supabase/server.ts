@@ -25,7 +25,7 @@ export async function createSupabaseServerClient(response?: NextResponse) {
           });
         },
       },
-    }
+    },
   );
 }
 
