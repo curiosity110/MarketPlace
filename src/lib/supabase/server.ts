@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { NextResponse } from "next/server";
-import { SB_ACCESS_COOKIE } from "@/lib/supabase/cookies";
 
 export async function createSupabaseServerClient(response?: NextResponse) {
   const cookieStore = cookies();
@@ -26,12 +25,15 @@ export async function createSupabaseServerClient(response?: NextResponse) {
           });
         },
       },
-    }
+    },
   );
 }
+
+/* Compatibility exports */
 
 export const supabaseServer = createSupabaseServerClient;
 
 export async function getAccessToken() {
-  return cookies().get(SB_ACCESS_COOKIE)?.value;
+  const cookieStore = await cookies();
+  return cookieStore.get("sb-access-token")?.value;
 }
