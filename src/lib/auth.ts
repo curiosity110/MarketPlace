@@ -13,7 +13,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const token = await getAccessToken();
   if (!token) return null;
 
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const { data, error } = await supabase.auth.getUser(token);
   const email = data.user?.email?.toLowerCase();
 
