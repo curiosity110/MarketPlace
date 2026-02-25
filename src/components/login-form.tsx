@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +25,7 @@ export function LoginForm() {
     e.preventDefault();
     if (cooldown > 0) return;
 
-    const supabase = supabaseBrowser();
+    const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -51,7 +51,7 @@ export function LoginForm() {
   const loginWithPassword = async (e: FormEvent) => {
     e.preventDefault();
 
-    const supabase = supabaseBrowser();
+    const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {

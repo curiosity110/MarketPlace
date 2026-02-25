@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAccessToken, supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export type SessionUser = {
   id: string;
@@ -10,25 +10,25 @@ export type SessionUser = {
 };
 
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const token = await getAccessToken();
-  if (!token) return null;
-
   const supabase = await supabaseServer();
-  const { data, error } = await supabase.auth.getUser(token);
-  const email = data.user?.email?.toLowerCase();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  const email = user?.email?.toLowerCase();
 
   if (error || !email) return null;
 
-  const user = await prisma.user.upsert({
+  const userRecord = await prisma.user.upsert({
     where: { email },
     update: {},
     create: { email },
     select: { id: true, email: true, role: true, bannedAt: true },
   });
 
-  if (user.bannedAt) return null;
+  if (userRecord.bannedAt) return null;
 
-  return { id: user.id, email: user.email, role: user.role };
+  return { id: userRecord.id, email: userRecord.email, role: userRecord.role };
 }
 
 export async function requireUser() {
