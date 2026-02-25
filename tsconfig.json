@@ -25,9 +25,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@supabase/ssr": [
-        "./src/lib/vendor/supabase-ssr.ts"
       ]
     }
   },

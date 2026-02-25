@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -9,37 +9,33 @@ export function LoginForm() {
   const [message, setMessage] = useState<string | null>(null);
 
   const loginWithPassword = async () => {
-    const { error } = await supabaseBrowser.auth.signInWithPassword({
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+    if (error) return setMessage(error.message);
 
     window.location.href = "/browse";
   };
 
-  const loginWithMagicLink = async () => {
-    const { error } = await supabaseBrowser.auth.signInWithOtp({
+  const sendMagicLink = async () => {
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/browse`,
       },
     });
 
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+    if (error) return setMessage(error.message);
 
     setMessage("Check your email for the magic link.");
   };
 
   return (
-    <div>
+    <div className="space-y-2">
       <input
         type="email"
         placeholder="email"
@@ -49,14 +45,15 @@ export function LoginForm() {
 
       <input
         type="password"
-        placeholder="password (optional for magic link)"
+        placeholder="password (for password login)"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
 
-      <button onClick={loginWithPassword}>Login with Password</button>
-
-      <button onClick={loginWithMagicLink}>Send Magic Link</button>
+      <div className="flex gap-2">
+        <button onClick={loginWithPassword}>Login with Password</button>
+        <button onClick={sendMagicLink}>Send Magic Link</button>
+      </div>
 
       {message && <p>{message}</p>}
     </div>

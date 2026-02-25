@@ -16,33 +16,23 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   if (error || !data.user) return null;
 
-  const supaUser = data.user;
-  const supabaseUserId = supaUser.id;
-  const email = supaUser.email ?? null;
+  const supabaseUserId = data.user.id;
+  const email = data.user.email ?? null;
 
-  // Make sure you have a User model with supabaseUserId unique.
-  // If your field name differs (e.g. authUserId), change it here.
+  // IMPORTANT: this requires Prisma User model has supabaseUserId @unique.
   const dbUser =
     (await prisma.user.findUnique({ where: { supabaseUserId } })) ??
     (await prisma.user.create({
-      data: {
-        supabaseUserId,
-        email,
-        role: Role.USER,
-      },
+      data: { supabaseUserId, email, role: Role.USER },
     }));
 
-  // Optional: block banned users if you have isBanned
-  // If you don't have isBanned field, delete this block.
-  if ((dbUser as any).isBanned) {
-    // sign out not required; just block
-    redirect("/login");
-  }
+  // If your schema uses bannedAt instead of isBanned, keep this:
+  if ((dbUser as any).bannedAt) return null;
 
   return {
     id: dbUser.id,
     supabaseUserId,
-    email,
+    email: dbUser.email ?? email,
     role: dbUser.role,
   };
 }

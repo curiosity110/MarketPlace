@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { NextResponse } from "next/server";
 
 export async function createSupabaseServerClient(response?: NextResponse) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,15 +25,9 @@ export async function createSupabaseServerClient(response?: NextResponse) {
           });
         },
       },
-    },
+    }
   );
 }
 
-/* Compatibility exports */
-
+// Keep this for older imports that may still use it
 export const supabaseServer = createSupabaseServerClient;
-
-export async function getAccessToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("sb-access-token")?.value;
-}
