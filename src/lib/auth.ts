@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAccessToken, supabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getAccessToken } from "@/lib/supabase/server";
 
 export type SessionUser = {
   id: string;
@@ -13,7 +13,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const token = await getAccessToken();
   if (!token) return null;
 
-  const supabase = supabaseServer();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser(token);
   const email = data.user?.email?.toLowerCase();
 

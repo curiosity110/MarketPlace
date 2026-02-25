@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function POST() {
-  supabaseServer();
+  await createSupabaseServerClient();
   return NextResponse.json({ ok: true });
 }
