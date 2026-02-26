@@ -14,14 +14,15 @@ export async function createSupabaseServerClient(response?: NextResponse) {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
+          // ✅ Only write cookies when we are in a Route Handler / Server Action
+          // (i.e. when a NextResponse is provided).
+          if (!response) return;
+
           cookiesToSet.forEach(({ name, value, options }) => {
-            const cookieOptions = {
+            response.cookies.set(name, value, {
               ...options,
               secure: process.env.NODE_ENV === "production",
-            };
-
-            cookieStore.set(name, value, cookieOptions);
-            response?.cookies.set(name, value, cookieOptions);
+            });
           });
         },
       },
@@ -29,5 +30,5 @@ export async function createSupabaseServerClient(response?: NextResponse) {
   );
 }
 
-// Keep this for older imports that may still use it
+// compatibility
 export const supabaseServer = createSupabaseServerClient;
