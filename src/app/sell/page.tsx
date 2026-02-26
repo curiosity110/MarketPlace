@@ -112,49 +112,102 @@ export default async function SellPage({
   const templatesByCategory = groupTemplatesByCategory(normalizeTemplates(templates));
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Sell dashboard</h1>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="space-y-2">
+        <h1 className="text-4xl md:text-5xl font-bold">Sell Dashboard</h1>
+        <p className="text-lg text-muted-foreground">Create and manage your listings with ease</p>
+      </div>
 
-      <Card>
-        <CardContent className="space-y-4">
-          <h2 className="text-lg font-medium">Create listing</h2>
-          {error && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{error}</p>}
+      {/* Create Listing Card */}
+      <Card className="border-2 bg-gradient-to-br from-card to-card/50">
+        <CardContent className="pt-8 space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">📝 Create New Listing</h2>
+            <p className="text-muted-foreground text-sm">
+              AI will help you write compelling descriptions and set optimal prices
+            </p>
+          </div>
+          
+          {error && (
+            <div className="rounded-lg border-2 border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+              <span className="font-semibold">Error:</span> {error}
+            </div>
+          )}
+          
           <ListingForm action={createListing} categories={categories} cities={cities} templatesByCategory={templatesByCategory} />
         </CardContent>
       </Card>
 
-      <div className="flex gap-2">
-        <Link href="/sell?tab=draft"><Button variant={tab === "draft" ? "default" : "outline"}>Drafts</Button></Link>
-        <Link href="/sell?tab=active"><Button variant={tab === "active" ? "default" : "outline"}>Active</Button></Link>
-      </div>
+      {/* Listings Tabs */}
+      <div className="space-y-4">
+        <div className="flex gap-2 border-b border-border">
+          <Link href="/sell?tab=draft">
+            <Button variant={tab === "draft" ? "default" : "ghost"} className="border-b-2 border-transparent">
+              📋 {listings.filter(l => l.status === ListingStatus.DRAFT).length} Drafts
+            </Button>
+          </Link>
+          <Link href="/sell?tab=active">
+            <Button variant={tab === "active" ? "default" : "ghost"} className="border-b-2 border-transparent">
+              ✅ {listings.filter(l => l.status === ListingStatus.ACTIVE).length} Active
+            </Button>
+          </Link>
+        </div>
 
-      <ul className="space-y-2">
-        {listings.map((listing) => (
-          <li key={listing.id}>
-            <Card>
-              <CardContent className="flex flex-wrap items-center justify-between gap-2 p-3">
-                <div className="space-y-1">
-                  <p className="font-medium">{listing.title}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Badge>{listing.status}</Badge>
-                    <span>Updated {new Date(listing.updatedAt).toLocaleString()}</span>
+        {/* Listings Grid */}
+        {listings.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground mb-4">No {tab} listings yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {tab === "draft" ? "Start creating your first listing above!" : "Publish a draft to see it here."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {listings.map((listing) => (
+              <Card key={listing.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-4 space-y-3">
+                  <div>
+                    <h3 className="font-bold text-lg line-clamp-2">{listing.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {new Date(listing.updatedAt).toLocaleDateString()}
+                    </p>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Link href={`/sell/${listing.id}/edit`}><Button variant="outline" type="button">Edit</Button></Link>
-                  <Link href={`/listing/${listing.id}`}><Button variant="ghost" type="button">View</Button></Link>
-                  {listing.status === ListingStatus.DRAFT && (
-                    <form action={deleteDraft}>
-                      <input type="hidden" name="id" value={listing.id} />
-                      <Button variant="destructive" type="submit">Delete draft</Button>
-                    </form>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </li>
-        ))}
-      </ul>
+
+                  <div className="flex gap-2 flex-wrap">
+                    <Badge variant={listing.status === ListingStatus.ACTIVE ? "primary" : "secondary"}>
+                      {listing.status === ListingStatus.ACTIVE ? "🟢 Active" : "📋 Draft"}
+                    </Badge>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Link href={`/sell/${listing.id}/edit`} className="flex-1">
+                      <Button variant="outline" className="w-full" type="button">
+                        Edit
+                      </Button>
+                    </Link>
+                    <Link href={`/listing/${listing.id}`} className="flex-1">
+                      <Button variant="ghost" className="w-full" type="button">
+                        View
+                      </Button>
+                    </Link>
+                    {listing.status === ListingStatus.DRAFT && (
+                      <form action={deleteDraft} className="flex-1">
+                        <input type="hidden" name="id" value={listing.id} />
+                        <Button variant="destructive" className="w-full" type="submit">
+                          Delete
+                        </Button>
+                      </form>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
