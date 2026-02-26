@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { MessageCircle, X, Send, Loader } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -11,10 +11,16 @@ interface AIHelperProps {
   title?: string;
 }
 
+const quickQuestions = [
+  "Help me write a better title",
+  "What should I ask before buying?",
+  "How do I price this item?",
+];
+
 export function AIHelper({
-  context = "Help me write a product description",
+  context = "You are a helpful marketplace assistant.",
   placeholder = "Ask anything...",
-  title = "AI Assistant",
+  title = "Marketplace Assistant",
 }: AIHelperProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<
@@ -23,22 +29,26 @@ export function AIHelper({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const canSend = input.trim().length > 0 && !loading;
 
-    const userMessage = input;
+  const initialHint = useMemo(
+    () => `Ask for help with buying, selling, pricing, or safety.`,
+    [],
+  );
+
+  async function sendMessage(message: string) {
+    const question = message.trim();
+    if (!question || loading) return;
+
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setMessages((prev) => [...prev, { role: "user", content: question }]);
     setLoading(true);
 
     try {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: userMessage,
-          systemContext: context,
-        }),
+        body: JSON.stringify({ question, systemContext: context }),
       });
 
       const data = await response.json();
@@ -46,109 +56,126 @@ export function AIHelper({
         ...prev,
         {
           role: "assistant",
-          content: data.answer || "Sorry, could not get response",
+          content: data.answer || data.error || "I could not generate a reply.",
         },
       ]);
-    } catch (error) {
+    } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Error connecting to AI" },
+        {
+          role: "assistant",
+          content:
+            "Assistant is temporarily unavailable. Please try again in a moment.",
+        },
       ]);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <>
-      {/* Floating Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 z-40 animate-bounce"
-          aria-label="Open AI Assistant"
+          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl md:bottom-6 md:right-6"
+          aria-label="Open GPT marketplace assistant"
         >
-          <MessageCircle size={24} />
+          <MessageCircle size={18} />
+          <span>Ask GPT</span>
         </button>
       )}
 
-      {/* Chat Modal */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 max-w-[calc(100vw-24px)] bg-card border-2 border-border rounded-2xl shadow-2xl z-50 flex flex-col max-h-[500px]">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-orange-50 to-blue-50 dark:from-orange-950/20 dark:to-blue-950/20 rounded-t-xl">
+        <section className="fixed bottom-20 right-3 z-50 flex h-[70vh] w-[calc(100vw-1.5rem)] max-w-[430px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl md:bottom-6 md:right-6 md:h-[560px]">
+          <header className="flex items-center justify-between border-b border-border/80 bg-gradient-to-r from-orange-50 via-white to-blue-50 px-4 py-3 dark:from-orange-950/20 dark:via-card dark:to-blue-950/20">
             <div>
-              <h3 className="font-bold text-lg text-foreground">{title}</h3>
-              <p className="text-xs text-muted-foreground">Powered by GPT-4</p>
+              <h3 className="text-base font-bold">{title}</h3>
+              <p className="text-xs text-muted-foreground">Always available</p>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Close assistant"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
-          </div>
+          </header>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-background">
+          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/20 p-4">
             {messages.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-center text-muted-foreground text-sm">
-                  👋 {placeholder}
+              <div className="space-y-3">
+                <p className="rounded-xl border border-dashed border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                  {initialHint}
                 </p>
+                <div className="flex flex-wrap gap-2">
+                  {quickQuestions.map((question) => (
+                    <button
+                      key={question}
+                      type="button"
+                      onClick={() => sendMessage(question)}
+                      className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary"
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
-              messages.map((msg, i) => (
+              messages.map((message, index) => (
                 <div
-                  key={i}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  key={`${message.role}-${index}`}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-xs px-4 py-2 rounded-lg text-sm ${
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-none"
-                        : "bg-muted text-foreground rounded-bl-none border border-border"
+                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                      message.role === "user"
+                        ? "rounded-br-sm bg-primary text-primary-foreground"
+                        : "rounded-bl-sm border border-border/70 bg-card"
                     }`}
                   >
-                    {msg.content}
+                    {message.content}
                   </div>
                 </div>
               ))
             )}
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-muted px-4 py-2 rounded-lg">
-                  <Loader className="animate-spin" size={16} />
+                <div className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                  <Loader2 size={15} className="animate-spin" />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Input */}
-          <div className="p-4 border-t border-border flex gap-2 bg-muted/30">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder={placeholder}
-              disabled={loading}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              variant="default"
-              size="sm"
-              className="px-3"
-            >
-              <Send size={16} />
-            </Button>
-          </div>
-        </div>
+          <footer className="border-t border-border/80 bg-background p-3">
+            <div className="flex items-center gap-2">
+              <Input
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (canSend) {
+                      sendMessage(input);
+                    }
+                  }
+                }}
+                placeholder={placeholder}
+                disabled={loading}
+                aria-label="Ask GPT assistant"
+              />
+              <Button
+                onClick={() => sendMessage(input)}
+                disabled={!canSend}
+                size="sm"
+                className="h-10 px-3"
+              >
+                <Send size={14} />
+              </Button>
+            </div>
+          </footer>
+        </section>
       )}
     </>
   );

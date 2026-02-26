@@ -1,239 +1,270 @@
 import Link from "next/link";
 import { ListingStatus } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+  ArrowRight,
+  CheckCircle2,
+  Globe,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { prisma } from "@/lib/prisma";
 import { ListingCard } from "@/components/listing-card";
-import { Container } from "@/components/ui/container";
-import { AIHelper } from "@/components/ai-helper";
-import { CheckCircle2, Zap, Shield } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const pricingPlans = [
+  {
+    name: "Pay Per Listing",
+    price: "$4",
+    cadence: "for 30 days",
+    description: "Great for occasional sellers",
+    bullets: [
+      "One active listing for 30 days",
+      "GPT writing assistant",
+      "Photos and dynamic category fields",
+      "Basic seller insights",
+    ],
+    cta: "Start with $4",
+    href: "/sell",
+    featured: false,
+  },
+  {
+    name: "Seller Subscription",
+    price: "$30",
+    cadence: "per month",
+    description: "Best for active stores and resellers",
+    bullets: [
+      "Unlimited active listings",
+      "Priority marketplace support",
+      "Advanced analytics dashboard",
+      "Higher visibility options",
+    ],
+    cta: "Subscribe for $30",
+    href: "/sell",
+    featured: true,
+  },
+];
 
 export default async function Home() {
-  const latestListings = await prisma.listing.findMany({
-    where: { status: ListingStatus.ACTIVE },
-    include: {
-      city: true,
-      category: {
-        include: {
-          fieldTemplates: {
-            where: { isActive: true },
-            orderBy: { order: "asc" },
+  const [latestListings, categoryHighlights] = await Promise.all([
+    prisma.listing.findMany({
+      where: { status: ListingStatus.ACTIVE },
+      include: {
+        city: true,
+        category: {
+          include: {
+            parent: true,
+            fieldTemplates: {
+              where: { isActive: true },
+              orderBy: { order: "asc" },
+            },
           },
         },
+        images: true,
+        fieldValues: true,
       },
-      images: true,
-      fieldValues: true,
-    },
-    orderBy: { createdAt: "desc" },
-    take: 12,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 9,
+    }),
+    prisma.category.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        _count: { select: { listings: true } },
+      },
+      orderBy: { listings: { _count: "desc" } },
+      take: 6,
+    }),
+  ]);
 
   return (
-    <div>
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-orange-50 via-blue-50 to-white dark:from-orange-950/30 dark:via-blue-950/30 dark:to-background py-16 md:py-24 -mx-6 px-6 mb-12">
-        <Container className="text-center space-y-6">
-          <div className="space-y-4">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold">
-              <span className="bg-gradient-to-r from-orange-600 to-orange-500 dark:from-orange-400 dark:to-orange-300 bg-clip-text text-transparent">
-                Buy & Sell
-              </span>
-              <span className="block text-foreground mt-2">
-                Anything, Anywhere
+    <div className="space-y-12 md:space-y-16">
+      <section className="hero-surface overflow-hidden rounded-3xl border border-border/70 px-5 py-10 sm:px-8 sm:py-12 md:px-12 md:py-16">
+        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+          <div className="space-y-6">
+            <Badge className="rounded-full border border-secondary/25 bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary">
+              Built for Macedonia. Ready for worldwide reach.
+            </Badge>
+            <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+              Buy and Sell Fast
+              <span className="block bg-gradient-to-r from-orange-500 to-blue-600 bg-clip-text text-transparent">
+                in a Clear Marketplace
               </span>
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Macedonia's trusted marketplace. List items in seconds with AI
-              assistance. Safe, fast, reliable.
+            <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
+              Comfortable on phone and desktop, focused on readability, and
+              powered by GPT help across the full site.
             </p>
-          </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Link href="/browse">
-              <Button size="lg" className="w-full sm:w-auto">
-                Start Browsing
-              </Button>
-            </Link>
-            <Link href="/sell">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                Start Selling
-              </Button>
-            </Link>
-          </div>
-
-          {/* Features */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8">
-            {[
-              {
-                icon: Zap,
-                label: "List in Seconds",
-                desc: "AI helps you write descriptions",
-              },
-              {
-                icon: Shield,
-                label: "Safe Trading",
-                desc: "Verified users & secure transactions",
-              },
-              {
-                icon: CheckCircle2,
-                label: "Best Prices",
-                desc: "Compare & find the best deals",
-              },
-            ].map((feature) => (
-              <div
-                key={feature.label}
-                className="flex flex-col items-center gap-2"
-              >
-                <feature.icon className="text-primary" size={32} />
-                <p className="font-semibold text-foreground">{feature.label}</p>
-                <p className="text-sm text-muted-foreground">{feature.desc}</p>
-              </div>
-            ))}
-          </div>
-        </Container>
-      </div>
-
-      {/* Pricing Section */}
-      <Container className="mb-16">
-        <div className="text-center space-y-4 mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold">
-            Simple, Transparent Pricing
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Choose the plan that works for you
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-          {/* Pay Per Listing */}
-          <Card className="border-2 hover:border-primary transition-colors transform hover:scale-105 duration-200">
-            <CardHeader>
-              <CardTitle>Pay Per Listing</CardTitle>
-              <CardDescription>Perfect for occasional sellers</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center py-4">
-                <span className="text-4xl font-bold text-primary">$4</span>
-                <p className="text-sm text-muted-foreground">
-                  per listing • 30 days
-                </p>
-              </div>
-              <ul className="space-y-2 text-sm">
-                {[
-                  "List 1 item for 30 days",
-                  "AI writing assistant",
-                  "Photo uploads",
-                  "Basic analytics",
-                ].map((feature) => (
-                  <li key={feature} className="flex gap-2">
-                    <CheckCircle2
-                      size={16}
-                      className="text-success flex-shrink-0 mt-0.5"
-                    />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Button className="w-full mt-4">Get Started</Button>
-            </CardContent>
-          </Card>
-
-          {/* Subscription */}
-          <Card className="border-2 border-orange-400 dark:border-orange-500 bg-gradient-to-br from-orange-50 to-blue-50 dark:from-orange-950/20 dark:to-blue-950/20 transform hover:scale-105 duration-200">
-            <div className="absolute -top-3 left-6">
-              <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-bold">
-                MOST POPULAR
-              </span>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/browse">
+                <Button size="lg" className="gap-2">
+                  Explore Listings <ArrowRight size={16} />
+                </Button>
+              </Link>
+              <Link href="/sell">
+                <Button size="lg" variant="outline">
+                  Start Selling
+                </Button>
+              </Link>
             </div>
-            <CardHeader>
-              <CardTitle>Premium Seller</CardTitle>
-              <CardDescription>For serious sellers</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center py-4">
-                <span className="text-4xl font-bold text-primary">$30</span>
-                <p className="text-sm text-muted-foreground">
-                  per month (cancel anytime)
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border/70 bg-card p-3">
+                <Sparkles className="mb-2 text-primary" size={18} />
+                <p className="text-sm font-semibold">GPT Assistance</p>
+                <p className="text-xs text-muted-foreground">
+                  Write stronger listings and get instant advice.
                 </p>
               </div>
-              <ul className="space-y-2 text-sm">
-                {[
-                  "Unlimited listings",
-                  "Priority AI assistant",
-                  "Advanced analytics",
-                  "Higher search visibility",
-                  "24/7 seller support",
-                ].map((feature) => (
-                  <li key={feature} className="flex gap-2">
-                    <CheckCircle2
-                      size={16}
-                      className="text-primary flex-shrink-0 mt-0.5"
-                    />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Button className="w-full mt-4" variant="default">
-                Subscribe Now
-              </Button>
+              <div className="rounded-2xl border border-border/70 bg-card p-3">
+                <ShieldCheck className="mb-2 text-secondary" size={18} />
+                <p className="text-sm font-semibold">Safer Trading</p>
+                <p className="text-xs text-muted-foreground">
+                  Moderation tools and reporting flow for trust.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-card p-3">
+                <Globe className="mb-2 text-primary" size={18} />
+                <p className="text-sm font-semibold">Local + Global</p>
+                <p className="text-xs text-muted-foreground">
+                  Sell in Macedonia and publish globally.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Card className="border-primary/20 bg-card/80">
+            <CardHeader className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Popular categories
+              </p>
+              <CardTitle className="text-2xl">What people buy now</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {categoryHighlights.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/browse?cat=${category.id}`}
+                  className="flex items-center justify-between rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm transition-colors hover:border-primary/35 hover:bg-orange-50/50 dark:hover:bg-orange-500/10"
+                >
+                  <span className="font-medium">{category.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {category._count.listings} listings
+                  </span>
+                </Link>
+              ))}
+              <Link href="/categories" className="inline-block pt-2">
+                <Button variant="ghost" className="gap-1 px-0">
+                  View all categories <ArrowRight size={14} />
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
-      </Container>
+      </section>
 
-      {/* Latest Listings */}
-      <Container className="mb-16">
-        <div className="space-y-8">
+      <section className="space-y-6">
+        <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-2">
-              Latest Listings
-            </h2>
+            <h2 className="text-3xl font-bold">Seller Pricing</h2>
             <p className="text-muted-foreground">
-              Check out what's hot right now
+              Simple model: $4 one listing for 30 days, or $30 monthly
+              subscription.
             </p>
           </div>
+        </div>
 
-          {latestListings.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground mb-4">
-                  No listings yet. Be the first to sell!
+        <div className="grid gap-4 md:grid-cols-2">
+          {pricingPlans.map((plan) => (
+            <Card
+              key={plan.name}
+              className={
+                plan.featured
+                  ? "border-primary/35 bg-gradient-to-br from-orange-50/70 via-card to-blue-50/70 dark:from-orange-950/20 dark:to-blue-950/20"
+                  : ""
+              }
+            >
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  {plan.featured && (
+                    <Badge variant="primary" className="rounded-full px-3 py-1">
+                      Recommended
+                    </Badge>
+                  )}
+                  <h3 className="text-2xl font-bold">{plan.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {plan.description}
+                  </p>
+                </div>
+                <p className="text-4xl font-black">
+                  {plan.price}
+                  <span className="ml-2 text-sm font-medium text-muted-foreground">
+                    {plan.cadence}
+                  </span>
                 </p>
-                <Link href="/sell">
-                  <Button>Create Your First Listing</Button>
+                <ul className="space-y-2">
+                  {plan.bullets.map((bullet) => (
+                    <li key={bullet} className="flex items-start gap-2 text-sm">
+                      <CheckCircle2
+                        size={16}
+                        className="mt-0.5 shrink-0 text-primary"
+                      />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link href={plan.href}>
+                  <Button
+                    className="w-full"
+                    variant={plan.featured ? "default" : "outline"}
+                  >
+                    {plan.cta}
+                  </Button>
                 </Link>
               </CardContent>
             </Card>
-          ) : (
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold">Latest Listings</h2>
+          <p className="text-muted-foreground">
+            Fresh items from sellers in Macedonia and beyond.
+          </p>
+        </div>
+
+        {latestListings.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">
+                No active listings yet. Create the first one.
+              </p>
+              <Link href="/sell" className="mt-4 inline-block">
+                <Button>List an Item</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
             <div className="responsive-grid gap-4">
               {latestListings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
             </div>
-          )}
-
-          <div className="text-center pt-8">
-            <Link href="/browse">
-              <Button variant="outline" size="lg">
-                View All Listings
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </Container>
-
-      {/* AI Assistant */}
-      <AIHelper
-        context="You are a helpful marketplace assistant. Help users find products, write descriptions, or answer questions about buying and selling."
-        placeholder="Need help? Ask me anything!"
-        title="Marketplace Assistant"
-      />
+            <div className="text-center">
+              <Link href="/browse">
+                <Button variant="outline">Browse all listings</Button>
+              </Link>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }

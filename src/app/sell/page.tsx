@@ -2,11 +2,12 @@ import Link from "next/link";
 import { ListingStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { CirclePlus, Edit3, FolderClock, Megaphone } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ListingForm } from "@/components/listing-form";
 import {
   getDynamicFieldEntries,
@@ -16,12 +17,21 @@ import {
   validatePublishInputs,
 } from "@/lib/listing-fields";
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+function resolveActiveUntil(status: ListingStatus, plan: string) {
+  if (status !== ListingStatus.ACTIVE) return null;
+  if (plan === "subscription") return null;
+  return new Date(Date.now() + THIRTY_DAYS_MS);
+}
+
 async function createListing(formData: FormData) {
   "use server";
 
   const user = await requireUser();
   const intent = String(formData.get("intent") || "draft");
   const status = statusFromIntent(intent);
+  const plan = String(formData.get("plan") || "pay-per-listing");
 
   const title = String(formData.get("title") || "").trim();
   const description = String(formData.get("description") || "").trim();
@@ -63,6 +73,7 @@ async function createListing(formData: FormData) {
         cityId,
         condition,
         status,
+        activeUntil: resolveActiveUntil(status, plan),
       },
     });
 
@@ -99,6 +110,33 @@ async function deleteDraft(formData: FormData) {
   revalidatePath("/sell");
 }
 
+async function requestCategory(formData: FormData) {
+  "use server";
+  const user = await requireUser();
+
+  const desiredName = String(formData.get("desiredName") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+  const parentIdRaw = String(formData.get("parentId") || "").trim();
+  const parentId = parentIdRaw || null;
+
+  if (desiredName.length < 3) {
+    redirect("/sell?error=Category%20request%20needs%20at%20least%203%20characters.");
+  }
+
+  await prisma.categoryRequest.create({
+    data: {
+      requesterId: user.id,
+      desiredName,
+      description: description || null,
+      parentId,
+    },
+  });
+
+  revalidatePath("/sell");
+  revalidatePath("/admin");
+  redirect("/sell?requested=1");
+}
+
 export default async function SellPage({
   searchParams,
 }: {
@@ -108,8 +146,17 @@ export default async function SellPage({
   const sp = await searchParams;
   const tab = sp.tab === "active" ? "active" : "draft";
   const error = sp.error;
+  const requested = sp.requested === "1";
 
-  const [categories, cities, listings, templates] = await Promise.all([
+  const [
+    categories,
+    cities,
+    listings,
+    templates,
+    draftCount,
+    activeCount,
+    recentCategoryRequests,
+  ] = await Promise.all([
     prisma.category.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -121,157 +168,244 @@ export default async function SellPage({
         status: tab === "active" ? ListingStatus.ACTIVE : ListingStatus.DRAFT,
       },
       orderBy: { updatedAt: "desc" },
+      include: {
+        category: true,
+      },
     }),
     prisma.categoryFieldTemplate.findMany({
       where: { isActive: true, category: { isActive: true } },
       orderBy: [{ categoryId: "asc" }, { order: "asc" }],
+    }),
+    prisma.listing.count({
+      where: { sellerId: user.id, status: ListingStatus.DRAFT },
+    }),
+    prisma.listing.count({
+      where: { sellerId: user.id, status: ListingStatus.ACTIVE },
+    }),
+    prisma.categoryRequest.findMany({
+      where: { requesterId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 5,
     }),
   ]);
 
   const templatesByCategory = groupTemplatesByCategory(
     normalizeTemplates(templates),
   );
+  const initialCategoryId =
+    sp.categoryId && categories.some((category) => category.id === sp.categoryId)
+      ? sp.categoryId
+      : undefined;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-4xl md:text-5xl font-bold">Sell Dashboard</h1>
-        <p className="text-lg text-muted-foreground">
-          Create and manage your listings with ease
-        </p>
-      </div>
+    <div className="space-y-7">
+      <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-black sm:text-5xl">Seller Dashboard</h1>
+          <p className="max-w-2xl text-muted-foreground">
+            Publish faster with category-specific fields, GPT support, and clear
+            pricing plans.
+          </p>
+        </div>
+      </section>
 
-      {/* Create Listing Card */}
-      <Card className="border-2 bg-gradient-to-br from-card to-card/50">
-        <CardContent className="pt-8 space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">📝 Create New Listing</h2>
-            <p className="text-muted-foreground text-sm">
-              AI will help you write compelling descriptions and set optimal
-              prices
-            </p>
-          </div>
+      {error && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="py-4 text-sm text-destructive">
+            {error}
+          </CardContent>
+        </Card>
+      )}
+      {requested && (
+        <Card className="border-success/30 bg-success/10">
+          <CardContent className="py-4 text-sm text-success">
+            Category request submitted. Admin will review it soon.
+          </CardContent>
+        </Card>
+      )}
 
-          {error && (
-            <div className="rounded-lg border-2 border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-              <span className="font-semibold">Error:</span> {error}
-            </div>
-          )}
-
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle>Create a new listing</CardTitle>
+        </CardHeader>
+        <CardContent>
           <ListingForm
             action={createListing}
             categories={categories}
             cities={cities}
             templatesByCategory={templatesByCategory}
+            initial={{ categoryId: initialCategoryId }}
           />
         </CardContent>
       </Card>
 
-      {/* Listings Tabs */}
-      <div className="space-y-4">
-        <div className="flex gap-2 border-b border-border">
+      <Card id="category-request">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <CirclePlus size={18} className="text-primary" />
+            Request a new category
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form action={requestCategory} className="grid gap-3 md:grid-cols-2">
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-sm font-medium">Category name</span>
+              <input
+                name="desiredName"
+                required
+                minLength={3}
+                className="h-10 w-full rounded-xl border border-border bg-input px-3 text-sm"
+                placeholder="Example: Industrial Equipment"
+              />
+            </label>
+
+            <label className="space-y-1 md:col-span-1">
+              <span className="text-sm font-medium">Closest parent category</span>
+              <select
+                name="parentId"
+                defaultValue=""
+                className="h-10 w-full rounded-xl border border-border bg-input px-3 text-sm"
+              >
+                <option value="">No parent (top-level)</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1 md:col-span-2">
+              <span className="text-sm font-medium">Reason / details</span>
+              <textarea
+                name="description"
+                className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
+                placeholder="What should be searchable in this category?"
+              />
+            </label>
+
+            <Button className="md:col-span-2" type="submit">
+              Submit category request
+            </Button>
+          </form>
+
+          {recentCategoryRequests.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Your latest requests</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {recentCategoryRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="rounded-xl border border-border/70 bg-muted/20 p-3 text-sm"
+                  >
+                    <p className="font-semibold">{request.desiredName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(request.createdAt).toLocaleDateString()}
+                    </p>
+                    <Badge
+                      className="mt-2"
+                      variant={
+                        request.status === "APPROVED"
+                          ? "success"
+                          : request.status === "REJECTED"
+                            ? "destructive"
+                            : "warning"
+                      }
+                    >
+                      {request.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border/80 pb-2">
           <Link href="/sell?tab=draft">
-            <Button
-              variant={tab === "draft" ? "default" : "ghost"}
-              className="border-b-2 border-transparent"
-            >
-              📋{" "}
-              {listings.filter((l) => l.status === ListingStatus.DRAFT).length}{" "}
-              Drafts
+            <Button variant={tab === "draft" ? "default" : "ghost"}>
+              <FolderClock size={14} className="mr-1" />
+              Drafts ({draftCount})
             </Button>
           </Link>
           <Link href="/sell?tab=active">
-            <Button
-              variant={tab === "active" ? "default" : "ghost"}
-              className="border-b-2 border-transparent"
-            >
-              ✅{" "}
-              {listings.filter((l) => l.status === ListingStatus.ACTIVE).length}{" "}
-              Active
+            <Button variant={tab === "active" ? "default" : "ghost"}>
+              <Megaphone size={14} className="mr-1" />
+              Active ({activeCount})
             </Button>
           </Link>
         </div>
 
-        {/* Listings Grid */}
         {listings.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground mb-4">
-                No {tab} listings yet.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {tab === "draft"
-                  ? "Start creating your first listing above!"
-                  : "Publish a draft to see it here."}
-              </p>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              No {tab} listings yet.
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {listings.map((listing) => (
-              <Card
-                key={listing.id}
-                className="hover:shadow-lg transition-shadow"
-              >
-                <CardContent className="p-4 space-y-3">
+              <Card key={listing.id} className="border-border/75">
+                <CardContent className="space-y-3">
                   <div>
-                    <h3 className="font-bold text-lg line-clamp-2">
-                      {listing.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <h3 className="line-clamp-2 text-lg font-bold">{listing.title}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {listing.category.name} · updated{" "}
                       {new Date(listing.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
 
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge
                       variant={
                         listing.status === ListingStatus.ACTIVE
-                          ? "primary"
+                          ? "success"
                           : "secondary"
                       }
                     >
-                      {listing.status === ListingStatus.ACTIVE
-                        ? "🟢 Active"
-                        : "📋 Draft"}
+                      {listing.status}
                     </Badge>
+                    {listing.activeUntil && (
+                      <Badge variant="warning">
+                        Ends {new Date(listing.activeUntil).toLocaleDateString()}
+                      </Badge>
+                    )}
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex gap-2">
                     <Link href={`/sell/${listing.id}/edit`} className="flex-1">
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        type="button"
-                      >
+                      <Button variant="outline" className="w-full">
+                        <Edit3 size={14} className="mr-1" />
                         Edit
                       </Button>
                     </Link>
                     <Link href={`/listing/${listing.id}`} className="flex-1">
-                      <Button variant="ghost" className="w-full" type="button">
+                      <Button variant="ghost" className="w-full">
                         View
                       </Button>
                     </Link>
-                    {listing.status === ListingStatus.DRAFT && (
-                      <form action={deleteDraft} className="flex-1">
-                        <input type="hidden" name="id" value={listing.id} />
-                        <Button
-                          variant="destructive"
-                          className="w-full"
-                          type="submit"
-                        >
-                          Delete
-                        </Button>
-                      </form>
-                    )}
                   </div>
+
+                  {listing.status === ListingStatus.DRAFT && (
+                    <form action={deleteDraft}>
+                      <input type="hidden" name="id" value={listing.id} />
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        type="submit"
+                      >
+                        Delete draft
+                      </Button>
+                    </form>
+                  )}
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

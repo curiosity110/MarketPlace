@@ -4,12 +4,14 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
 import { Container } from "@/components/ui/container";
+import { SiteAssistant } from "@/components/site-assistant";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MarketPlace MK",
-  description: "Macedonia-only marketplace",
+  title: "MarketPlace MKD",
+  description:
+    "Business marketplace for Macedonia and worldwide trading. Buy and sell securely.",
 };
 
 export default function RootLayout({
@@ -22,13 +24,18 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
           <div className="min-h-screen bg-background text-foreground">
             <Nav />
-            <Container className="py-6">{children}</Container>
+            <main>
+              <Container className="pb-28 pt-6 md:pb-10 md:pt-8">
+                {children}
+              </Container>
+            </main>
+            <SiteAssistant />
           </div>
         </ThemeProvider>
       </body>

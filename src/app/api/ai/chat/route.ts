@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { askGPT } from "@/lib/openai";
 
 export const runtime = "nodejs";
+const MAX_QUESTION_LENGTH = 1500;
 
 export async function POST(request: Request) {
   try {
@@ -15,8 +16,17 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    if (question.length > MAX_QUESTION_LENGTH) {
+      return NextResponse.json(
+        { error: `Question is too long (max ${MAX_QUESTION_LENGTH} characters).` },
+        { status: 400 },
+      );
+    }
 
-    const answer = await askGPT(question, systemContext);
+    const answer = await askGPT(
+      question.trim(),
+      typeof systemContext === "string" ? systemContext : undefined,
+    );
 
     return NextResponse.json({ answer });
   } catch (error) {

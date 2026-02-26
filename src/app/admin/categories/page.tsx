@@ -3,13 +3,14 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
 async function toggleCategory(formData: FormData) {
   "use server";
   await requireAdmin();
+
   const categoryId = String(formData.get("categoryId") || "");
   const isActive = String(formData.get("isActive") || "") === "true";
 
@@ -17,9 +18,11 @@ async function toggleCategory(formData: FormData) {
     where: { id: categoryId },
     data: { isActive: !isActive },
   });
+
   revalidatePath("/admin/categories");
   revalidatePath("/sell");
   revalidatePath("/browse");
+  revalidatePath("/categories");
 }
 
 async function createTemplate(formData: FormData) {
@@ -56,6 +59,7 @@ async function createTemplate(formData: FormData) {
   });
 
   revalidatePath("/admin/categories");
+  revalidatePath("/sell");
 }
 
 async function updateTemplate(formData: FormData) {
@@ -73,6 +77,7 @@ async function updateTemplate(formData: FormData) {
   });
 
   revalidatePath("/admin/categories");
+  revalidatePath("/sell");
 }
 
 async function deleteTemplate(formData: FormData) {
@@ -89,21 +94,27 @@ export default async function AdminCategoriesPage() {
 
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
-    include: { fieldTemplates: { orderBy: { order: "asc" } } },
+    include: {
+      fieldTemplates: { orderBy: { order: "asc" } },
+    },
   });
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Admin · Categories</h1>
+      <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
+        <h1 className="text-4xl font-black">Category Template Builder</h1>
+        <p className="mt-2 text-muted-foreground">
+          Control category availability and dynamic fields shown in sell and browse.
+        </p>
+      </section>
+
       {categories.map((category) => (
-        <Card key={category.id}>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+        <Card key={category.id} className="border-border/75">
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-medium">{category.name}</h2>
-                <p className="text-xs text-muted-foreground">
-                  /{category.slug}
-                </p>
+                <CardTitle className="text-2xl">{category.name}</CardTitle>
+                <p className="text-xs text-muted-foreground">/{category.slug}</p>
               </div>
               <form action={toggleCategory}>
                 <input type="hidden" name="categoryId" value={category.id} />
@@ -120,17 +131,22 @@ export default async function AdminCategoriesPage() {
                 </Button>
               </form>
             </div>
+          </CardHeader>
 
-            <div className="space-y-2">
+          <CardContent className="space-y-4">
+            <div className="grid gap-3">
+              {category.fieldTemplates.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No templates yet for this category.
+                </p>
+              )}
+
               {category.fieldTemplates.map((template) => (
                 <div
                   key={template.id}
-                  className="rounded-md border border-border p-2"
+                  className="rounded-2xl border border-border/70 bg-muted/20 p-3"
                 >
-                  <form
-                    action={updateTemplate}
-                    className="grid gap-2 md:grid-cols-6"
-                  >
+                  <form action={updateTemplate} className="grid gap-2 md:grid-cols-6">
                     <input type="hidden" name="id" value={template.id} />
                     <Input
                       name="label"
@@ -138,33 +154,33 @@ export default async function AdminCategoriesPage() {
                       className="md:col-span-2"
                     />
                     <Input value={template.key} readOnly className="bg-muted" />
-                    <Input
-                      value={template.type}
-                      readOnly
-                      className="bg-muted"
-                    />
+                    <Input value={template.type} readOnly className="bg-muted" />
+
                     <label className="flex items-center gap-1 text-xs">
                       <input
                         type="checkbox"
                         name="required"
                         defaultChecked={template.required}
-                      />{" "}
+                      />
                       Required
                     </label>
+
                     <label className="flex items-center gap-1 text-xs">
                       <input
                         type="checkbox"
                         name="isActive"
                         defaultChecked={template.isActive}
-                      />{" "}
+                      />
                       Active
                     </label>
-                    <div className="md:col-span-6 flex gap-2">
+
+                    <div className="md:col-span-6 flex flex-wrap gap-2">
                       <Button type="submit" variant="outline">
                         Save template
                       </Button>
                     </div>
                   </form>
+
                   <form action={deleteTemplate} className="mt-2">
                     <input type="hidden" name="id" value={template.id} />
                     <Button type="submit" variant="destructive">
@@ -177,10 +193,10 @@ export default async function AdminCategoriesPage() {
 
             <form
               action={createTemplate}
-              className="grid gap-2 rounded-md border border-dashed border-border p-3 md:grid-cols-7"
+              className="grid gap-2 rounded-2xl border border-dashed border-border p-3 md:grid-cols-7"
             >
               <input type="hidden" name="categoryId" value={category.id} />
-              <Input name="key" placeholder="key (e.g. brand)" required />
+              <Input name="key" placeholder="key (example: brand)" required />
               <Input name="label" placeholder="Label" required />
               <Select name="type" defaultValue={CategoryFieldType.TEXT}>
                 {Object.values(CategoryFieldType).map((type) => (
@@ -197,7 +213,8 @@ export default async function AdminCategoriesPage() {
               />
               <Input name="options" placeholder="a,b,c for SELECT" />
               <label className="flex items-center gap-1 text-xs">
-                <input type="checkbox" name="required" /> Required
+                <input type="checkbox" name="required" />
+                Required
               </label>
               <Button className="md:col-span-7" type="submit">
                 Add template

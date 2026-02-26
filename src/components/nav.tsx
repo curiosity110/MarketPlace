@@ -4,74 +4,79 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { en } from "@/messages/en";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 
 export async function Nav() {
   const user = await getSessionUser();
+  const isAdmin = user?.role === "ADMIN";
 
   return (
-    <nav className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-      <Container className="flex items-center justify-between py-4">
-        <div className="flex items-center gap-8">
-          <Link
-            href="/"
-            className="font-bold text-xl bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
-          >
-            {en.appName}
-          </Link>
+    <>
+      <nav className="sticky top-0 z-50 border-b border-border/70 bg-background/95 backdrop-blur-sm">
+        <Container className="flex items-center justify-between gap-3 py-3">
+          <div className="flex items-center gap-6">
+            <Link
+              href="/"
+              className="rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 px-4 py-1.5 text-sm font-bold tracking-wide text-white shadow-sm transition-opacity hover:opacity-90"
+            >
+              {en.appName}
+            </Link>
 
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link
-              href="/browse"
-              className="text-foreground/70 hover:text-primary transition-colors"
-            >
-              {en.nav.browse}
-            </Link>
-            <Link
-              href="/categories"
-              className="text-foreground/70 hover:text-primary transition-colors"
-            >
-              Categories
-            </Link>
-            <Link
-              href="/sell"
-              className="text-foreground/70 hover:text-primary transition-colors"
-            >
-              {en.nav.sell}
-            </Link>
-            {user?.role === "ADMIN" && (
-              <div className="flex items-center gap-4 ml-4 pl-4 border-l border-border">
+            <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-muted/30 p-1 md:flex">
+              <Link
+                href="/browse"
+                className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
+              >
+                {en.nav.browse}
+              </Link>
+              <Link
+                href="/categories"
+                className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
+              >
+                {en.nav.categories}
+              </Link>
+              <Link
+                href="/sell"
+                className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
+              >
+                {en.nav.sell}
+              </Link>
+              {isAdmin && (
                 <Link
                   href="/admin"
-                  className="text-foreground/70 hover:text-secondary transition-colors"
+                  className="rounded-full px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/15"
                 >
                   {en.nav.admin}
                 </Link>
-                <Link
-                  href="/admin/subscriptions"
-                  className="text-foreground/70 hover:text-secondary transition-colors"
-                >
-                  Subscriptions
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {user ? (
+              <form action="/api/auth/logout" method="post" className="contents">
+                <Button variant="outline" size="sm" type="submit">
+                  {en.nav.logout}
+                </Button>
+              </form>
+            ) : (
+              <div className="hidden items-center gap-2 sm:flex">
+                <Link href="/register">
+                  <Button variant="outline" size="sm">
+                    {en.nav.register}
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button size="sm">{en.nav.login}</Button>
                 </Link>
               </div>
             )}
           </div>
-        </div>
+        </Container>
+      </nav>
 
-        <div className="flex items-center gap-4">
-          <ThemeToggle />
-          {user ? (
-            <form action="/api/auth/logout" method="post" className="contents">
-              <Button variant="outline" size="sm" type="submit">
-                {en.nav.logout}
-              </Button>
-            </form>
-          ) : (
-            <Link href="/login">
-              <Button size="sm">{en.nav.login}</Button>
-            </Link>
-          )}
-        </div>
-      </Container>
-    </nav>
+      <MobileBottomNav isAdmin={isAdmin} isLoggedIn={Boolean(user)} />
+    </>
   );
 }

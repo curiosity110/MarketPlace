@@ -53,6 +53,7 @@ export function CategoryCard({
   const styles = colorStyles[color];
   const content = (
     <div
+      data-category-id={id}
       className={cn(
         "flex flex-col items-start gap-3 rounded-xl p-4 border-2 transition-all duration-200",
         styles.bg,

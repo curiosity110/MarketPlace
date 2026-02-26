@@ -1,75 +1,117 @@
 import Link from "next/link";
-import { ListingCondition, ListingStatus, Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import {
+  CategoryFieldType,
+  ListingCondition,
+  ListingStatus,
+  Prisma,
+} from "@prisma/client";
+import { SlidersHorizontal } from "lucide-react";
+import { BrowseFilters } from "@/components/browse-filters";
+import { ListingCard } from "@/components/listing-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ListingCard } from "@/components/listing-card";
+import { prisma } from "@/lib/prisma";
+import { parseTemplateOptions } from "@/lib/listing-fields";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 18;
+type BrowseTemplate = {
+  key: string;
+  label: string;
+  type: CategoryFieldType;
+  options: string[];
+};
 
 function getParam(
-  sp: Record<string, string | string[] | undefined>,
+  params: Record<string, string | string[] | undefined>,
   key: string,
 ) {
-  const v = sp[key];
-  if (typeof v === "string") return v;
-  if (Array.isArray(v)) return v[0];
-  return undefined;
+  const value = params[key];
+  if (Array.isArray(value)) return value[0];
+  return value;
 }
 
 export default async function BrowsePage({
   searchParams,
 }: {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const search = getParam(searchParams, "q")?.trim();
-  const cat = getParam(searchParams, "cat"); // parent category id
-  const sub = getParam(searchParams, "sub"); // child category id
-  const city = getParam(searchParams, "city");
-  const condition = getParam(searchParams, "condition");
-  const sort = getParam(searchParams, "sort") || "newest";
-  const page = Math.max(1, Number(getParam(searchParams, "page") || 1));
-
-  const minRaw = getParam(searchParams, "min")
-    ? Number(getParam(searchParams, "min"))
-    : undefined;
-  const maxRaw = getParam(searchParams, "max")
-    ? Number(getParam(searchParams, "max"))
-    : undefined;
+  const sp = await searchParams;
+  const search = getParam(sp, "q")?.trim();
+  const cat = getParam(sp, "cat");
+  const sub = getParam(sp, "sub");
+  const city = getParam(sp, "city");
+  const condition = getParam(sp, "condition");
+  const sort = getParam(sp, "sort") || "newest";
+  const page = Math.max(1, Number(getParam(sp, "page") || 1));
+  const minRaw = Number(getParam(sp, "min") ?? "");
+  const maxRaw = Number(getParam(sp, "max") ?? "");
+  const categoryId = sub || cat || undefined;
 
   const minCents =
-    minRaw !== undefined && Number.isFinite(minRaw) && minRaw >= 0
-      ? Math.floor(minRaw * 100)
-      : undefined;
+    Number.isFinite(minRaw) && minRaw >= 0 ? Math.round(minRaw * 100) : undefined;
   const maxCents =
-    maxRaw !== undefined && Number.isFinite(maxRaw) && maxRaw >= 0
-      ? Math.floor(maxRaw * 100)
-      : undefined;
+    Number.isFinite(maxRaw) && maxRaw >= 0 ? Math.round(maxRaw * 100) : undefined;
 
-  const priceCents: Prisma.IntFilter = {
-    ...(minCents !== undefined ? { gte: minCents } : {}),
-    ...(maxCents !== undefined ? { lte: maxCents } : {}),
-  };
+  const [safeMinCents, safeMaxCents] =
+    minCents !== undefined &&
+    maxCents !== undefined &&
+    minCents > maxCents
+      ? [maxCents, minCents]
+      : [minCents, maxCents];
 
-  // If sub is present, use it. Else if cat is present, use it.
-  const categoryId = sub || cat || undefined;
+  const dynamicFilters = Object.entries(sp)
+    .map(([key, value]) => [key, Array.isArray(value) ? value[0] : value] as const)
+    .filter(([key, value]) => key.startsWith("df_") && typeof value === "string")
+    .map(([key, value]) => ({
+      key: key.slice(3),
+      value: String(value).trim(),
+    }))
+    .filter((entry) => entry.value.length > 0);
+
+  const andFilters: Prisma.ListingWhereInput[] = [];
+
+  if (search) {
+    andFilters.push({
+      OR: [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  if (categoryId) {
+    andFilters.push({ categoryId });
+  }
+  if (city) {
+    andFilters.push({ cityId: city });
+  }
+  if (condition) {
+    andFilters.push({ condition: condition as ListingCondition });
+  }
+  if (safeMinCents !== undefined || safeMaxCents !== undefined) {
+    andFilters.push({
+      priceCents: {
+        ...(safeMinCents !== undefined ? { gte: safeMinCents } : {}),
+        ...(safeMaxCents !== undefined ? { lte: safeMaxCents } : {}),
+      },
+    });
+  }
+
+  dynamicFilters.forEach((entry) => {
+    andFilters.push({
+      fieldValues: {
+        some: {
+          key: entry.key,
+          value: { contains: entry.value, mode: "insensitive" },
+        },
+      },
+    });
+  });
 
   const where: Prisma.ListingWhereInput = {
     status: ListingStatus.ACTIVE,
-    ...(search
-      ? {
-          OR: [
-            { title: { contains: search, mode: "insensitive" } },
-            { description: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : {}),
-    ...(categoryId ? { categoryId } : {}),
-    ...(city ? { cityId: city } : {}),
-    ...(condition ? { condition: condition as ListingCondition } : {}),
-    ...(Object.keys(priceCents).length ? { priceCents } : {}),
+    ...(andFilters.length > 0 ? { AND: andFilters } : {}),
   };
 
   const [listings, totalCount, parentCategories, cities] = await Promise.all([
@@ -77,7 +119,15 @@ export default async function BrowsePage({
       where,
       include: {
         city: true,
-        category: { include: { parent: true } },
+        category: {
+          include: {
+            parent: true,
+            fieldTemplates: {
+              where: { isActive: true },
+              orderBy: { order: "asc" },
+            },
+          },
+        },
         images: true,
         fieldValues: true,
       },
@@ -94,180 +144,169 @@ export default async function BrowsePage({
     prisma.category.findMany({
       where: { isActive: true, parentId: null },
       include: {
-        children: { where: { isActive: true }, orderBy: { name: "asc" } },
+        fieldTemplates: {
+          where: { isActive: true },
+          orderBy: { order: "asc" },
+        },
+        children: {
+          where: { isActive: true },
+          orderBy: { name: "asc" },
+          include: {
+            fieldTemplates: {
+              where: { isActive: true },
+              orderBy: { order: "asc" },
+            },
+          },
+        },
       },
       orderBy: { name: "asc" },
     }),
     prisma.city.findMany({ orderBy: { name: "asc" } }),
   ]);
 
+  const templatesByCategory = parentCategories.reduce<
+    Record<string, BrowseTemplate[]>
+  >((acc, category) => {
+    acc[category.id] = category.fieldTemplates.map((template) => ({
+      key: template.key,
+      label: template.label,
+      type: template.type,
+      options: parseTemplateOptions(template),
+    }));
+
+    category.children.forEach((child) => {
+      acc[child.id] = child.fieldTemplates.map((template) => ({
+        key: template.key,
+        label: template.label,
+        type: template.type,
+        options: parseTemplateOptions(template),
+      }));
+    });
+
+    return acc;
+  }, {});
+
+  const flattenedCategories = [
+    ...parentCategories,
+    ...parentCategories.flatMap((category) => category.children),
+  ];
+  const selectedCategory = flattenedCategories.find(
+    (category) => category.id === categoryId,
+  );
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const prevPage = page > 1 ? page - 1 : null;
   const nextPage = page < totalPages ? page + 1 : null;
 
-  // Keep all params except page for pagination building
   const params = new URLSearchParams();
-  Object.entries(searchParams).forEach(([key, value]) => {
-    const v = Array.isArray(value) ? value[0] : value;
-    if (v && key !== "page") params.set(key, v);
+  Object.entries(sp).forEach(([key, value]) => {
+    const single = Array.isArray(value) ? value[0] : value;
+    if (!single || key === "page") return;
+    params.set(key, single);
   });
 
-  const selectedParent = parentCategories.find((c) => c.id === cat);
-  const subcategories = selectedParent?.children ?? [];
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Browse listings</h1>
-        <Link
-          href="/browse"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Clear filters
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <SlidersHorizontal size={14} />
+            Smart browse
+          </p>
+          <h1 className="text-3xl font-bold">
+            {selectedCategory ? selectedCategory.name : "All listings"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {totalCount} results
+            {dynamicFilters.length > 0 && (
+              <span className="ml-2">
+                · <Badge variant="secondary">{dynamicFilters.length} extra filters</Badge>
+              </span>
+            )}
+          </p>
+        </div>
+
+        <Link href="/browse" className="pt-1">
+          <Button variant="outline">Reset filters</Button>
         </Link>
       </div>
 
       <Card>
-        <CardContent>
-          <form className="grid gap-2 md:grid-cols-10">
-            <Input
-              name="q"
-              defaultValue={search}
-              placeholder="Search title or description"
-              className="md:col-span-2"
-            />
-
-            {/* Parent category */}
-            <Select name="cat" defaultValue={cat}>
-              <option value="">Any category</option>
-              {parentCategories.map((c: (typeof parentCategories)[number]) => (
-                <option value={c.id} key={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-
-            {/* Subcategory */}
-            <Select name="sub" defaultValue={sub} disabled={!cat}>
-              <option value="">
-                {cat ? "Any subcategory" : "Select category first"}
-              </option>
-              {subcategories.map((sc: (typeof subcategories)[number]) => (
-                <option value={sc.id} key={sc.id}>
-                  {sc.name}
-                </option>
-              ))}
-            </Select>
-
-            <Select name="city" defaultValue={city}>
-              <option value="">Any city</option>
-              {cities.map((c: (typeof cities)[number]) => (
-                <option value={c.id} key={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-
-            <Select name="condition" defaultValue={condition}>
-              <option value="">Any condition</option>
-              {Object.values(ListingCondition).map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </Select>
-
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              name="min"
-              defaultValue={getParam(searchParams, "min")}
-              placeholder="Min €"
-            />
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              name="max"
-              defaultValue={getParam(searchParams, "max")}
-              placeholder="Max €"
-            />
-
-            <div className="flex gap-2 md:col-span-2">
-              <Select name="sort" defaultValue={sort}>
-                <option value="newest">Newest</option>
-                <option value="price-asc">Price low → high</option>
-                <option value="price-desc">Price high → low</option>
-              </Select>
-              <Button variant="outline" type="submit">
-                Apply
-              </Button>
-            </div>
-          </form>
-
-          {/* IMPORTANT: if parent category changes, reset subcategory
-              With pure server form submit, easiest is: user changes cat then hits Apply.
-              If you want instant reset, we’ll convert filters to client component next. */}
+        <CardContent className="p-4 sm:p-5">
+          <BrowseFilters
+            categories={parentCategories.map((category) => ({
+              id: category.id,
+              name: category.name,
+              children: category.children.map((child) => ({
+                id: child.id,
+                name: child.name,
+              })),
+            }))}
+            cities={cities}
+            templatesByCategory={templatesByCategory}
+          />
         </CardContent>
       </Card>
 
       {listings.length === 0 ? (
         <Card>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="py-14 text-center">
+            <p className="text-muted-foreground">
               No listings match your filters.
             </p>
+            <Link href="/sell" className="mt-4 inline-block">
+              <Button>Be the first to list this item</Button>
+            </Link>
           </CardContent>
         </Card>
       ) : (
-        <ul className="grid gap-3">
-          {listings.map((listing: (typeof listings)[number]) => (
-            <li key={listing.id}>
-              <ListingCard listing={listing} />
-            </li>
+        <div className="responsive-grid gap-4">
+          {listings.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
           ))}
-        </ul>
+        </div>
       )}
 
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card/70 p-3 text-sm">
-        <span>
-          Page {page} of {totalPages}
-        </span>
-        <div className="flex gap-2">
-          {prevPage ? (
-            <Link
-              href={`/browse?${new URLSearchParams({
-                ...Object.fromEntries(params),
-                page: String(prevPage),
-              }).toString()}`}
-            >
-              <Button variant="outline" type="button">
+      <Card>
+        <CardContent className="flex items-center justify-between gap-3 py-4">
+          <p className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            {prevPage ? (
+              <Link
+                href={`/browse?${new URLSearchParams({
+                  ...Object.fromEntries(params),
+                  page: String(prevPage),
+                }).toString()}`}
+              >
+                <Button variant="outline" type="button">
+                  Previous
+                </Button>
+              </Link>
+            ) : (
+              <Button variant="outline" type="button" disabled>
                 Previous
               </Button>
-            </Link>
-          ) : (
-            <Button variant="outline" type="button" disabled>
-              Previous
-            </Button>
-          )}
+            )}
 
-          {nextPage ? (
-            <Link
-              href={`/browse?${new URLSearchParams({
-                ...Object.fromEntries(params),
-                page: String(nextPage),
-              }).toString()}`}
-            >
-              <Button type="button">Next</Button>
-            </Link>
-          ) : (
-            <Button type="button" disabled>
-              Next
-            </Button>
-          )}
-        </div>
-      </div>
+            {nextPage ? (
+              <Link
+                href={`/browse?${new URLSearchParams({
+                  ...Object.fromEntries(params),
+                  page: String(nextPage),
+                }).toString()}`}
+              >
+                <Button type="button">Next</Button>
+              </Link>
+            ) : (
+              <Button type="button" disabled>
+                Next
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

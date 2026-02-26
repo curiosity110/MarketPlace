@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type {
   Category,
@@ -27,6 +28,7 @@ export function ListingCard({ listing }: ListingCardProps) {
   const valuesByKey = Object.fromEntries(
     listing.fieldValues.map((field) => [field.key, field.value]),
   );
+
   const templates = listing.category.fieldTemplates ?? [];
   const highlights = templates
     .map((template) => ({
@@ -34,55 +36,55 @@ export function ListingCard({ listing }: ListingCardProps) {
       value: valuesByKey[template.key],
     }))
     .filter((item) => item.value)
-    .slice(0, 3);
+    .slice(0, 2);
+
   const categoryLabel = listing.category.parent
     ? `${listing.category.parent.name} / ${listing.category.name}`
     : listing.category.name;
 
   return (
-    <Link href={`/listing/${listing.id}`} className="block group">
-      <Card className="overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-105 h-full flex flex-col">
-        <div className="relative w-full aspect-square bg-muted overflow-hidden">
+    <Link href={`/listing/${listing.id}`} className="group block">
+      <Card className="h-full overflow-hidden border-border/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30">
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
           {firstImage ? (
-            <img
+            <Image
               src={firstImage}
               alt={listing.title}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+              fill
+              unoptimized
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, 33vw"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-              <span className="text-muted-foreground">No image</span>
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/60">
+              <span className="text-sm text-muted-foreground">No image</span>
             </div>
           )}
-          <div className="absolute top-2 right-2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-            €{(listing.priceCents / 100).toFixed(0)}
+
+          <div className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-sm font-bold text-primary shadow-sm dark:bg-background/95">
+            {listing.currency} {Math.round(listing.priceCents / 100)}
           </div>
         </div>
 
-        <CardContent className="flex-1 flex flex-col gap-2 p-4">
-          <p className="truncate text-base font-bold text-card-foreground group-hover:text-primary transition-colors">
+        <CardContent className="space-y-3 p-4">
+          <h3 className="line-clamp-2 text-base font-bold leading-tight transition-colors group-hover:text-primary">
             {listing.title}
-          </p>
+          </h3>
 
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {listing.city.name} · {categoryLabel}
           </p>
 
-          <div className="flex flex-wrap gap-1.5 mt-auto pt-2">
-            <Badge className="bg-secondary/20 text-secondary border border-secondary/30">
-              {listing.condition}
-            </Badge>
-            {highlights.slice(0, 1).map((item) => (
-              <Badge
-                key={item.label}
-                className="bg-primary/20 text-primary border border-primary/30"
-              >
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant="secondary">{listing.condition}</Badge>
+            {highlights.map((item) => (
+              <Badge key={item.label} variant="primary">
                 {item.value}
               </Badge>
             ))}
           </div>
 
-          <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
+          <p className="border-t border-border/60 pt-2 text-xs text-muted-foreground">
             Listed {new Date(listing.createdAt).toLocaleDateString()}
           </p>
         </CardContent>

@@ -1,244 +1,273 @@
+import { ListingStatus } from "@prisma/client";
+import { ArrowUpRight, BarChart3, DollarSign, Users } from "lucide-react";
+import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Container } from "@/components/ui/container";
-import {
-  TrendingUp,
-  Users,
-  DollarSign,
-  BarChart3,
-  ArrowUpRight,
-} from "lucide-react";
+
+const PRICE_PAY_PER_LISTING = 4;
+const PRICE_SUBSCRIPTION = 30;
+
+function monthKey(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  return `${year}-${String(month + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(date: Date) {
+  return date.toLocaleString("en-US", { month: "short" });
+}
 
 export default async function AdminSubscriptions() {
-  // Mock data - in production, fetch from database
-  const stats = {
-    totalRevenue: 12450,
-    monthlySubscribers: 48,
-    payPerListings: 156,
-    activeListers: 204,
-  };
+  await requireAdmin();
 
-  const revenueData = [
-    { month: "Jan", premium: 1400, payPerListing: 1200 },
-    { month: "Feb", premium: 1800, payPerListing: 1500 },
-    { month: "Mar", premium: 2100, payPerListing: 1800 },
-    { month: "Apr", premium: 2400, payPerListing: 2000 },
-    { month: "May", premium: 2800, payPerListing: 2200 },
-    { month: "Jun", premium: 3200, payPerListing: 2400 },
-  ];
+  const startDate = new Date();
+  startDate.setUTCMonth(startDate.getUTCMonth() - 5);
+  startDate.setUTCDate(1);
+  startDate.setUTCHours(0, 0, 0, 0);
 
-  const subscriberSessions = [
-    {
-      id: 1,
-      username: "john_seller",
-      plan: "Premium",
-      listings: 12,
-      revenue: 360,
-      joined: "2024-01-15",
+  const [activeListings, recentListings, sellersWithListings] = await Promise.all([
+    prisma.listing.findMany({
+      where: { status: ListingStatus.ACTIVE },
+      select: { activeUntil: true, sellerId: true },
+    }),
+    prisma.listing.findMany({
+      where: {
+        status: { in: [ListingStatus.ACTIVE, ListingStatus.INACTIVE] },
+        createdAt: { gte: startDate },
+      },
+      select: { createdAt: true, activeUntil: true },
+    }),
+    prisma.user.findMany({
+      where: {
+        listings: { some: { status: ListingStatus.ACTIVE } },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        listings: {
+          where: { status: ListingStatus.ACTIVE },
+          select: { activeUntil: true },
+        },
+      },
+      take: 40,
+    }),
+  ]);
+
+  const payPerActive = activeListings.filter((listing) => listing.activeUntil).length;
+  const subscriptionSellerIds = new Set(
+    activeListings
+      .filter((listing) => !listing.activeUntil)
+      .map((listing) => listing.sellerId),
+  );
+  const subscriptionActive = subscriptionSellerIds.size;
+
+  const estimatedRevenue =
+    payPerActive * PRICE_PAY_PER_LISTING +
+    subscriptionActive * PRICE_SUBSCRIPTION;
+
+  const monthBuckets = Array.from({ length: 6 }).map((_, index) => {
+    const date = new Date(startDate);
+    date.setUTCMonth(startDate.getUTCMonth() + index);
+    return {
+      key: monthKey(date),
+      label: monthLabel(date),
+      premium: 0,
+      payPerListing: 0,
+    };
+  });
+  const monthMap = new Map(monthBuckets.map((bucket) => [bucket.key, bucket]));
+
+  recentListings.forEach((listing) => {
+    const key = monthKey(listing.createdAt);
+    const bucket = monthMap.get(key);
+    if (!bucket) return;
+    if (listing.activeUntil) {
+      bucket.payPerListing += PRICE_PAY_PER_LISTING;
+    } else {
+      bucket.premium += PRICE_SUBSCRIPTION;
+    }
+  });
+
+  const sellerRows = sellersWithListings.map((seller) => {
+    const hasSubscription = seller.listings.some((listing) => !listing.activeUntil);
+    const listingCount = seller.listings.length;
+    const plan = hasSubscription ? "Subscription" : "Pay per listing";
+    const revenue = hasSubscription
+      ? PRICE_SUBSCRIPTION
+      : listingCount * PRICE_PAY_PER_LISTING;
+
+    return {
+      id: seller.id,
+      username: seller.name || seller.email.split("@")[0],
+      plan,
+      listings: listingCount,
+      revenue,
+      joined: seller.createdAt,
       status: "active",
-    },
-    {
-      id: 2,
-      username: "mary_deals",
-      plan: "Pay Per Listing",
-      listings: 5,
-      revenue: 20,
-      joined: "2024-02-20",
-      status: "active",
-    },
-    {
-      id: 3,
-      username: "fast_trader",
-      plan: "Premium",
-      listings: 24,
-      revenue: 720,
-      joined: "2023-12-10",
-      status: "active",
-    },
-  ];
+    };
+  });
 
   return (
-    <Container className="space-y-8 py-8">
-      <div>
-        <h1 className="text-4xl font-bold">Subscriptions & Revenue</h1>
-        <p className="text-muted-foreground mt-2">
-          Monitor seller plans and collect payments
+    <div className="space-y-6">
+      <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
+        <h1 className="text-4xl font-black">Subscriptions & Revenue</h1>
+        <p className="mt-2 text-muted-foreground">
+          Estimated analytics for $4 pay-per-listing and $30 subscription model.
         </p>
-      </div>
+      </section>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          {
-            icon: DollarSign,
-            label: "Total Revenue",
-            value: `$${stats.totalRevenue.toLocaleString()}`,
-            change: "+12.5%",
-            color: "text-green-500",
-          },
-          {
-            icon: Users,
-            label: "Premium Subscribers",
-            value: stats.monthlySubscribers,
-            change: "+8 this month",
-            color: "text-orange-500",
-          },
-          {
-            icon: TrendingUp,
-            label: "Pay-Per-Listing Sales",
-            value: stats.payPerListings,
-            change: "+24 this month",
-            color: "text-blue-500",
-          },
-          {
-            icon: BarChart3,
-            label: "Active Sellers",
-            value: stats.activeListers,
-            change: "+18 this month",
-            color: "text-purple-500",
-          },
-        ].map((stat) => (
-          <Card key={stat.label} className="hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold mt-2">{stat.value}</p>
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                    <ArrowUpRight size={12} />
-                    {stat.change}
-                  </p>
-                </div>
-                <stat.icon className={`${stat.color} -mt-1`} size={28} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Estimated revenue</p>
+              <p className="mt-1 text-3xl font-black">${estimatedRevenue}</p>
+              <p className="mt-1 inline-flex items-center gap-1 text-xs text-success">
+                <ArrowUpRight size={12} /> Live estimate
+              </p>
+            </div>
+            <DollarSign className="text-primary" size={22} />
+          </CardContent>
+        </Card>
 
-      {/* Revenue Chart */}
+        <Card>
+          <CardContent className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Subscription sellers</p>
+              <p className="mt-1 text-3xl font-black">{subscriptionActive}</p>
+              <p className="mt-1 text-xs text-muted-foreground">$30 each monthly</p>
+            </div>
+            <Users className="text-secondary" size={22} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Pay-per listings</p>
+              <p className="mt-1 text-3xl font-black">{payPerActive}</p>
+              <p className="mt-1 text-xs text-muted-foreground">$4 per listing</p>
+            </div>
+            <BarChart3 className="text-primary" size={22} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Active sellers</p>
+              <p className="mt-1 text-3xl font-black">{sellerRows.length}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Currently publishing inventory
+              </p>
+            </div>
+            <Users className="text-secondary" size={22} />
+          </CardContent>
+        </Card>
+      </section>
+
       <Card>
         <CardHeader>
-          <CardTitle>Revenue Overview</CardTitle>
+          <CardTitle>6-month revenue trend</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="w-full h-64 bg-gradient-to-b from-primary/20 to-secondary/20 rounded-lg flex items-end justify-around p-4">
-              {revenueData.map((data) => {
-                const maxValue = 6000;
-                const premiumHeight = (data.premium / maxValue) * 100;
-                const payHeight = (data.payPerListing / maxValue) * 100;
+        <CardContent className="space-y-5">
+          <div className="grid h-64 grid-cols-6 items-end gap-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
+            {monthBuckets.map((bucket) => {
+              const maxValue = Math.max(
+                ...monthBuckets.map((item) => item.premium + item.payPerListing),
+                1,
+              );
+              const premiumHeight = (bucket.premium / maxValue) * 100;
+              const payHeight = (bucket.payPerListing / maxValue) * 100;
 
-                return (
-                  <div
-                    key={data.month}
-                    className="flex-1 flex items-end gap-1 justify-center h-full"
-                  >
+              return (
+                <div key={bucket.key} className="flex h-full flex-col items-center justify-end gap-2">
+                  <div className="flex h-full w-full items-end justify-center gap-1">
                     <div
-                      className="w-3 bg-primary rounded-t transition-all hover:opacity-80"
+                      className="w-3 rounded-t bg-primary"
                       style={{ height: `${premiumHeight}%` }}
-                      title={`${data.month} Premium: $${data.premium}`}
+                      title={`${bucket.label} subscription: $${bucket.premium}`}
                     />
                     <div
-                      className="w-3 bg-secondary rounded-t transition-all hover:opacity-80"
+                      className="w-3 rounded-t bg-secondary"
                       style={{ height: `${payHeight}%` }}
-                      title={`${data.month} Pay-Per-Listing: $${data.payPerListing}`}
+                      title={`${bucket.label} pay-per-listing: $${bucket.payPerListing}`}
                     />
                   </div>
-                );
-              })}
-            </div>
+                  <p className="text-xs text-muted-foreground">{bucket.label}</p>
+                </div>
+              );
+            })}
+          </div>
 
-            <div className="flex gap-6 justify-center text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-primary rounded" />
-                <span>Premium Subscription</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-secondary rounded" />
-                <span>Pay-Per-Listing</span>
-              </div>
-            </div>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <span className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded bg-primary" />
+              Subscription ($30)
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded bg-secondary" />
+              Pay per listing ($4)
+            </span>
           </div>
         </CardContent>
       </Card>
 
-      {/* Active Subscribers Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Subscriptions</CardTitle>
+          <CardTitle>Seller plan status</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Username
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Plan
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Listings
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Revenue
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Joined
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Action
-                  </th>
+        <CardContent className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left">
+                <th className="px-3 py-2">Seller</th>
+                <th className="px-3 py-2">Plan</th>
+                <th className="px-3 py-2">Listings</th>
+                <th className="px-3 py-2">Revenue est.</th>
+                <th className="px-3 py-2">Joined</th>
+                <th className="px-3 py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sellerRows.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-4 text-muted-foreground" colSpan={6}>
+                    No active sellers yet.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {subscriberSessions.map((sub) => (
-                  <tr
-                    key={sub.id}
-                    className="border-b border-muted hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="py-4 px-4">
-                      <p className="font-medium">{sub.username}</p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          sub.plan === "Premium"
-                            ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
-                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                        }`}
+              ) : (
+                sellerRows.map((seller) => (
+                  <tr key={seller.id} className="border-b border-border/60">
+                    <td className="px-3 py-3 font-medium">{seller.username}</td>
+                    <td className="px-3 py-3">
+                      <Badge
+                        variant={seller.plan === "Subscription" ? "primary" : "secondary"}
                       >
-                        {sub.plan}
+                        {seller.plan}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-3">{seller.listings}</td>
+                    <td className="px-3 py-3">${seller.revenue}</td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      {seller.joined.toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="inline-flex items-center gap-1 text-xs text-success">
+                        <span className="h-2 w-2 rounded-full bg-success" />
+                        {seller.status}
                       </span>
-                    </td>
-                    <td className="py-4 px-4">{sub.listings}</td>
-                    <td className="py-4 px-4 font-semibold">${sub.revenue}</td>
-                    <td className="py-4 px-4 text-muted-foreground">
-                      {sub.joined}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full" />
-                        Active
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Button variant="ghost" size="sm">
-                        Manage
-                      </Button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </CardContent>
       </Card>
-    </Container>
+    </div>
   );
 }

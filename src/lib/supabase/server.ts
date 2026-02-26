@@ -1,5 +1,5 @@
-import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 
 export async function createSupabaseServerClient(response?: NextResponse) {
@@ -14,8 +14,7 @@ export async function createSupabaseServerClient(response?: NextResponse) {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          // ✅ Only write cookies when we are in a Route Handler / Server Action
-          // (i.e. when a NextResponse is provided).
+          // Cookies can only be written when a response object exists.
           if (!response) return;
 
           cookiesToSet.forEach(({ name, value, options }) => {

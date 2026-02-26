@@ -34,13 +34,13 @@ export async function askGPT(
 ) {
   const client = getOpenAIInstance();
   const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini", // or "gpt-4" if you have access
+    model: "gpt-4o-mini",
     messages: [
       { role: "system", content: systemContext },
-      { role: "user", content: prompt },
+      { role: "user", content: prompt.trim() },
     ],
-    temperature: 0.7,
-    max_tokens: 1000,
+    temperature: 0.4,
+    max_tokens: 700,
   });
 
   return completion.choices[0]?.message?.content || "";
