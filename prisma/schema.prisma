@@ -42,17 +42,24 @@ enum ReportStatus {
   CLOSED
 }
 
+enum CategoryRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id           String        @id @default(cuid())
-  email        String        @unique
-  name         String?
-  role         Role          @default(USER)
-  bannedAt     DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  listings     Listing[]
-  reports      Report[]      @relation("ReporterReports")
-  adminActions AdminAction[] @relation("AdminActions")
+  id                String             @id @default(cuid())
+  email             String             @unique
+  name              String?
+  role              Role               @default(USER)
+  bannedAt          DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  listings          Listing[]
+  reports           Report[]           @relation("ReporterReports")
+  adminActions      AdminAction[]      @relation("AdminActions")
+  categoryRequests  CategoryRequest[]
 }
 
 model Category {
@@ -162,5 +169,21 @@ model AdminAction {
   notes      String?
   createdAt  DateTime @default(now())
 
+  @@index([createdAt])
+}
+
+model CategoryRequest {
+  id           String                @id @default(cuid())
+  requesterId  String
+  requester    User                  @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  desiredName  String
+  description  String?
+  parentId     String?
+  status       CategoryRequestStatus @default(PENDING)
+  adminNotes   String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([status])
   @@index([createdAt])
 }
