@@ -12,7 +12,10 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Admin Panel</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Admin Panel</h1>
+        <a href="/admin/categories" className="text-sm text-muted-foreground hover:underline">Manage categories & templates</a>
+      </div>
 
       <Card>
         <CardContent className="space-y-3">

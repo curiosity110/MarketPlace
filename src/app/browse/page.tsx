@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { ListingStatus, Prisma } from "@prisma/client";
+import { ListingCondition, ListingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ListingCard } from "@/components/listing-card";
+
+const PAGE_SIZE = 20;
 
 export default async function BrowsePage({
   searchParams,
@@ -19,15 +21,13 @@ export default async function BrowsePage({
   const city = sp.city;
   const condition = sp.condition;
   const sort = sp.sort || "newest";
+  const page = Math.max(1, Number(sp.page || 1));
 
   const minRaw = sp.min ? Number(sp.min) : undefined;
   const maxRaw = sp.max ? Number(sp.max) : undefined;
 
-  const minCents =
-    minRaw !== undefined && Number.isFinite(minRaw) && minRaw >= 0 ? Math.floor(minRaw * 100) : undefined;
-
-  const maxCents =
-    maxRaw !== undefined && Number.isFinite(maxRaw) && maxRaw >= 0 ? Math.floor(maxRaw * 100) : undefined;
+  const minCents = minRaw !== undefined && Number.isFinite(minRaw) && minRaw >= 0 ? Math.floor(minRaw * 100) : undefined;
+  const maxCents = maxRaw !== undefined && Number.isFinite(maxRaw) && maxRaw >= 0 ? Math.floor(maxRaw * 100) : undefined;
 
   const priceCents: Prisma.IntFilter = {
     ...(minCents !== undefined ? { gte: minCents } : {}),
@@ -36,28 +36,51 @@ export default async function BrowsePage({
 
   const where: Prisma.ListingWhereInput = {
     status: ListingStatus.ACTIVE,
-    activeUntil: { gt: new Date() },
-    ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
     ...(category ? { categoryId: category } : {}),
     ...(city ? { cityId: city } : {}),
-    ...(condition ? { condition: condition as never } : {}),
+    ...(condition ? { condition: condition as ListingCondition } : {}),
     ...(Object.keys(priceCents).length ? { priceCents } : {}),
   };
 
-  const [listings, categories, cities] = await Promise.all([
+  const [listings, totalCount, categories, cities] = await Promise.all([
     prisma.listing.findMany({
       where,
-      include: { city: true, category: true, images: true },
+      include: {
+        city: true,
+        category: { include: { fieldTemplates: { where: { isActive: true }, orderBy: { order: "asc" } } } },
+        images: true,
+        fieldValues: true,
+      },
       orderBy:
         sort === "price-asc"
           ? { priceCents: "asc" }
           : sort === "price-desc"
             ? { priceCents: "desc" }
             : { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
-    prisma.category.findMany({ where: { isActive: true } }),
-    prisma.city.findMany(),
+    prisma.listing.count({ where }),
+    prisma.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
+    prisma.city.findMany({ orderBy: { name: "asc" } }),
   ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const prevPage = page > 1 ? page - 1 : null;
+  const nextPage = page < totalPages ? page + 1 : null;
+
+  const params = new URLSearchParams();
+  Object.entries(sp).forEach(([key, value]) => {
+    if (value && key !== "page") params.set(key, value);
+  });
 
   return (
     <div className="space-y-4">
@@ -68,8 +91,8 @@ export default async function BrowsePage({
 
       <Card>
         <CardContent>
-          <form className="grid gap-2 md:grid-cols-6">
-            <Input name="q" defaultValue={search} placeholder="Search" className="md:col-span-2" />
+          <form className="grid gap-2 md:grid-cols-8">
+            <Input name="q" defaultValue={search} placeholder="Search title or description" className="md:col-span-2" />
             <Select name="category" defaultValue={category}>
               <option value="">Any category</option>
               {categories.map((c) => (
@@ -82,12 +105,20 @@ export default async function BrowsePage({
                 <option value={c.id} key={c.id}>{c.name}</option>
               ))}
             </Select>
-            <Select name="sort" defaultValue={sort}>
-              <option value="newest">Newest</option>
-              <option value="price-asc">Price ↑</option>
-              <option value="price-desc">Price ↓</option>
+            <Select name="condition" defaultValue={condition}>
+              <option value="">Any condition</option>
+              {Object.values(ListingCondition).map((item) => <option key={item} value={item}>{item}</option>)}
             </Select>
-            <Button variant="outline" type="submit">Apply</Button>
+            <Input type="number" step="0.01" min="0" name="min" defaultValue={sp.min} placeholder="Min price" />
+            <Input type="number" step="0.01" min="0" name="max" defaultValue={sp.max} placeholder="Max price" />
+            <div className="flex gap-2 md:col-span-2">
+              <Select name="sort" defaultValue={sort}>
+                <option value="newest">Newest</option>
+                <option value="price-asc">Price low → high</option>
+                <option value="price-desc">Price high → low</option>
+              </Select>
+              <Button variant="outline" type="submit">Apply</Button>
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -107,6 +138,26 @@ export default async function BrowsePage({
           ))}
         </ul>
       )}
+
+      <div className="flex items-center justify-between rounded-lg border border-border bg-card/70 p-3 text-sm">
+        <span>Page {page} of {totalPages}</span>
+        <div className="flex gap-2">
+          {prevPage ? (
+            <Link href={`/browse?${new URLSearchParams({ ...Object.fromEntries(params), page: String(prevPage) }).toString()}`}>
+              <Button variant="outline" type="button">Previous</Button>
+            </Link>
+          ) : (
+            <Button variant="outline" type="button" disabled>Previous</Button>
+          )}
+          {nextPage ? (
+            <Link href={`/browse?${new URLSearchParams({ ...Object.fromEntries(params), page: String(nextPage) }).toString()}`}>
+              <Button type="button">Next</Button>
+            </Link>
+          ) : (
+            <Button type="button" disabled>Next</Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -25,6 +25,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     select: { id: true, email: true, role: true, bannedAt: true },
   });
 
+  // If your schema uses bannedAt instead of isBanned, keep this:
   if (userRecord.bannedAt) return null;
 
   return { id: userRecord.id, email: userRecord.email, role: userRecord.role };
