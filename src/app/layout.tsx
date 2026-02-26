@@ -12,11 +12,20 @@ export const metadata: Metadata = {
   description: "Macedonia-only marketplace",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} min-h-screen bg-background text-foreground antialiased`}>
-        <ThemeProvider>
+      <body
+        className={`${geistSans.variable} min-h-screen bg-background text-foreground antialiased`}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
           <div className="min-h-screen bg-background text-foreground">
             <Nav />
             <Container className="py-6">{children}</Container>
