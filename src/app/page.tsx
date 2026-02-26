@@ -2,7 +2,13 @@ import Link from "next/link";
 import { ListingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { ListingCard } from "@/components/listing-card";
 import { Container } from "@/components/ui/container";
 import { AIHelper } from "@/components/ai-helper";
@@ -38,10 +44,13 @@ export default async function Home() {
               <span className="bg-gradient-to-r from-orange-600 to-orange-500 dark:from-orange-400 dark:to-orange-300 bg-clip-text text-transparent">
                 Buy & Sell
               </span>
-              <span className="block text-foreground mt-2">Anything, Anywhere</span>
+              <span className="block text-foreground mt-2">
+                Anything, Anywhere
+              </span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Macedonia's trusted marketplace. List items in seconds with AI assistance. Safe, fast, reliable.
+              Macedonia's trusted marketplace. List items in seconds with AI
+              assistance. Safe, fast, reliable.
             </p>
           </div>
 
@@ -61,11 +70,26 @@ export default async function Home() {
           {/* Features */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8">
             {[
-              { icon: Zap, label: "List in Seconds", desc: "AI helps you write descriptions" },
-              { icon: Shield, label: "Safe Trading", desc: "Verified users & secure transactions" },
-              { icon: CheckCircle2, label: "Best Prices", desc: "Compare & find the best deals" },
+              {
+                icon: Zap,
+                label: "List in Seconds",
+                desc: "AI helps you write descriptions",
+              },
+              {
+                icon: Shield,
+                label: "Safe Trading",
+                desc: "Verified users & secure transactions",
+              },
+              {
+                icon: CheckCircle2,
+                label: "Best Prices",
+                desc: "Compare & find the best deals",
+              },
             ].map((feature) => (
-              <div key={feature.label} className="flex flex-col items-center gap-2">
+              <div
+                key={feature.label}
+                className="flex flex-col items-center gap-2"
+              >
                 <feature.icon className="text-primary" size={32} />
                 <p className="font-semibold text-foreground">{feature.label}</p>
                 <p className="text-sm text-muted-foreground">{feature.desc}</p>
@@ -78,8 +102,12 @@ export default async function Home() {
       {/* Pricing Section */}
       <Container className="mb-16">
         <div className="text-center space-y-4 mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold">Simple, Transparent Pricing</h2>
-          <p className="text-lg text-muted-foreground">Choose the plan that works for you</p>
+          <h2 className="text-3xl md:text-4xl font-bold">
+            Simple, Transparent Pricing
+          </h2>
+          <p className="text-lg text-muted-foreground">
+            Choose the plan that works for you
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
@@ -92,7 +120,9 @@ export default async function Home() {
             <CardContent className="space-y-4">
               <div className="text-center py-4">
                 <span className="text-4xl font-bold text-primary">$4</span>
-                <p className="text-sm text-muted-foreground">per listing • 30 days</p>
+                <p className="text-sm text-muted-foreground">
+                  per listing • 30 days
+                </p>
               </div>
               <ul className="space-y-2 text-sm">
                 {[
@@ -102,7 +132,10 @@ export default async function Home() {
                   "Basic analytics",
                 ].map((feature) => (
                   <li key={feature} className="flex gap-2">
-                    <CheckCircle2 size={16} className="text-success flex-shrink-0 mt-0.5" />
+                    <CheckCircle2
+                      size={16}
+                      className="text-success flex-shrink-0 mt-0.5"
+                    />
                     {feature}
                   </li>
                 ))}
@@ -125,7 +158,9 @@ export default async function Home() {
             <CardContent className="space-y-4">
               <div className="text-center py-4">
                 <span className="text-4xl font-bold text-primary">$30</span>
-                <p className="text-sm text-muted-foreground">per month (cancel anytime)</p>
+                <p className="text-sm text-muted-foreground">
+                  per month (cancel anytime)
+                </p>
               </div>
               <ul className="space-y-2 text-sm">
                 {[
@@ -136,7 +171,10 @@ export default async function Home() {
                   "24/7 seller support",
                 ].map((feature) => (
                   <li key={feature} className="flex gap-2">
-                    <CheckCircle2 size={16} className="text-primary flex-shrink-0 mt-0.5" />
+                    <CheckCircle2
+                      size={16}
+                      className="text-primary flex-shrink-0 mt-0.5"
+                    />
                     {feature}
                   </li>
                 ))}
@@ -153,14 +191,20 @@ export default async function Home() {
       <Container className="mb-16">
         <div className="space-y-8">
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-2">Latest Listings</h2>
-            <p className="text-muted-foreground">Check out what's hot right now</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-2">
+              Latest Listings
+            </h2>
+            <p className="text-muted-foreground">
+              Check out what's hot right now
+            </p>
           </div>
 
           {latestListings.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground mb-4">No listings yet. Be the first to sell!</p>
+                <p className="text-muted-foreground mb-4">
+                  No listings yet. Be the first to sell!
+                </p>
                 <Link href="/sell">
                   <Button>Create Your First Listing</Button>
                 </Link>

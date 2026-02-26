@@ -51,7 +51,10 @@ export default async function CategoriesPage() {
           {/* Search */}
           <div className="max-w-md mx-auto pt-4">
             <div className="relative">
-              <Search className="absolute left-4 top-3.5 text-muted-foreground" size={20} />
+              <Search
+                className="absolute left-4 top-3.5 text-muted-foreground"
+                size={20}
+              />
               <Input
                 placeholder="Search categories..."
                 className="pl-10 h-11 text-base"
@@ -124,7 +127,8 @@ export default async function CategoriesPage() {
             <div className="text-center space-y-4">
               <h2 className="text-2xl md:text-3xl font-bold">Want to Sell?</h2>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                List your items in minutes with AI-powered descriptions. Choose your category above and start selling today!
+                List your items in minutes with AI-powered descriptions. Choose
+                your category above and start selling today!
               </p>
               <Link href="/sell">
                 <Button size="lg" className="gap-2">

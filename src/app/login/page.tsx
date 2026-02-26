@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/login-form";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Container } from "@/components/ui/container";
 
 export default function LoginPage() {
@@ -11,7 +17,9 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-blue-600 dark:from-orange-400 dark:to-blue-400 bg-clip-text text-transparent">
             Welcome Back
           </h1>
-          <p className="text-muted-foreground">Sign in to your marketplace account</p>
+          <p className="text-muted-foreground">
+            Sign in to your marketplace account
+          </p>
         </div>
 
         <Card className="border-2">
@@ -32,12 +40,17 @@ export default function LoginPage() {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-background text-muted-foreground">Don't have an account?</span>
+              <span className="px-2 bg-background text-muted-foreground">
+                Don't have an account?
+              </span>
             </div>
           </div>
 
           <p className="text-sm">
-            <Link href="/auth/finish" className="text-primary hover:underline font-semibold">
+            <Link
+              href="/auth/finish"
+              className="text-primary hover:underline font-semibold"
+            >
               Create your account
             </Link>
           </p>

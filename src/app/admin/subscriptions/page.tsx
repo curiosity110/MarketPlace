@@ -61,7 +61,9 @@ export default async function AdminSubscriptions() {
     <Container className="space-y-8 py-8">
       <div>
         <h1 className="text-4xl font-bold">Subscriptions & Revenue</h1>
-        <p className="text-muted-foreground mt-2">Monitor seller plans and collect payments</p>
+        <p className="text-muted-foreground mt-2">
+          Monitor seller plans and collect payments
+        </p>
       </div>
 
       {/* KPI Cards */}
@@ -128,7 +130,10 @@ export default async function AdminSubscriptions() {
                 const payHeight = (data.payPerListing / maxValue) * 100;
 
                 return (
-                  <div key={data.month} className="flex-1 flex items-end gap-1 justify-center h-full">
+                  <div
+                    key={data.month}
+                    className="flex-1 flex items-end gap-1 justify-center h-full"
+                  >
                     <div
                       className="w-3 bg-primary rounded-t transition-all hover:opacity-80"
                       style={{ height: `${premiumHeight}%` }}
@@ -168,18 +173,35 @@ export default async function AdminSubscriptions() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Username</th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Plan</th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Listings</th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Revenue</th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Joined</th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Action</th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    Username
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    Plan
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    Listings
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    Revenue
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    Joined
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    Status
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {subscriberSessions.map((sub) => (
-                  <tr key={sub.id} className="border-b border-muted hover:bg-muted/30 transition-colors">
+                  <tr
+                    key={sub.id}
+                    className="border-b border-muted hover:bg-muted/30 transition-colors"
+                  >
                     <td className="py-4 px-4">
                       <p className="font-medium">{sub.username}</p>
                     </td>
@@ -196,7 +218,9 @@ export default async function AdminSubscriptions() {
                     </td>
                     <td className="py-4 px-4">{sub.listings}</td>
                     <td className="py-4 px-4 font-semibold">${sub.revenue}</td>
-                    <td className="py-4 px-4 text-muted-foreground">{sub.joined}</td>
+                    <td className="py-4 px-4 text-muted-foreground">
+                      {sub.joined}
+                    </td>
                     <td className="py-4 px-4">
                       <span className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full" />
