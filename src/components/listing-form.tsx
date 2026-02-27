@@ -87,6 +87,13 @@ export function ListingForm({
   const [restoredValues, setRestoredValues] = useState<Record<string, string>>({});
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState("");
+  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
+
+  const paymentAmount = plan === "subscription" ? 30 : 4;
+  const paymentLabel =
+    plan === "subscription"
+      ? "Subscription charge (monthly)"
+      : "Per post charge (30 days)";
 
   const categorySlugById = useMemo(
     () => Object.fromEntries(categories.map((category) => [category.id, category.slug])),
@@ -188,6 +195,14 @@ export function ListingForm({
 
       if (hasSavedProfilePhone && parsed.values?.useSavedPhone === "false") {
         setUseSavedPhone(false);
+      }
+
+      if (
+        parsed.values?.dummyCardNumber ||
+        parsed.values?.dummyCardExp ||
+        parsed.values?.dummyCardCvc
+      ) {
+        setShowPaymentPanel(true);
       }
     } catch {
       window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
@@ -545,53 +560,84 @@ export function ListingForm({
           </div>
 
           {paymentProvider === "stripe-dummy" && (
-            <div className="space-y-2 rounded-xl border border-border/70 bg-card p-3">
-              <p className="text-sm font-semibold">Dummy Stripe card test</p>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <label className="space-y-1 sm:col-span-3">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Card number
-                  </span>
-                  <Input
-                    name="dummyCardNumber"
-                    defaultValue={readValue("dummyCardNumber", "")}
-                    placeholder="4242 4242 4242 4242"
-                    inputMode="numeric"
-                    autoComplete="cc-number"
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">Expiry</span>
-                  <Input
-                    name="dummyCardExp"
-                    defaultValue={readValue("dummyCardExp", "")}
-                    placeholder="MM/YY"
-                    autoComplete="cc-exp"
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">CVC</span>
-                  <Input
-                    name="dummyCardCvc"
-                    defaultValue={readValue("dummyCardCvc", "")}
-                    placeholder="CVC"
-                    inputMode="numeric"
-                    autoComplete="cc-csc"
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">Cardholder</span>
-                  <Input
-                    name="dummyCardName"
-                    defaultValue={readValue("dummyCardName", "")}
-                    placeholder="Test User"
-                    autoComplete="cc-name"
-                  />
-                </label>
+            <div className="space-y-3 rounded-xl border border-border/70 bg-card p-3">
+              <div className="rounded-xl border border-secondary/30 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 p-4 text-white">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-white/70">
+                      Secure checkout
+                    </p>
+                    <p className="text-xl font-black">${paymentAmount}</p>
+                    <p className="text-xs text-white/75">{paymentLabel}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={showPaymentPanel ? "outline" : "secondary"}
+                    onClick={() => setShowPaymentPanel((prev) => !prev)}
+                  >
+                    {showPaymentPanel ? "Hide payment" : "Continue to payment"}
+                  </Button>
+                </div>
+                <p className="mt-3 text-[11px] text-white/75">
+                  Payment step appears only when publishing.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Success card: 4242424242424242. Fail card: 4000000000000002.
-              </p>
+
+              {showPaymentPanel && (
+                <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
+                  <p className="text-sm font-semibold">Card details</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <label className="space-y-1 sm:col-span-3">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Card number
+                      </span>
+                      <Input
+                        name="dummyCardNumber"
+                        defaultValue={readValue("dummyCardNumber", "")}
+                        placeholder="4242 4242 4242 4242"
+                        inputMode="numeric"
+                        autoComplete="cc-number"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Expiry
+                      </span>
+                      <Input
+                        name="dummyCardExp"
+                        defaultValue={readValue("dummyCardExp", "")}
+                        placeholder="MM/YY"
+                        autoComplete="cc-exp"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground">CVC</span>
+                      <Input
+                        name="dummyCardCvc"
+                        defaultValue={readValue("dummyCardCvc", "")}
+                        placeholder="CVC"
+                        inputMode="numeric"
+                        autoComplete="cc-csc"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Cardholder
+                      </span>
+                      <Input
+                        name="dummyCardName"
+                        defaultValue={readValue("dummyCardName", "")}
+                        placeholder="Test User"
+                        autoComplete="cc-name"
+                      />
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Success card: 4242424242424242. Fail card: 4000000000000002.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -614,7 +660,17 @@ export function ListingForm({
             Save draft
           </Button>
         )}
-        <Button name="intent" value="publish" type="submit">
+        <Button
+          name="intent"
+          value="publish"
+          type="submit"
+          onClick={(event) => {
+            if (paymentProvider === "stripe-dummy" && !showPaymentPanel) {
+              event.preventDefault();
+              setShowPaymentPanel(true);
+            }
+          }}
+        >
           {publishLabel}
         </Button>
       </div>

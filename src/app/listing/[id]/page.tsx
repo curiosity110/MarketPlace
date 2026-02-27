@@ -18,10 +18,15 @@ import { formatCurrencyFromCents } from "@/lib/currency";
 
 export default async function ListingDetails({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const reportSaved = sp.reported === "1";
+  const reportError = sp.error;
   const sessionUser = await getSessionUser();
 
   async function fetchListingDetails() {
@@ -124,37 +129,54 @@ export default async function ListingDetails({
         </div>
       </div>
 
+      {reportSaved && (
+        <Card className="border-success/30 bg-success/10">
+          <CardContent className="py-3 text-sm text-success">
+            Report submitted. Thank you for helping keep the marketplace safe.
+          </CardContent>
+        </Card>
+      )}
+      {reportError && (
+        <Card className="border-warning/30 bg-warning/10">
+          <CardContent className="py-3 text-sm text-foreground">
+            {reportError}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-4">
           <Card>
-            <CardContent className="space-y-4">
-              {listing.images.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {listing.images.map((image, index) => (
-                    <div
-                      key={image.id}
-                      className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border/70 bg-muted"
-                    >
-                      <Image
-                        src={image.url}
-                        alt={`${listing.title} image ${index + 1}`}
-                        fill
-                        unoptimized
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex aspect-[5/3] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-                  No photos uploaded
-                </div>
-              )}
+            <CardContent className="grid gap-4 md:grid-cols-[1fr_0.8fr]">
+              <div>
+                {listing.images.length > 0 ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {listing.images.map((image, index) => (
+                      <div
+                        key={image.id}
+                        className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border/70 bg-muted"
+                      >
+                        <Image
+                          src={image.url}
+                          alt={`${listing.title} image ${index + 1}`}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex aspect-[5/3] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
+                    No photos uploaded
+                  </div>
+                )}
+              </div>
 
-              <div className="space-y-2">
+              <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
                 <h2 className="text-xl font-semibold">Description</h2>
-                <p className="whitespace-pre-wrap text-sm text-foreground/90">
+                <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/90">
                   {listing.description}
                 </p>
               </div>
@@ -188,7 +210,44 @@ export default async function ListingDetails({
         <div className="space-y-4">
           <Card>
             <CardContent className="space-y-3">
-              <h2 className="text-lg font-semibold">Seller</h2>
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-lg font-semibold">Seller</h2>
+                <details className="relative">
+                  <summary className="list-none">
+                    <Button type="button" variant="outline" size="sm">
+                      <ShieldAlert size={14} className="mr-1" />
+                      Report
+                    </Button>
+                  </summary>
+                  <div className="absolute right-0 top-11 z-20 w-[min(92vw,360px)] rounded-xl border border-border/80 bg-background p-3 shadow-xl">
+                    <p className="text-sm font-semibold">Report this listing</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      If something looks unsafe or fake, report it for review.
+                    </p>
+                    <form action="/api/reports" method="post" className="mt-2 space-y-2">
+                      <input type="hidden" name="targetType" value="LISTING" />
+                      <input type="hidden" name="targetId" value={listing.id} />
+                      <input type="hidden" name="listingId" value={listing.id} />
+                      <input type="hidden" name="returnTo" value={`/listing/${listing.id}`} />
+                      <textarea
+                        name="reason"
+                        required
+                        minLength={8}
+                        className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
+                        placeholder="Explain why this listing should be reviewed"
+                      />
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        className="w-full justify-center gap-2"
+                      >
+                        <ShieldAlert size={16} />
+                        Submit report
+                      </Button>
+                    </form>
+                  </div>
+                </details>
+              </div>
               <p className="inline-flex items-center gap-2 text-sm">
                 <UserRound size={16} className="text-muted-foreground" />
                 {listing.seller.name || listing.seller.email}
@@ -211,35 +270,6 @@ export default async function ListingDetails({
                   </Button>
                 </Link>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="space-y-3">
-              <h2 className="text-lg font-semibold">Report this listing</h2>
-              <p className="text-sm text-muted-foreground">
-                If something looks unsafe or fake, report it for review.
-              </p>
-              <form action="/api/reports" method="post" className="space-y-2">
-                <input type="hidden" name="targetType" value="LISTING" />
-                <input type="hidden" name="targetId" value={listing.id} />
-                <input type="hidden" name="listingId" value={listing.id} />
-                <textarea
-                  name="reason"
-                  required
-                  minLength={8}
-                  className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
-                  placeholder="Explain why this listing should be reviewed"
-                />
-                <Button
-                  type="submit"
-                  variant="outline"
-                  className="w-full justify-center gap-2"
-                >
-                  <ShieldAlert size={16} />
-                  Submit report
-                </Button>
-              </form>
             </CardContent>
           </Card>
 

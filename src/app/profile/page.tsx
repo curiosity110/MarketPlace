@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -187,8 +186,6 @@ export default async function ProfilePage({
           id: true,
           status: true,
           activeUntil: true,
-          city: { select: { name: true } },
-          images: { select: { id: true } },
         },
       }),
     ]);
@@ -238,17 +235,11 @@ export default async function ProfilePage({
     userRecord?.username || buildFallbackHandle(userRecord?.email || user.email);
   const sellerHandle = toPublicHandle(handleValue);
   const usingFallbackHandle = !userRecord?.username;
-
-  const cityCounts = listings.reduce<Map<string, number>>((acc, listing) => {
-    const key = listing.city.name;
-    acc.set(key, (acc.get(key) || 0) + 1);
-    return acc;
-  }, new Map());
-  const primaryCity = [...cityCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const totalPhotos = listings.reduce((sum, listing) => sum + listing.images.length, 0);
+  const totalListings = listings.length;
   const activeListings = listings.filter((listing) => listing.status === "ACTIVE");
   const payPerListingActive = activeListings.filter((listing) => listing.activeUntil).length;
   const subscriptionActive = activeListings.filter((listing) => !listing.activeUntil).length;
+  const storedPhoneE164 = userRecord?.phone || "";
 
   return (
     <div className="space-y-5">
@@ -288,46 +279,33 @@ export default async function ProfilePage({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle>Your seller profile</CardTitle>
+          <CardTitle>Profile settings</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Keep all your seller info and public phone in one place.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
-              <p className="text-sm font-semibold">Public handle</p>
-              <p className="text-lg font-bold">{sellerHandle}</p>
-              {usingFallbackHandle && (
-                <p className="text-xs text-muted-foreground">
-                  Set a public username to choose your exact handle.
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Public handle
                 </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Member since{" "}
-                {new Date(userRecord?.createdAt || new Date()).toLocaleDateString()}
-              </p>
-              <div className="flex flex-wrap gap-2 text-xs">
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2 py-1">
-                  <MapPin size={12} className="text-primary" />
-                  {primaryCity || "No city yet"}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2 py-1">
-                  {totalPhotos} photos
-                </span>
+                <p className="text-lg font-bold">{sellerHandle}</p>
+                {usingFallbackHandle && (
+                  <p className="text-xs text-muted-foreground">
+                    Set a username to choose your exact handle.
+                  </p>
+                )}
               </div>
-            </div>
-
-            <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
-              <p className="text-sm font-semibold">Billing options</p>
-              <div className="grid gap-2 text-xs">
-                <div className="rounded-lg border border-border/70 bg-card px-2 py-2">
-                  <p className="font-semibold">Pay per listing</p>
-                  <p className="text-muted-foreground">$4 / 30 days</p>
-                  <p className="mt-1">Active now: {payPerListingActive}</p>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-card px-2 py-2">
-                  <p className="font-semibold">Subscription</p>
-                  <p className="text-muted-foreground">$30 / month unlimited</p>
-                  <p className="mt-1">Active now: {subscriptionActive}</p>
-                </div>
+              <div className="text-xs text-muted-foreground">
+                <p>
+                  Member since{" "}
+                  {new Date(userRecord?.createdAt || new Date()).toLocaleDateString()}
+                </p>
+                <p>
+                  Listings: {totalListings} | Active: {activeListings.length}
+                </p>
               </div>
             </div>
           </div>
@@ -358,46 +336,9 @@ export default async function ProfilePage({
                 </span>
               </label>
 
-              <label className="space-y-1">
+              <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs font-medium text-muted-foreground">Email</span>
                 <Input value={userRecord?.email || user.email} readOnly />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Company (optional)</span>
-                <Input
-                  name="company"
-                  defaultValue={userRecord?.company || ""}
-                  placeholder="Company name"
-                />
-              </label>
-
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">Website (optional)</span>
-                <Input
-                  name="website"
-                  defaultValue={userRecord?.website || ""}
-                  placeholder="https://example.com"
-                />
-              </label>
-
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">Address (optional)</span>
-                <Input
-                  name="address"
-                  defaultValue={userRecord?.address || ""}
-                  placeholder="Street and area"
-                />
-              </label>
-
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">Bio (optional)</span>
-                <textarea
-                  name="bio"
-                  defaultValue={userRecord?.bio || ""}
-                  placeholder="Short description about your store or products"
-                  className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                />
               </label>
 
               <label className="space-y-1">
@@ -426,24 +367,97 @@ export default async function ProfilePage({
                   required
                 />
               </label>
+
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Company (optional)</span>
+                <Input
+                  name="company"
+                  defaultValue={userRecord?.company || ""}
+                  placeholder="Company name"
+                />
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Website (optional)</span>
+                <Input
+                  name="website"
+                  defaultValue={userRecord?.website || ""}
+                  placeholder="https://example.com"
+                />
+              </label>
+
+              <label className="space-y-1 sm:col-span-2">
+                <span className="text-xs font-medium text-muted-foreground">Address (optional)</span>
+                <Input
+                  name="address"
+                  defaultValue={userRecord?.address || ""}
+                  placeholder="Street and area"
+                />
+              </label>
+
+              <label className="space-y-1 sm:col-span-2">
+                <span className="text-xs font-medium text-muted-foreground">Bio (optional)</span>
+                <textarea
+                  name="bio"
+                  defaultValue={userRecord?.bio || ""}
+                  placeholder="Short description about your store or products"
+                  className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                />
+              </label>
             </div>
 
-            <p className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              Saved phone auto-fills new listings. You can optionally set a different number per
-              post.
-            </p>
-            <Button type="submit">Save all profile info</Button>
+            <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              <p>
+                Saved public phone is used by default on new listings.
+              </p>
+              {storedPhoneE164 && <p className="mt-1 font-medium text-foreground">{storedPhoneE164}</p>}
+            </div>
+            <Button type="submit">Save profile</Button>
           </form>
+        </CardContent>
+      </Card>
 
-          <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold">Billing test (dummy Stripe)</p>
-              <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5 text-xs font-semibold">
-                Safe sandbox
-              </span>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Posting and subscription</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Start from here, then complete payment while publishing your listing.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border/70 bg-card p-3">
+              <p className="text-sm font-semibold">Pay per listing</p>
+              <p className="text-2xl font-black text-primary">$4</p>
+              <p className="text-xs text-muted-foreground">30-day listing</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Active with this plan: {payPerListingActive}
+              </p>
+              <Link href="/sell/analytics?create=1&plan=pay-per-listing" className="mt-2 block">
+                <Button className="w-full">Post with $4 plan</Button>
+              </Link>
             </div>
 
-            <form action={testDummyBillingCard} className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-border/70 bg-card p-3">
+              <p className="text-sm font-semibold">Subscription</p>
+              <p className="text-2xl font-black text-secondary">$30</p>
+              <p className="text-xs text-muted-foreground">Monthly unlimited</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Active with subscription: {subscriptionActive}
+              </p>
+              <Link href="/sell/analytics?create=1&plan=subscription" className="mt-2 block">
+                <Button variant="outline" className="w-full">
+                  Start subscription flow
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <details className="rounded-xl border border-border/70 bg-card p-3">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Dummy Stripe test card (optional)
+            </summary>
+            <form action={testDummyBillingCard} className="mt-3 grid gap-3 sm:grid-cols-4">
               <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs font-medium text-muted-foreground">Card number</span>
                 <Input
@@ -475,11 +489,11 @@ export default async function ProfilePage({
               </div>
             </form>
 
-            <p className="text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground">
               Success cards: {DUMMY_STRIPE_SUCCESS_CARDS.join(", ")}. Fail cards:{" "}
               {DUMMY_STRIPE_FAIL_CARDS.join(", ")}.
             </p>
-          </div>
+          </details>
         </CardContent>
       </Card>
     </div>
