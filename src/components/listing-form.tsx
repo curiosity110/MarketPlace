@@ -1,13 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ListingCondition } from "@prisma/client";
 import { CirclePlus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
 
 type Category = { id: string; name: string; slug: string };
 type City = { id: string; name: string };
@@ -23,11 +25,22 @@ type Template = {
 
 type ListingPlan = "pay-per-listing" | "subscription";
 
+type PersistedCreateDraft = {
+  categoryId: string;
+  plan: ListingPlan;
+  values: Record<string, string>;
+};
+
+const CREATE_FORM_STORAGE_KEY = "mkd:create-listing-form:v1";
+
 type Props = {
   action: (formData: FormData) => void | Promise<void>;
   categories: Category[];
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
+  allowDraft?: boolean;
+  publishLabel?: string;
+  paymentProvider?: "none" | "stripe-dummy";
   initial?: {
     id?: string;
     title?: string;
@@ -46,80 +59,246 @@ export function ListingForm({
   categories,
   cities,
   templatesByCategory,
+  allowDraft = true,
+  publishLabel = "Publish listing",
+  paymentProvider = "none",
   initial,
 }: Props) {
+  const isCreateMode = !initial?.id;
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const photoPopoverRef = useRef<HTMLDivElement | null>(null);
+
   const initialCategory = initial?.categoryId ?? categories[0]?.id ?? "";
   const [categoryId, setCategoryId] = useState(initialCategory);
   const [plan, setPlan] = useState<ListingPlan>(
     initial?.plan ?? "pay-per-listing",
   );
+  const [isRestored, setIsRestored] = useState(!isCreateMode);
+  const [restoredValues, setRestoredValues] = useState<Record<string, string>>({});
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [photoName, setPhotoName] = useState("");
+  const [showPhotoPopover, setShowPhotoPopover] = useState(false);
 
   const categorySlugById = useMemo(
     () => Object.fromEntries(categories.map((category) => [category.id, category.slug])),
     [categories],
   );
 
+  const dynamicInitialValues = useMemo(() => {
+    const base = { ...(initial?.dynamicValues ?? {}) };
+    if (!isCreateMode) return base;
+
+    Object.entries(restoredValues).forEach(([key, value]) => {
+      if (!key.startsWith(DYNAMIC_FIELD_PREFIX)) return;
+      base[key.slice(DYNAMIC_FIELD_PREFIX.length)] = value;
+    });
+    return base;
+  }, [initial?.dynamicValues, isCreateMode, restoredValues]);
+
+  const restoredCondition = useMemo(() => {
+    if (!isCreateMode) return initial?.condition ?? ListingCondition.USED;
+    const value = restoredValues.condition as ListingCondition | undefined;
+    return Object.values(ListingCondition).includes(value || ListingCondition.USED)
+      ? value || ListingCondition.USED
+      : ListingCondition.USED;
+  }, [initial?.condition, isCreateMode, restoredValues.condition]);
+
+  const restoredCityId = useMemo(() => {
+    if (!isCreateMode) return initial?.cityId ?? cities[0]?.id;
+    const value = restoredValues.cityId;
+    if (value && cities.some((city) => city.id === value)) return value;
+    return initial?.cityId ?? cities[0]?.id;
+  }, [cities, initial?.cityId, isCreateMode, restoredValues.cityId]);
+
+  const readValue = useCallback(
+    (key: string, fallback = "") => {
+      if (isCreateMode && key in restoredValues) return restoredValues[key];
+      return fallback;
+    },
+    [isCreateMode, restoredValues],
+  );
+
+  const persistDraft = useCallback(() => {
+    if (!isCreateMode || !formRef.current || typeof window === "undefined") return;
+
+    const formData = new FormData(formRef.current);
+    const values: Record<string, string> = {};
+
+    for (const [key, value] of formData.entries()) {
+      if (key === "photo" || key === "intent" || key === "id") continue;
+      if (typeof value === "string") values[key] = value;
+    }
+
+    values.categoryId = categoryId;
+    values.plan = plan;
+
+    const payload: PersistedCreateDraft = {
+      categoryId,
+      plan,
+      values,
+    };
+
+    window.localStorage.setItem(CREATE_FORM_STORAGE_KEY, JSON.stringify(payload));
+  }, [categoryId, isCreateMode, plan]);
+
+  useEffect(() => {
+    if (!isCreateMode || typeof window === "undefined") return;
+
+    const raw = window.localStorage.getItem(CREATE_FORM_STORAGE_KEY);
+    if (!raw) {
+      setIsRestored(true);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as PersistedCreateDraft;
+      const nextValues = parsed?.values ?? {};
+      setRestoredValues(nextValues);
+
+      const nextCategory =
+        parsed.categoryId || nextValues.categoryId || initial?.categoryId;
+      if (nextCategory && categories.some((category) => category.id === nextCategory)) {
+        setCategoryId(nextCategory);
+      }
+
+      if (parsed.plan === "subscription" || parsed.plan === "pay-per-listing") {
+        setPlan(parsed.plan);
+      }
+    } catch {
+      window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
+    } finally {
+      setIsRestored(true);
+    }
+  }, [categories, initial?.categoryId, isCreateMode]);
+
+  useEffect(() => {
+    if (!isCreateMode || !isRestored) return;
+    persistDraft();
+  }, [categoryId, isCreateMode, isRestored, persistDraft, plan]);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+    };
+  }, [photoPreviewUrl]);
+
+  useEffect(() => {
+    if (!showPhotoPopover) return;
+
+    function handleDocumentClick(event: MouseEvent) {
+      if (!photoPopoverRef.current) return;
+      if (!photoPopoverRef.current.contains(event.target as Node)) {
+        setShowPhotoPopover(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentClick);
+    return () => document.removeEventListener("mousedown", handleDocumentClick);
+  }, [showPhotoPopover]);
+
+  function onPhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0];
+    if (!nextFile) {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+      setPhotoPreviewUrl(null);
+      setPhotoName("");
+      setShowPhotoPopover(false);
+      return;
+    }
+
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    const nextPreview = URL.createObjectURL(nextFile);
+    setPhotoPreviewUrl(nextPreview);
+    setPhotoName(nextFile.name);
+  }
+
+  if (!isRestored) {
+    return (
+      <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+        Restoring your saved listing draft...
+      </div>
+    );
+  }
+
   return (
-    <form action={action} className="space-y-6">
+    <form
+      ref={formRef}
+      action={action}
+      encType={!initial?.id ? "multipart/form-data" : undefined}
+      className="space-y-5"
+      onChange={() => {
+        if (isCreateMode) persistDraft();
+      }}
+      onSubmit={() => {
+        if (isCreateMode) persistDraft();
+      }}
+    >
       {initial?.id && <input type="hidden" name="id" value={initial.id} />}
       <input type="hidden" name="plan" value={plan} />
+      {paymentProvider !== "none" && (
+        <input type="hidden" name="paymentProvider" value={paymentProvider} />
+      )}
 
-      <section className="space-y-3">
-        <h3 className="text-lg font-semibold">Listing basics</h3>
-        <div className="grid gap-3">
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Title</span>
-            <Input
-              name="title"
-              defaultValue={initial?.title}
-              placeholder="Example: Volkswagen Golf 7 2017"
-              required
-              minLength={5}
-            />
-          </label>
+      <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
+          <h3 className="text-lg font-semibold">Listing details</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 sm:col-span-2">
+              <span className="text-sm font-medium">Title</span>
+              <Input
+                name="title"
+                defaultValue={readValue("title", initial?.title ?? "")}
+                placeholder="Example: Volkswagen Golf 7 2017"
+                required
+                minLength={5}
+              />
+            </label>
 
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Description</span>
-            <textarea
-              name="description"
-              defaultValue={initial?.description}
-              className="min-h-32 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
-              placeholder="Describe condition, features, delivery, and payment terms."
-              required
-            />
-          </label>
+            <label className="space-y-1">
+              <span className="text-sm font-medium">Price</span>
+              <Input
+                type="number"
+                step="1"
+                min="0"
+                name="price"
+                defaultValue={readValue("price", String(initial?.price ?? 0))}
+                placeholder="Price"
+                required
+              />
+            </label>
 
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Price</span>
-            <Input
-              type="number"
-              step="1"
-              min="0"
-              name="price"
-              defaultValue={initial?.price ?? 0}
-              placeholder="Price"
-              required
-            />
-          </label>
+            <label className="space-y-1">
+              <span className="text-sm font-medium">Condition</span>
+              <Select
+                name="condition"
+                defaultValue={restoredCondition}
+              >
+                {Object.values(ListingCondition).map((condition) => (
+                  <option key={condition} value={condition}>
+                    {condition}
+                  </option>
+                ))}
+              </Select>
+            </label>
+
+            <label className="space-y-1 sm:col-span-2">
+              <span className="text-sm font-medium">Description</span>
+              <textarea
+                name="description"
+                defaultValue={readValue("description", initial?.description ?? "")}
+                className="min-h-32 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                placeholder="Describe condition, features, delivery, and payment terms."
+                required
+              />
+            </label>
+          </div>
         </div>
-      </section>
 
-      <section className="space-y-3">
-        <h3 className="text-lg font-semibold">Placement</h3>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Condition</span>
-            <Select
-              name="condition"
-              defaultValue={initial?.condition ?? ListingCondition.USED}
-            >
-              {Object.values(ListingCondition).map((condition) => (
-                <option key={condition} value={condition}>
-                  {condition}
-                </option>
-              ))}
-            </Select>
-          </label>
+        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
+          <h3 className="text-lg font-semibold">Category and location</h3>
 
           <label className="space-y-1">
             <span className="text-sm font-medium">Category</span>
@@ -134,18 +313,19 @@ export function ListingForm({
                 </option>
               ))}
             </Select>
-            <Link
-              href="#category-request"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              <CirclePlus size={13} />
-              Request new category
-            </Link>
           </label>
+
+          <Link
+            href="#category-request"
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            <CirclePlus size={13} />
+            Request new category
+          </Link>
 
           <label className="space-y-1">
             <span className="text-sm font-medium">City</span>
-            <Select name="cityId" defaultValue={initial?.cityId ?? cities[0]?.id}>
+            <Select name="cityId" defaultValue={restoredCityId}>
               {cities.map((city) => (
                 <option key={city.id} value={city.id}>
                   {city.name}
@@ -153,6 +333,81 @@ export function ListingForm({
               ))}
             </Select>
           </label>
+
+          {!initial?.id && (
+            <div className="space-y-2 rounded-xl border border-border/70 bg-card p-3">
+              <p className="text-sm font-medium">Photo (optional)</p>
+              <input
+                ref={fileInputRef}
+                name="photo"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPhotoChange}
+              />
+              <div className="flex items-start gap-3">
+                <div className="h-14 w-14 overflow-hidden rounded-xl border border-border/70 bg-muted/30">
+                  {photoPreviewUrl ? (
+                    <Image
+                      src={photoPreviewUrl}
+                      alt="Selected listing photo preview"
+                      width={56}
+                      height={56}
+                      unoptimized
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Choose photo
+                    </Button>
+                    <div ref={photoPopoverRef} className="relative">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={!photoPreviewUrl}
+                        onClick={() => setShowPhotoPopover((prev) => !prev)}
+                      >
+                        Preview pop
+                      </Button>
+                      {showPhotoPopover && photoPreviewUrl && (
+                        <div className="absolute right-0 top-11 z-20 w-56 rounded-xl border border-border/80 bg-card p-2 shadow-lg">
+                          <Image
+                            src={photoPreviewUrl}
+                            alt="Popup preview"
+                            width={220}
+                            height={220}
+                            unoptimized
+                            className="h-44 w-full rounded-lg object-cover"
+                          />
+                          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                            {photoName}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {photoName || "No file selected"}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Add one photo now (JPG, PNG, WEBP up to 6MB).
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Form auto-saves and restores after refresh on this device.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -198,25 +453,32 @@ export function ListingForm({
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
         <h3 className="text-lg font-semibold">Category fields</h3>
         <DynamicFieldsEditor
           key={categoryId}
           categoryId={categoryId}
           categorySlugById={categorySlugById}
           templatesByCategory={templatesByCategory}
-          initialValues={initial?.dynamicValues}
+          initialValues={dynamicInitialValues}
         />
       </section>
 
-      <div className="flex flex-wrap gap-2">
-        <Button name="intent" value="draft" type="submit" variant="outline">
-          Save draft
-        </Button>
+      <div className="flex flex-wrap gap-2 pt-1">
+        {allowDraft && (
+          <Button name="intent" value="draft" type="submit" variant="outline">
+            Save draft
+          </Button>
+        )}
         <Button name="intent" value="publish" type="submit">
-          Publish listing
+          {publishLabel}
         </Button>
       </div>
+      {isCreateMode && paymentProvider === "stripe-dummy" && (
+        <p className="text-xs text-muted-foreground">
+          Stripe dummy payment is simulated before activation.
+        </p>
+      )}
     </form>
   );
 }

@@ -3,7 +3,13 @@ import { notFound, redirect } from "next/navigation";
 import { ListingStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { Camera } from "lucide-react";
+import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import {
+  markPrismaHealthy,
+  markPrismaUnavailable,
+  shouldSkipPrismaCalls,
+} from "@/lib/prisma-circuit-breaker";
 import { requireUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,12 +35,29 @@ async function updateListing(formData: FormData) {
   "use server";
 
   const user = await requireUser();
+  if (shouldSkipPrismaCalls()) {
+    redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+  }
+
   const id = String(formData.get("id") || "");
   const intent = String(formData.get("intent") || "draft");
   const status = statusFromIntent(intent);
   const plan = String(formData.get("plan") || "pay-per-listing");
+  const paymentProvider = String(formData.get("paymentProvider") || "none");
+  let isFirstPublishedPost = false;
 
-  const listing = await prisma.listing.findUnique({ where: { id } });
+  let listing: Awaited<ReturnType<typeof prisma.listing.findUnique>> = null;
+  try {
+    listing = await prisma.listing.findUnique({ where: { id } });
+    markPrismaHealthy();
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+    }
+    throw error;
+  }
+
   if (!listing || listing.sellerId !== user.id) return;
 
   const title = String(formData.get("title") || "").trim();
@@ -47,11 +70,45 @@ async function updateListing(formData: FormData) {
   const price = Number(formData.get("price") || 0);
   const priceCents = Number.isFinite(price) ? Math.round(price * 100) : 0;
 
-  const templates = await prisma.categoryFieldTemplate.findMany({
-    where: { categoryId, isActive: true },
-    orderBy: { order: "asc" },
-  });
+  let templates: Awaited<ReturnType<typeof prisma.categoryFieldTemplate.findMany>> = [];
+  try {
+    templates = await prisma.categoryFieldTemplate.findMany({
+      where: { categoryId, isActive: true },
+      orderBy: { order: "asc" },
+    });
+    markPrismaHealthy();
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+    }
+    throw error;
+  }
   const dynamicValues = getDynamicFieldEntries(formData);
+
+  if (status === ListingStatus.ACTIVE && listing.status === ListingStatus.DRAFT) {
+    try {
+      const priorPublishedPosts = await prisma.listing.count({
+        where: {
+          sellerId: user.id,
+          id: { not: listing.id },
+          status: { not: ListingStatus.DRAFT },
+        },
+      });
+      markPrismaHealthy();
+      isFirstPublishedPost = priorPublishedPosts === 0;
+    } catch (error) {
+      if (isPrismaConnectionError(error)) {
+        markPrismaUnavailable();
+        redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+      }
+      throw error;
+    }
+
+    if (!isFirstPublishedPost && paymentProvider !== "stripe-dummy") {
+      redirect("/sell?error=Dummy%20Stripe%20payment%20is%20required%20before%20activation.");
+    }
+  }
 
   if (status === ListingStatus.ACTIVE) {
     const validation = validatePublishInputs({
@@ -65,46 +122,83 @@ async function updateListing(formData: FormData) {
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.listing.update({
-      where: { id },
-      data: {
-        title,
-        description,
-        priceCents,
-        categoryId,
-        cityId,
-        condition,
-        status,
-        activeUntil: resolveActiveUntil(status, plan),
-      },
-    });
-
-    await tx.listingFieldValue.deleteMany({ where: { listingId: id } });
-
-    const entries = Object.entries(dynamicValues).filter(
-      ([, value]) => value.trim().length > 0,
-    );
-    if (entries.length > 0) {
-      await tx.listingFieldValue.createMany({
-        data: entries.map(([key, value]) => ({ listingId: id, key, value })),
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.listing.update({
+        where: { id },
+        data: {
+          title,
+          description,
+          priceCents,
+          categoryId,
+          cityId,
+          condition,
+          status,
+          activeUntil: resolveActiveUntil(
+            status,
+            status === ListingStatus.ACTIVE &&
+              listing.status === ListingStatus.DRAFT &&
+              isFirstPublishedPost
+              ? "pay-per-listing"
+              : plan,
+          ),
+        },
       });
+
+      await tx.listingFieldValue.deleteMany({ where: { listingId: id } });
+
+      const entries = Object.entries(dynamicValues).filter(
+        ([, value]) => value.trim().length > 0,
+      );
+      if (entries.length > 0) {
+        await tx.listingFieldValue.createMany({
+          data: entries.map(([key, value]) => ({ listingId: id, key, value })),
+        });
+      }
+    });
+    markPrismaHealthy();
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      redirect("/sell?error=Database%20is%20temporarily%20unreachable");
     }
-  });
+    throw error;
+  }
 
   revalidatePath("/browse");
   revalidatePath("/sell");
   revalidatePath(`/listing/${id}`);
+  if (status === ListingStatus.ACTIVE && listing.status === ListingStatus.DRAFT) {
+    if (isFirstPublishedPost) {
+      redirect("/sell?free=1");
+    }
+    if (paymentProvider === "stripe-dummy") {
+      redirect("/sell?paid=1");
+    }
+  }
   redirect("/sell");
 }
 
 async function deleteListing(formData: FormData) {
   "use server";
   const user = await requireUser();
+  if (shouldSkipPrismaCalls()) {
+    redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+  }
+
   const id = String(formData.get("id") || "");
-  await prisma.listing.deleteMany({
-    where: { id, sellerId: user.id, status: ListingStatus.DRAFT },
-  });
+  try {
+    await prisma.listing.deleteMany({
+      where: { id, sellerId: user.id, status: ListingStatus.DRAFT },
+    });
+    markPrismaHealthy();
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+    }
+    throw error;
+  }
   revalidatePath("/sell");
   redirect("/sell");
 }
@@ -120,16 +214,50 @@ export default async function EditListing({
   const { id } = await params;
   const sp = await searchParams;
 
-  const [listing, categories, cities, templates, fieldValues] = await Promise.all([
-    prisma.listing.findUnique({ where: { id }, include: { images: true } }),
-    prisma.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
-    prisma.city.findMany({ orderBy: { name: "asc" } }),
-    prisma.categoryFieldTemplate.findMany({
-      where: { isActive: true },
-      orderBy: [{ categoryId: "asc" }, { order: "asc" }],
-    }),
-    prisma.listingFieldValue.findMany({ where: { listingId: id } }),
-  ]);
+  async function fetchEditData() {
+    return Promise.all([
+      prisma.listing.findUnique({ where: { id }, include: { images: true } }),
+      prisma.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
+      prisma.city.findMany({ orderBy: { name: "asc" } }),
+      prisma.categoryFieldTemplate.findMany({
+        where: { isActive: true },
+        orderBy: [{ categoryId: "asc" }, { order: "asc" }],
+      }),
+      prisma.listingFieldValue.findMany({ where: { listingId: id } }),
+    ]);
+  }
+
+  let editData: Awaited<ReturnType<typeof fetchEditData>> | null = null;
+  try {
+    if (!shouldSkipPrismaCalls()) {
+      editData = await fetchEditData();
+      markPrismaHealthy();
+    }
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      editData = null;
+    } else {
+      throw error;
+    }
+  }
+
+  if (!editData) {
+    return (
+      <div className="space-y-4">
+        <Card className="border-warning/30 bg-warning/10">
+          <CardContent className="py-5 text-sm text-foreground">
+            Database is temporarily unreachable. Please retry in a moment.
+          </CardContent>
+        </Card>
+        <Link href="/sell">
+          <Button variant="outline">Back to dashboard</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const [listing, categories, cities, templates, fieldValues] = editData;
 
   if (!listing || listing.sellerId !== user.id) notFound();
 
@@ -162,6 +290,8 @@ export default async function EditListing({
             categories={categories}
             cities={cities}
             templatesByCategory={templatesByCategory}
+            paymentProvider="stripe-dummy"
+            publishLabel="Pay dummy Stripe & publish"
             initial={{
               id: listing.id,
               title: listing.title,
@@ -171,7 +301,10 @@ export default async function EditListing({
               categoryId: listing.categoryId,
               cityId: listing.cityId,
               dynamicValues,
-              plan: listing.activeUntil ? "pay-per-listing" : "subscription",
+              plan:
+                listing.status === ListingStatus.ACTIVE && !listing.activeUntil
+                  ? "subscription"
+                  : "pay-per-listing",
             }}
           />
         </CardContent>

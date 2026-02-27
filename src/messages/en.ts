@@ -5,6 +5,7 @@ export const en = {
     browse: "Browse",
     categories: "Categories",
     sell: "Sell",
+    dashboard: "Dashboard",
     admin: "Admin",
     login: "Login",
     register: "Register",

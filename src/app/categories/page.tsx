@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, Car, PlusCircle, Search } from "lucide-react";
+import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import {
+  markPrismaHealthy,
+  markPrismaUnavailable,
+  shouldSkipPrismaCalls,
+} from "@/lib/prisma-circuit-breaker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,19 +30,39 @@ export default async function CategoriesPage({
   const sp = await searchParams;
   const query = (sp.q || "").trim().toLowerCase();
 
-  const categories = await prisma.category.findMany({
-    where: { isActive: true, parentId: null },
-    include: {
-      children: {
-        where: { isActive: true },
-        orderBy: { name: "asc" },
+  async function fetchCategoriesData() {
+    return prisma.category.findMany({
+      where: { isActive: true, parentId: null },
+      include: {
+        children: {
+          where: { isActive: true },
+          orderBy: { name: "asc" },
+        },
+        _count: {
+          select: { listings: true },
+        },
       },
-      _count: {
-        select: { listings: true },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
+      orderBy: { name: "asc" },
+    });
+  }
+
+  let categories: Awaited<ReturnType<typeof fetchCategoriesData>> = [];
+  let dbUnavailable = false;
+  try {
+    if (!shouldSkipPrismaCalls()) {
+      categories = await fetchCategoriesData();
+      markPrismaHealthy();
+    } else {
+      dbUnavailable = true;
+    }
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      dbUnavailable = true;
+    } else {
+      throw error;
+    }
+  }
 
   const visibleCategories = categories.filter((category) =>
     query ? category.name.toLowerCase().includes(query) : true,
@@ -70,6 +96,14 @@ export default async function CategoriesPage({
           </form>
         </div>
       </section>
+
+      {dbUnavailable && (
+        <Card className="border-warning/30 bg-warning/10">
+          <CardContent className="py-4 text-sm text-foreground">
+            Categories are temporarily unavailable because the database is unreachable.
+          </CardContent>
+        </Card>
+      )}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {visibleCategories.map((category) => {

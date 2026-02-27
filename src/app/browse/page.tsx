@@ -11,7 +11,13 @@ import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import {
+  markPrismaHealthy,
+  markPrismaUnavailable,
+  shouldSkipPrismaCalls,
+} from "@/lib/prisma-circuit-breaker";
 import { parseTemplateOptions } from "@/lib/listing-fields";
 
 const PAGE_SIZE = 18;
@@ -114,55 +120,79 @@ export default async function BrowsePage({
     ...(andFilters.length > 0 ? { AND: andFilters } : {}),
   };
 
-  const [listings, totalCount, parentCategories, cities] = await Promise.all([
-    prisma.listing.findMany({
-      where,
-      include: {
-        city: true,
-        category: {
-          include: {
-            parent: true,
-            fieldTemplates: {
-              where: { isActive: true },
-              orderBy: { order: "asc" },
+  async function fetchBrowseData() {
+    return Promise.all([
+      prisma.listing.findMany({
+        where,
+        include: {
+          city: true,
+          category: {
+            include: {
+              parent: true,
+              fieldTemplates: {
+                where: { isActive: true },
+                orderBy: { order: "asc" },
+              },
+            },
+          },
+          images: true,
+          fieldValues: true,
+        },
+        orderBy:
+          sort === "price-asc"
+            ? { priceCents: "asc" }
+            : sort === "price-desc"
+              ? { priceCents: "desc" }
+              : { createdAt: "desc" },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+      prisma.listing.count({ where }),
+      prisma.category.findMany({
+        where: { isActive: true, parentId: null },
+        include: {
+          fieldTemplates: {
+            where: { isActive: true },
+            orderBy: { order: "asc" },
+          },
+          children: {
+            where: { isActive: true },
+            orderBy: { name: "asc" },
+            include: {
+              fieldTemplates: {
+                where: { isActive: true },
+                orderBy: { order: "asc" },
+              },
             },
           },
         },
-        images: true,
-        fieldValues: true,
-      },
-      orderBy:
-        sort === "price-asc"
-          ? { priceCents: "asc" }
-          : sort === "price-desc"
-            ? { priceCents: "desc" }
-            : { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.listing.count({ where }),
-    prisma.category.findMany({
-      where: { isActive: true, parentId: null },
-      include: {
-        fieldTemplates: {
-          where: { isActive: true },
-          orderBy: { order: "asc" },
-        },
-        children: {
-          where: { isActive: true },
-          orderBy: { name: "asc" },
-          include: {
-            fieldTemplates: {
-              where: { isActive: true },
-              orderBy: { order: "asc" },
-            },
-          },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
-    prisma.city.findMany({ orderBy: { name: "asc" } }),
-  ]);
+        orderBy: { name: "asc" },
+      }),
+      prisma.city.findMany({ orderBy: { name: "asc" } }),
+    ]);
+  }
+
+  let listings: Awaited<ReturnType<typeof fetchBrowseData>>[0] = [];
+  let totalCount = 0;
+  let parentCategories: Awaited<ReturnType<typeof fetchBrowseData>>[2] = [];
+  let cities: Awaited<ReturnType<typeof fetchBrowseData>>[3] = [];
+  let dbUnavailable = false;
+
+  try {
+    if (!shouldSkipPrismaCalls()) {
+      [listings, totalCount, parentCategories, cities] = await fetchBrowseData();
+      markPrismaHealthy();
+    } else {
+      dbUnavailable = true;
+    }
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      dbUnavailable = true;
+    } else {
+      throw error;
+    }
+  }
 
   const templatesByCategory = parentCategories.reduce<
     Record<string, BrowseTemplate[]>
@@ -220,7 +250,7 @@ export default async function BrowsePage({
             {totalCount} results
             {dynamicFilters.length > 0 && (
               <span className="ml-2">
-                · <Badge variant="secondary">{dynamicFilters.length} extra filters</Badge>
+                | <Badge variant="secondary">{dynamicFilters.length} extra filters</Badge>
               </span>
             )}
           </p>
@@ -247,6 +277,14 @@ export default async function BrowsePage({
           />
         </CardContent>
       </Card>
+
+      {dbUnavailable && (
+        <Card className="border-warning/30 bg-warning/10">
+          <CardContent className="py-4 text-sm text-foreground">
+            Browse data is temporarily unavailable because the database is unreachable.
+          </CardContent>
+        </Card>
+      )}
 
       {listings.length === 0 ? (
         <Card>

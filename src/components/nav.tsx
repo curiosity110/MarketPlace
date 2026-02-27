@@ -41,6 +41,14 @@ export async function Nav() {
               >
                 {en.nav.sell}
               </Link>
+              {user && (
+                <Link
+                  href="/sell/analytics"
+                  className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
+                >
+                  {en.nav.dashboard}
+                </Link>
+              )}
               {isAdmin && (
                 <Link
                   href="/admin"

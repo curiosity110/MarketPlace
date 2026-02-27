@@ -7,7 +7,13 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import {
+  markPrismaHealthy,
+  markPrismaUnavailable,
+  shouldSkipPrismaCalls,
+} from "@/lib/prisma-circuit-breaker";
 import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,38 +53,60 @@ const pricingPlans = [
 ];
 
 export default async function Home() {
-  const [latestListings, categoryHighlights] = await Promise.all([
-    prisma.listing.findMany({
-      where: { status: ListingStatus.ACTIVE },
-      include: {
-        city: true,
-        category: {
-          include: {
-            parent: true,
-            fieldTemplates: {
-              where: { isActive: true },
-              orderBy: { order: "asc" },
+  async function fetchHomeData() {
+    return Promise.all([
+      prisma.listing.findMany({
+        where: { status: ListingStatus.ACTIVE },
+        include: {
+          city: true,
+          category: {
+            include: {
+              parent: true,
+              fieldTemplates: {
+                where: { isActive: true },
+                orderBy: { order: "asc" },
+              },
             },
           },
+          images: true,
+          fieldValues: true,
         },
-        images: true,
-        fieldValues: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 9,
-    }),
-    prisma.category.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        _count: { select: { listings: true } },
-      },
-      orderBy: { listings: { _count: "desc" } },
-      take: 6,
-    }),
-  ]);
+        orderBy: { createdAt: "desc" },
+        take: 9,
+      }),
+      prisma.category.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          _count: { select: { listings: true } },
+        },
+        orderBy: { listings: { _count: "desc" } },
+        take: 6,
+      }),
+    ]);
+  }
+
+  let latestListings: Awaited<ReturnType<typeof fetchHomeData>>[0] = [];
+  let categoryHighlights: Awaited<ReturnType<typeof fetchHomeData>>[1] = [];
+  let dbUnavailable = false;
+
+  try {
+    if (!shouldSkipPrismaCalls()) {
+      [latestListings, categoryHighlights] = await fetchHomeData();
+      markPrismaHealthy();
+    } else {
+      dbUnavailable = true;
+    }
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      dbUnavailable = true;
+    } else {
+      throw error;
+    }
+  }
 
   return (
     <div className="space-y-12 md:space-y-16">
@@ -166,6 +194,14 @@ export default async function Home() {
           </Card>
         </div>
       </section>
+
+      {dbUnavailable && (
+        <Card className="border-warning/30 bg-warning/10">
+          <CardContent className="py-4 text-sm text-foreground">
+            Marketplace database is temporarily unreachable. Showing limited content.
+          </CardContent>
+        </Card>
+      )}
 
       <section className="space-y-6">
         <div className="flex items-end justify-between gap-4">

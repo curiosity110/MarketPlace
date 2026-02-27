@@ -48,18 +48,27 @@ enum CategoryRequestStatus {
   REJECTED
 }
 
+enum ContactRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id                String             @id @default(cuid())
-  email             String             @unique
-  name              String?
-  role              Role               @default(USER)
-  bannedAt          DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  listings          Listing[]
-  reports           Report[]           @relation("ReporterReports")
-  adminActions      AdminAction[]      @relation("AdminActions")
-  categoryRequests  CategoryRequest[]
+  id                      String             @id @default(cuid())
+  email                   String             @unique
+  name                    String?
+  phone                   String?
+  role                    Role               @default(USER)
+  bannedAt                DateTime?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  listings                Listing[]
+  reports                 Report[]           @relation("ReporterReports")
+  adminActions            AdminAction[]      @relation("AdminActions")
+  categoryRequests        CategoryRequest[]
+  contactRequestsSent     ContactRequest[]   @relation("ContactRequester")
+  contactRequestsReceived ContactRequest[]   @relation("ContactSeller")
 }
 
 model Category {
@@ -101,11 +110,32 @@ model Listing {
   images      ListingImage[]
   fieldValues ListingFieldValue[]
   reports     Report[]
+  contactRequests ContactRequest[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   @@index([status, activeUntil])
   @@index([title])
+}
+
+model ContactRequest {
+  id              String               @id @default(cuid())
+  listingId       String
+  listing         Listing              @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  requesterUserId String
+  requester       User                 @relation("ContactRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  sellerUserId    String
+  seller          User                 @relation("ContactSeller", fields: [sellerUserId], references: [id], onDelete: Cascade)
+  message         String
+  status          ContactRequestStatus @default(PENDING)
+  sellerResponse  String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+
+  @@index([listingId, requesterUserId, createdAt])
+  @@index([sellerUserId, status, createdAt])
 }
 
 model CategoryFieldTemplate {

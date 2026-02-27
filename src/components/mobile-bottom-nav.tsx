@@ -34,9 +34,9 @@ export function MobileBottomNav({ isLoggedIn, isAdmin }: Props) {
     { href: "/categories", label: "Categories", icon: FolderKanban, show: true },
     { href: "/sell", label: "Sell", icon: ShoppingBag, show: true },
     {
-      href: isAdmin ? "/admin" : isLoggedIn ? "/sell?tab=active" : "/login",
-      label: isAdmin ? "Admin" : isLoggedIn ? "My Ads" : "Login",
-      icon: isAdmin ? Settings : isLoggedIn ? ShoppingBag : LogIn,
+      href: isAdmin ? "/admin" : isLoggedIn ? "/sell/analytics" : "/login",
+      label: isAdmin ? "Admin" : isLoggedIn ? "Dashboard" : "Login",
+      icon: isAdmin ? Settings : isLoggedIn ? Compass : LogIn,
       show: true,
     },
   ];

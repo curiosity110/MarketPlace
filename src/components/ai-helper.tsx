@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,17 @@ export function AIHelper({
     () => `Ask for help with buying, selling, pricing, or safety.`,
     [],
   );
+
+  useEffect(() => {
+    function openAssistant() {
+      setIsOpen(true);
+    }
+
+    window.addEventListener("mkd:open-assistant", openAssistant);
+    return () => {
+      window.removeEventListener("mkd:open-assistant", openAssistant);
+    };
+  }, []);
 
   async function sendMessage(message: string) {
     const question = message.trim();

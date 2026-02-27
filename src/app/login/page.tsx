@@ -10,6 +10,10 @@ export default async function LoginPage({
 }) {
   const sp = await searchParams;
   const error = sp.error ? decodeURIComponent(sp.error) : null;
+  const next =
+    sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
+      ? sp.next
+      : "/browse";
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -27,7 +31,7 @@ export default async function LoginPage({
           <CardTitle className="text-2xl">Account access</CardTitle>
         </CardHeader>
         <CardContent>
-          <LoginForm defaultMode="login" initialError={error} />
+          <LoginForm defaultMode="login" initialError={error} nextPath={next} />
         </CardContent>
       </Card>
 

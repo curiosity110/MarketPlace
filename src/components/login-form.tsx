@@ -11,13 +11,27 @@ type Mode = "login" | "register";
 type Props = {
   defaultMode?: Mode;
   initialError?: string | null;
+  nextPath?: string;
 };
 
-function getRedirectUrl() {
-  return `${window.location.origin}/api/auth/callback?next=/browse`;
+function getSafeNextPath(nextPath: string) {
+  if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
+    return "/browse";
+  }
+  return nextPath;
 }
 
-export function LoginForm({ defaultMode = "login", initialError = null }: Props) {
+function getRedirectUrl(nextPath: string) {
+  const safeNext = getSafeNextPath(nextPath);
+  return `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(safeNext)}`;
+}
+
+export function LoginForm({
+  defaultMode = "login",
+  initialError = null,
+  nextPath = "/browse",
+}: Props) {
+  const safeNextPath = getSafeNextPath(nextPath);
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,7 +61,9 @@ export function LoginForm({ defaultMode = "login", initialError = null }: Props)
         setMessage(error.message);
         return;
       }
-      window.location.href = "/browse";
+      window.location.href = safeNextPath;
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Login failed.");
     } finally {
       setLoading(false);
     }
@@ -62,7 +78,7 @@ export function LoginForm({ defaultMode = "login", initialError = null }: Props)
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: getRedirectUrl(),
+          emailRedirectTo: getRedirectUrl(safeNextPath),
           data: {
             name: name.trim() || undefined,
           },
@@ -77,6 +93,8 @@ export function LoginForm({ defaultMode = "login", initialError = null }: Props)
         "Account created. Check your email and confirm your address before login.",
       );
       setMode("login");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Registration failed.");
     } finally {
       setLoading(false);
     }
@@ -90,7 +108,7 @@ export function LoginForm({ defaultMode = "login", initialError = null }: Props)
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: getRedirectUrl(),
+          emailRedirectTo: getRedirectUrl(safeNextPath),
         },
       });
 
@@ -99,6 +117,8 @@ export function LoginForm({ defaultMode = "login", initialError = null }: Props)
         return;
       }
       setMessage("Magic link sent. Check your inbox.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to send magic link.");
     } finally {
       setLoading(false);
     }

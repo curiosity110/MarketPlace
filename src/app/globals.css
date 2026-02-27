@@ -6,7 +6,7 @@
   --card: 255 255 255;
   --card-foreground: 17 24 39;
   --muted: 240 246 252;
-  --muted-foreground: 90 100 122;
+  --muted-foreground: 70 85 105;
   --border: 215 225 237;
   --input: 255 255 255;
   --ring: 3 102 214;
@@ -30,7 +30,7 @@
   --card: 16 29 48;
   --card-foreground: 243 247 252;
   --muted: 24 39 61;
-  --muted-foreground: 154 169 190;
+  --muted-foreground: 174 188 208;
   --border: 37 56 82;
   --input: 16 29 48;
   --ring: 96 165 250;
@@ -94,6 +94,12 @@ body {
     "Segoe UI",
     sans-serif;
   line-height: 1.55;
+}
+
+/* Improve readability for tiny metadata text across the app. */
+.text-xs {
+  font-size: 0.8125rem;
+  line-height: 1.2rem;
 }
 
 ::selection {
