@@ -14,6 +14,10 @@ import { formatCurrencyFromCents } from "@/lib/currency";
 
 type ListingCardProps = {
   listing: Listing & {
+    seller?: {
+      name: string | null;
+      email: string;
+    };
     city: City;
     category: Category & {
       parent?: Category | null;
@@ -42,6 +46,8 @@ export function ListingCard({ listing }: ListingCardProps) {
   const categoryLabel = listing.category.parent
     ? `${listing.category.parent.name} / ${listing.category.name}`
     : listing.category.name;
+  const sellerLabel =
+    listing.seller?.name || listing.seller?.email?.split("@")[0] || "Seller";
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
@@ -75,6 +81,7 @@ export function ListingCard({ listing }: ListingCardProps) {
           <p className="text-xs text-muted-foreground">
             {listing.city.name} | {categoryLabel}
           </p>
+          <p className="text-xs text-muted-foreground">By {sellerLabel}</p>
 
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="secondary">{listing.condition}</Badge>

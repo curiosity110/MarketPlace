@@ -67,6 +67,11 @@ model User {
   email                   String             @unique
   name                    String?
   phone                   String?
+  username                String?
+  company                 String?
+  website                 String?
+  bio                     String?
+  address                 String?
   role                    Role               @default(SELLER)
   bannedAt                DateTime?
   createdAt               DateTime           @default(now())

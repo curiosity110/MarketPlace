@@ -1,26 +1,39 @@
 import Link from "next/link";
-import { ArrowRight, Car, PlusCircle, Search } from "lucide-react";
-import { isPrismaConnectionError } from "@/lib/prisma-errors";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  Car,
+  House,
+  Laptop2,
+  PackageOpen,
+  PlusCircle,
+  Search,
+  Shirt,
+  Smartphone,
+  Sofa,
+  Wrench,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
+import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import {
   markPrismaHealthy,
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
-const iconBySlug: Record<string, string> = {
-  cars: "🚗",
-  "real-estate": "🏠",
-  electronics: "💻",
-  jobs: "💼",
-  services: "🛠️",
-  furniture: "🛋️",
-  phones: "📱",
-  fashion: "👕",
-};
+const iconBySlug = {
+  cars: Car,
+  "real-estate": House,
+  electronics: Laptop2,
+  jobs: BriefcaseBusiness,
+  services: Wrench,
+  furniture: Sofa,
+  phones: Smartphone,
+  fashion: Shirt,
+} as const;
 
 export default async function CategoriesPage({
   searchParams,
@@ -38,8 +51,8 @@ export default async function CategoriesPage({
           where: { isActive: true },
           orderBy: { name: "asc" },
         },
-        _count: {
-          select: { listings: true },
+        listings: {
+          select: { status: true },
         },
       },
       orderBy: { name: "asc" },
@@ -67,17 +80,46 @@ export default async function CategoriesPage({
   const visibleCategories = categories.filter((category) =>
     query ? category.name.toLowerCase().includes(query) : true,
   );
+  const totalActiveListings = categories.reduce(
+    (sum, category) =>
+      sum +
+      category.listings.filter((listing) => listing.status === "ACTIVE").length,
+    0,
+  );
+  const totalSubcategories = categories.reduce(
+    (sum, category) => sum + category.children.length,
+    0,
+  );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
         <div className="space-y-5">
           <div className="space-y-2">
             <h1 className="text-4xl font-black sm:text-5xl">Categories</h1>
             <p className="max-w-2xl text-muted-foreground">
-              Explore categories for Macedonia and worldwide trading. Cars,
-              electronics, real estate, and more with category-specific fields.
+              Clean category map for browsing and selling. Pick category, filter fast, and create
+              listings directly.
             </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border/70 bg-card px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Main categories
+              </p>
+              <p className="text-2xl font-black">{categories.length}</p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-card px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Subcategories</p>
+              <p className="text-2xl font-black">{totalSubcategories}</p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-card px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Active listings
+              </p>
+              <p className="text-2xl font-black">{totalActiveListings}</p>
+            </div>
           </div>
 
           <form method="get" className="max-w-xl">
@@ -107,22 +149,27 @@ export default async function CategoriesPage({
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {visibleCategories.map((category) => {
-          const emoji = iconBySlug[category.slug] || "📦";
-          const isCars = category.slug === "cars";
+          const Icon = iconBySlug[category.slug as keyof typeof iconBySlug] || PackageOpen;
+          const activeCount = category.listings.filter(
+            (listing) => listing.status === "ACTIVE",
+          ).length;
+          const totalCount = category.listings.length;
 
           return (
             <Card
               key={category.id}
-              className="overflow-hidden border-border/75 transition-colors hover:border-primary/30"
+              className="overflow-hidden border-border/75 transition-all hover:-translate-y-0.5 hover:border-primary/30"
             >
               <CardContent className="space-y-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-3xl">{emoji}</p>
+                    <div className="inline-flex rounded-xl border border-border/70 bg-muted/20 p-2">
+                      <Icon size={20} className="text-primary" />
+                    </div>
                     <h2 className="mt-2 text-xl font-bold">{category.name}</h2>
                   </div>
                   <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-                    {category._count.listings} listings
+                    {activeCount}/{totalCount}
                   </span>
                 </div>
 
@@ -140,27 +187,14 @@ export default async function CategoriesPage({
                   </div>
                 )}
 
-                {isCars && (
-                  <div className="rounded-xl border border-primary/25 bg-orange-50/60 p-3 text-sm dark:bg-orange-500/10">
-                    <p className="mb-2 inline-flex items-center gap-1 font-semibold text-primary">
-                      <Car size={15} />
-                      Cars have advanced filters
-                    </p>
-                    <p className="text-muted-foreground">
-                      Use year, fuel, transmission, and brand filters directly
-                      in browse.
-                    </p>
-                  </div>
-                )}
-
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Link href={`/browse?cat=${category.id}`}>
                     <Button variant="outline" className="w-full">
                       Browse
                     </Button>
                   </Link>
-                  <Link href={`/sell?categoryId=${category.id}`}>
-                    <Button className="w-full">Sell here</Button>
+                  <Link href={`/sell/analytics?create=1&cat=${category.id}`}>
+                    <Button className="w-full">Create here</Button>
                   </Link>
                 </div>
               </CardContent>
@@ -172,13 +206,12 @@ export default async function CategoriesPage({
       <section className="rounded-3xl border border-dashed border-border bg-card p-6 text-center">
         <h2 className="text-2xl font-bold">Missing a category?</h2>
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
-          Request a new category with the plus button inside the sell form.
-          Admin can review and approve quickly.
+          Open your dashboard and request a new category. The team can approve it quickly.
         </p>
-        <Link href="/sell" className="mt-4 inline-block">
+        <Link href="/sell/analytics" className="mt-4 inline-block">
           <Button variant="outline" className="gap-2">
             <PlusCircle size={16} />
-            Open Sell Form
+            Open dashboard categories
           </Button>
         </Link>
         <Link

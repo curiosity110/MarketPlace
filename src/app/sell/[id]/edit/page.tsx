@@ -24,6 +24,7 @@ import {
   validatePublishInputs,
 } from "@/lib/listing-fields";
 import { normalizePhoneInput, parseStoredPhone } from "@/lib/phone";
+import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -38,7 +39,7 @@ async function updateListing(formData: FormData) {
 
   const user = await requireSeller();
   if (shouldSkipPrismaCalls()) {
-    redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+    redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
   }
 
   const id = String(formData.get("id") || "");
@@ -55,7 +56,7 @@ async function updateListing(formData: FormData) {
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+      redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
     }
     throw error;
   }
@@ -105,13 +106,23 @@ async function updateListing(formData: FormData) {
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
-        redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+        redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
       }
       throw error;
     }
 
     if (!isFirstPublishedPost && paymentProvider !== "stripe-dummy") {
-      redirect("/sell?error=Dummy%20Stripe%20payment%20is%20required%20before%20activation.");
+      redirect("/sell/analytics?error=Dummy%20Stripe%20payment%20is%20required%20before%20activation.");
+    }
+    if (!isFirstPublishedPost && paymentProvider === "stripe-dummy") {
+      const paymentResult = validateDummyStripePayment({
+        cardNumberRaw: String(formData.get("dummyCardNumber") || ""),
+        cardExpRaw: String(formData.get("dummyCardExp") || ""),
+        cardCvcRaw: String(formData.get("dummyCardCvc") || ""),
+      });
+      if (!paymentResult.ok) {
+        redirect(`/sell/${id}/edit?error=${encodeURIComponent(paymentResult.error)}`);
+      }
     }
   }
 
@@ -142,7 +153,7 @@ async function updateListing(formData: FormData) {
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
-        redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+        redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
       }
       throw error;
     }
@@ -202,33 +213,34 @@ async function updateListing(formData: FormData) {
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+      redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
     }
     throw error;
   }
 
   revalidatePath("/browse");
   revalidatePath("/sell");
+  revalidatePath("/sell/analytics");
   revalidatePath(`/listing/${id}`);
   if (status === ListingStatus.ACTIVE && listing.status === ListingStatus.DRAFT) {
     if (isFirstPublishedPost) {
-      redirect("/sell?free=1");
+      redirect("/sell/analytics?free=1");
     }
     if (paymentProvider === "stripe-dummy") {
-      redirect("/sell?paid=1");
+      redirect("/sell/analytics?paid=1");
     }
   }
   if (status === ListingStatus.DRAFT) {
     redirect("/sell/analytics?draft=1");
   }
-  redirect("/sell");
+  redirect("/sell/analytics");
 }
 
 async function deleteListing(formData: FormData) {
   "use server";
   const user = await requireSeller();
   if (shouldSkipPrismaCalls()) {
-    redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+    redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
   }
 
   const id = String(formData.get("id") || "");
@@ -240,12 +252,13 @@ async function deleteListing(formData: FormData) {
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+      redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
     }
     throw error;
   }
   revalidatePath("/sell");
-  redirect("/sell");
+  revalidatePath("/sell/analytics");
+  redirect("/sell/analytics");
 }
 
 export default async function EditListing({
@@ -299,7 +312,7 @@ export default async function EditListing({
             Database is temporarily unreachable. Please retry in a moment.
           </CardContent>
         </Card>
-        <Link href="/sell">
+        <Link href="/sell/analytics">
           <Button variant="outline">Back to dashboard</Button>
         </Link>
       </div>
@@ -410,10 +423,11 @@ export default async function EditListing({
             Delete draft
           </Button>
         </form>
-        <Link href="/sell">
+        <Link href="/sell/analytics">
           <Button variant="outline">Back to dashboard</Button>
         </Link>
       </div>
     </div>
   );
 }
+

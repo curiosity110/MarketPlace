@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Currency, ListingCondition } from "@prisma/client";
-import { CirclePlus, Sparkles } from "lucide-react";
+import { CirclePlus, ImagePlus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
 import { Input } from "@/components/ui/input";
@@ -74,7 +74,6 @@ export function ListingForm({
   const isCreateMode = !initial?.id;
   const formRef = useRef<HTMLFormElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const photoPopoverRef = useRef<HTMLDivElement | null>(null);
 
   const initialCategory = initial?.categoryId ?? categories[0]?.id ?? "";
   const hasSavedProfilePhone = Boolean((initial?.phone ?? "").trim());
@@ -88,7 +87,6 @@ export function ListingForm({
   const [restoredValues, setRestoredValues] = useState<Record<string, string>>({});
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState("");
-  const [showPhotoPopover, setShowPhotoPopover] = useState(false);
 
   const categorySlugById = useMemo(
     () => Object.fromEntries(categories.map((category) => [category.id, category.slug])),
@@ -211,27 +209,12 @@ export function ListingForm({
     };
   }, [photoPreviewUrl]);
 
-  useEffect(() => {
-    if (!showPhotoPopover) return;
-
-    function handleDocumentClick(event: MouseEvent) {
-      if (!photoPopoverRef.current) return;
-      if (!photoPopoverRef.current.contains(event.target as Node)) {
-        setShowPhotoPopover(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleDocumentClick);
-    return () => document.removeEventListener("mousedown", handleDocumentClick);
-  }, [showPhotoPopover]);
-
   function onPhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const nextFile = event.target.files?.[0];
     if (!nextFile) {
       if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
       setPhotoPreviewUrl(null);
       setPhotoName("");
-      setShowPhotoPopover(false);
       return;
     }
 
@@ -239,6 +222,15 @@ export function ListingForm({
     const nextPreview = URL.createObjectURL(nextFile);
     setPhotoPreviewUrl(nextPreview);
     setPhotoName(nextFile.name);
+  }
+
+  function clearPhotoSelection() {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(null);
+    setPhotoName("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   if (!isRestored) {
@@ -331,53 +323,58 @@ export function ListingForm({
         </div>
 
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <h3 className="text-lg font-semibold">Category and location</h3>
-
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Category</span>
-            <Select
-              name="categoryId"
-              value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-lg font-semibold">Category and location</h3>
             <Link
               href="/sell/analytics"
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               <CirclePlus size={13} />
-              Request new category in dashboard
+              Request category
             </Link>
           </div>
 
-          <label className="space-y-1">
-            <span className="text-sm font-medium">City</span>
-            <Select name="cityId" defaultValue={restoredCityId} required>
-              {cities.length === 0 ? (
-                <option value="" disabled>
-                  No city available
-                </option>
-              ) : (
-                cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Category
+              </span>
+              <Select
+                name="categoryId"
+                value={categoryId}
+                onChange={(event) => setCategoryId(event.target.value)}
+              >
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
                   </option>
-                ))
-              )}
-            </Select>
-          </label>
+                ))}
+              </Select>
+            </label>
 
-          <div className="space-y-2 rounded-xl border border-border/70 bg-card p-3">
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                City
+              </span>
+              <Select name="cityId" defaultValue={restoredCityId} required>
+                {cities.length === 0 ? (
+                  <option value="" disabled>
+                    No city available
+                  </option>
+                ) : (
+                  cities.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))
+                )}
+              </Select>
+            </label>
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-border/70 bg-card/90 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium">Seller phone for all posts</p>
+              <p className="text-sm font-semibold">Seller phone for this post</p>
               {hasSavedProfilePhone && (
                 <button
                   type="button"
@@ -399,16 +396,14 @@ export function ListingForm({
                 />
                 <input type="hidden" name="phone" value={initial?.phone ?? ""} />
                 <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-                  <p className="text-xs text-muted-foreground">
-                    Using your saved seller phone automatically on this post.
-                  </p>
-                  <p className="text-sm font-semibold">
+                  <p className="text-xs text-muted-foreground">Using saved phone</p>
+                  <p className="text-sm font-semibold leading-none">
                     {initial?.phoneCountry || "MK"} {initial?.phone}
                   </p>
                 </div>
               </>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-[170px_1fr]">
+              <div className="grid gap-2 sm:grid-cols-[170px_minmax(0,1fr)]">
                 <label className="space-y-1">
                   <span className="text-xs font-medium text-muted-foreground">Country</span>
                   <Select
@@ -434,14 +429,13 @@ export function ListingForm({
                 </label>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              Use local format, +country prefix, or 00country prefix.
+            <p className="text-[11px] text-muted-foreground">
+              Accepted format: local, +country, or 00country.
             </p>
           </div>
 
           {!initial?.id && (
-            <div className="space-y-2 rounded-xl border border-border/70 bg-card p-3">
-              <p className="text-sm font-medium">Photo (optional)</p>
+            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
               <input
                 ref={fileInputRef}
                 name="photo"
@@ -450,66 +444,58 @@ export function ListingForm({
                 className="hidden"
                 onChange={onPhotoChange}
               />
-              <div className="flex items-start gap-3">
-                <div className="h-14 w-14 overflow-hidden rounded-xl border border-border/70 bg-muted/30">
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="inline-flex items-center gap-2 text-sm font-semibold">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-muted/30 text-muted-foreground">
+                    <ImagePlus size={13} />
+                  </span>
+                  Photo (optional)
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {photoPreviewUrl ? "Change" : "Upload"}
+                  </Button>
+                  {photoPreviewUrl && (
+                    <Button type="button" size="sm" variant="ghost" onClick={clearPhotoSelection}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-2 flex items-center gap-3">
+                <div className="h-12 w-12 overflow-hidden rounded-lg border border-border/70 bg-muted/30">
                   {photoPreviewUrl ? (
                     <Image
                       src={photoPreviewUrl}
                       alt="Selected listing photo preview"
-                      width={56}
-                      height={56}
+                      width={48}
+                      height={48}
                       unoptimized
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="h-full w-full" />
+                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                      <ImagePlus size={14} />
+                    </div>
                   )}
                 </div>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      Choose photo
-                    </Button>
-                    <div ref={photoPopoverRef} className="relative">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        disabled={!photoPreviewUrl}
-                        onClick={() => setShowPhotoPopover((prev) => !prev)}
-                      >
-                        Preview pop
-                      </Button>
-                      {showPhotoPopover && photoPreviewUrl && (
-                        <div className="absolute right-0 top-11 z-20 w-56 rounded-xl border border-border/80 bg-card p-2 shadow-lg">
-                          <Image
-                            src={photoPreviewUrl}
-                            alt="Popup preview"
-                            width={220}
-                            height={220}
-                            unoptimized
-                            className="h-44 w-full rounded-lg object-cover"
-                          />
-                          <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                            {photoName}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-foreground">
                     {photoName || "No file selected"}
                   </p>
+                  <p className="text-[11px] text-muted-foreground">JPG, PNG, WEBP up to 6MB.</p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Add one photo now (JPG, PNG, WEBP up to 6MB).
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Form auto-saves and restores after refresh on this device.
+
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Draft auto-saves on this device.
               </p>
             </div>
           )}
@@ -557,6 +543,57 @@ export function ListingForm({
               </p>
             </button>
           </div>
+
+          {paymentProvider === "stripe-dummy" && (
+            <div className="space-y-2 rounded-xl border border-border/70 bg-card p-3">
+              <p className="text-sm font-semibold">Dummy Stripe card test</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <label className="space-y-1 sm:col-span-3">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Card number
+                  </span>
+                  <Input
+                    name="dummyCardNumber"
+                    defaultValue={readValue("dummyCardNumber", "")}
+                    placeholder="4242 4242 4242 4242"
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Expiry</span>
+                  <Input
+                    name="dummyCardExp"
+                    defaultValue={readValue("dummyCardExp", "")}
+                    placeholder="MM/YY"
+                    autoComplete="cc-exp"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">CVC</span>
+                  <Input
+                    name="dummyCardCvc"
+                    defaultValue={readValue("dummyCardCvc", "")}
+                    placeholder="CVC"
+                    inputMode="numeric"
+                    autoComplete="cc-csc"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Cardholder</span>
+                  <Input
+                    name="dummyCardName"
+                    defaultValue={readValue("dummyCardName", "")}
+                    placeholder="Test User"
+                    autoComplete="cc-name"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Success card: 4242424242424242. Fail card: 4000000000000002.
+              </p>
+            </div>
+          )}
         </section>
       )}
 
@@ -583,7 +620,7 @@ export function ListingForm({
       </div>
       {isCreateMode && showPlanSelector && paymentProvider === "stripe-dummy" && (
         <p className="text-xs text-muted-foreground">
-          Stripe dummy payment is simulated before activation.
+          Stripe dummy payment is validated before activation.
         </p>
       )}
     </form>

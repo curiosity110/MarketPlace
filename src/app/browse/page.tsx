@@ -21,7 +21,7 @@ import {
 } from "@/lib/prisma-circuit-breaker";
 import { parseTemplateOptions } from "@/lib/listing-fields";
 
-const PAGE_SIZE = 18;
+const PAGE_SIZE = 60;
 type BrowseTemplate = {
   key: string;
   label: string;
@@ -38,6 +38,14 @@ function getParam(
   return value;
 }
 
+function parseOptionalNumberParam(value: string | undefined) {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export default async function BrowsePage({
   searchParams,
 }: {
@@ -51,14 +59,14 @@ export default async function BrowsePage({
   const condition = getParam(sp, "condition");
   const sort = getParam(sp, "sort") || "newest";
   const page = Math.max(1, Number(getParam(sp, "page") || 1));
-  const minRaw = Number(getParam(sp, "min") ?? "");
-  const maxRaw = Number(getParam(sp, "max") ?? "");
+  const minRaw = parseOptionalNumberParam(getParam(sp, "min"));
+  const maxRaw = parseOptionalNumberParam(getParam(sp, "max"));
   const categoryId = sub || cat || undefined;
 
   const minCents =
-    Number.isFinite(minRaw) && minRaw >= 0 ? Math.round(minRaw * 100) : undefined;
+    minRaw !== undefined && minRaw >= 0 ? Math.round(minRaw * 100) : undefined;
   const maxCents =
-    Number.isFinite(maxRaw) && maxRaw >= 0 ? Math.round(maxRaw * 100) : undefined;
+    maxRaw !== undefined && maxRaw >= 0 ? Math.round(maxRaw * 100) : undefined;
 
   const [safeMinCents, safeMaxCents] =
     minCents !== undefined &&
@@ -75,6 +83,15 @@ export default async function BrowsePage({
       value: String(value).trim(),
     }))
     .filter((entry) => entry.value.length > 0);
+  const hasAppliedFilters =
+    Boolean(search) ||
+    Boolean(cat) ||
+    Boolean(sub) ||
+    Boolean(city) ||
+    Boolean(condition) ||
+    safeMinCents !== undefined ||
+    safeMaxCents !== undefined ||
+    dynamicFilters.length > 0;
 
   const andFilters: Prisma.ListingWhereInput[] = [];
 
@@ -126,6 +143,12 @@ export default async function BrowsePage({
       prisma.listing.findMany({
         where,
         include: {
+          seller: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
           city: true,
           category: {
             include: {
@@ -282,13 +305,18 @@ export default async function BrowsePage({
             {selectedCategory ? selectedCategory.name : "All listings"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {totalCount} results
+            {totalCount} results | showing {listings.length} on this page
             {dynamicFilters.length > 0 && (
               <span className="ml-2">
                 | <Badge variant="secondary">{dynamicFilters.length} extra filters</Badge>
               </span>
             )}
           </p>
+          {!hasAppliedFilters && (
+            <p className="text-xs text-muted-foreground">
+              Showing all active listings from all sellers.
+            </p>
+          )}
         </div>
 
         <Link href="/browse" className="pt-1">

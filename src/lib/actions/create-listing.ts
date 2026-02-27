@@ -19,6 +19,7 @@ import {
 } from "@/lib/listing-fields";
 import { isMarketplaceCurrency } from "@/lib/currency";
 import { normalizePhoneInput } from "@/lib/phone";
+import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_CREATE_PHOTO_SIZE = 6 * 1024 * 1024; // 6MB
@@ -184,6 +185,17 @@ async function createListingWithBase(
         basePath,
         "Dummy Stripe payment is required before activation.",
       );
+    }
+
+    if (!isFirstPublishedPost && paymentProvider === "stripe-dummy") {
+      const paymentResult = validateDummyStripePayment({
+        cardNumberRaw: String(formData.get("dummyCardNumber") || ""),
+        cardExpRaw: String(formData.get("dummyCardExp") || ""),
+        cardCvcRaw: String(formData.get("dummyCardCvc") || ""),
+      });
+      if (!paymentResult.ok) {
+        redirectWithError(basePath, paymentResult.error);
+      }
     }
 
     const validation = validatePublishInputs({

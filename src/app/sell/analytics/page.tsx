@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Currency, ListingStatus, Role } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,12 +19,13 @@ import {
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
 
-function normalizeHandlePart(value: string) {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ".")
-    .replace(/^\.+|\.+$/g, "");
-  return normalized || "seller";
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+type ListingView = "all" | "active" | "draft";
+
+function parseView(value: string | undefined): ListingView {
+  if (value === "active" || value === "draft") return value;
+  return "all";
 }
 
 export default async function SellerAnalyticsPage({
@@ -40,7 +42,10 @@ export default async function SellerAnalyticsPage({
   const sp = await searchParams;
   const error = sp.error;
   const draftSaved = sp.draft === "1";
+  const freeActivated = sp.free === "1";
+  const paidActivated = sp.paid === "1";
   const createRequested = sp.create === "1";
+  const selectedView = parseView(sp.view);
   const dbUnavailableError =
     "Database is temporarily unreachable. Please retry in a moment.";
 
@@ -48,12 +53,12 @@ export default async function SellerAnalyticsPage({
     return Promise.all([
       prisma.user.findUnique({
         where: { id: user.id },
-        select: { id: true, name: true, email: true, phone: true, createdAt: true },
+        select: { id: true, phone: true },
       }),
       prisma.listing.findMany({
         where: { sellerId: user.id },
         include: { category: true, city: true, images: true },
-        orderBy: { createdAt: "desc" },
+        orderBy: { updatedAt: "desc" },
       }),
       prisma.category.findMany({
         where: { isActive: true },
@@ -115,11 +120,18 @@ export default async function SellerAnalyticsPage({
   const parsedPhone = parseStoredPhone(userRecord?.phone);
   const templatesByCategory = groupTemplatesByCategory(normalizeTemplates(templates));
   const hasPublishedListing = publishedCount > 0;
+
   const activeListings = allListings.filter(
     (listing) => listing.status === ListingStatus.ACTIVE,
   );
-  const payPerListingActive = activeListings.filter((listing) => listing.activeUntil).length;
-  const subscriptionActive = activeListings.filter((listing) => !listing.activeUntil).length;
+  const draftCount = allListings.filter(
+    (listing) => listing.status === ListingStatus.DRAFT,
+  ).length;
+  const expiringSoon = activeListings.filter((listing) => {
+    if (!listing.activeUntil) return false;
+    const diffMs = listing.activeUntil.getTime() - now.getTime();
+    return diffMs > 0 && diffMs <= 7 * 24 * 60 * 60 * 1000;
+  }).length;
 
   const categoryStats = [...allListings]
     .reduce<Map<string, { id: string; name: string; posted: number; active: number }>>(
@@ -150,22 +162,130 @@ export default async function SellerAnalyticsPage({
   const selectedCategoryListings = selectedCategory
     ? [...allListings]
         .filter((listing) => listing.categoryId === selectedCategory.id)
+        .filter((listing) => {
+          if (selectedView === "active") return listing.status === ListingStatus.ACTIVE;
+          if (selectedView === "draft") return listing.status === ListingStatus.DRAFT;
+          return true;
+        })
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
     : [];
 
-  const emailPrefix = (userRecord?.email || user.email).split("@")[0] || "seller";
-  const handleSeed = userRecord?.name?.trim() || emailPrefix;
-  const sellerHandle = `@${normalizeHandlePart(handleSeed)}.${user.id.slice(-4)}`;
+  const categoryBaseHref = selectedCategory
+    ? `/sell/analytics?cat=${selectedCategory.id}`
+    : "/sell/analytics";
 
-  const cityCountMap = allListings.reduce<Map<string, number>>((acc, listing) => {
-    acc.set(listing.city.name, (acc.get(listing.city.name) || 0) + 1);
-    return acc;
-  }, new Map());
-  const primaryCity = [...cityCountMap.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const totalPhotos = allListings.reduce(
-    (sum, listing) => sum + listing.images.length,
-    0,
-  );
+  async function publishDraftFromDashboard(formData: FormData) {
+    "use server";
+
+    const sessionUser = await requireSeller();
+    if (shouldSkipPrismaCalls()) {
+      redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
+    }
+
+    const listingId = String(formData.get("id") || "");
+    if (!listingId) {
+      redirect("/sell/analytics?error=Invalid%20listing.");
+    }
+
+    try {
+      const [draftListing, profile] = await Promise.all([
+        prisma.listing.findUnique({
+          where: { id: listingId },
+          select: {
+            id: true,
+            sellerId: true,
+            status: true,
+            title: true,
+            priceCents: true,
+            categoryId: true,
+            cityId: true,
+          },
+        }),
+        prisma.user.findUnique({
+          where: { id: sessionUser.id },
+          select: { phone: true },
+        }),
+      ]);
+
+      if (
+        !draftListing ||
+        draftListing.sellerId !== sessionUser.id ||
+        draftListing.status !== ListingStatus.DRAFT
+      ) {
+        redirect("/sell/analytics?error=Draft%20listing%20not%20found.");
+      }
+
+      if (!profile?.phone?.trim()) {
+        redirect(
+          `/sell/${listingId}/edit?error=Phone%20number%20is%20required%20to%20publish.`,
+        );
+      }
+
+      if (!draftListing.title.trim()) {
+        redirect(`/sell/${listingId}/edit?error=Title%20is%20required%20to%20publish.`);
+      }
+      if (draftListing.priceCents <= 0) {
+        redirect(`/sell/${listingId}/edit?error=Price%20must%20be%20greater%20than%200.`);
+      }
+      if (!draftListing.categoryId) {
+        redirect(`/sell/${listingId}/edit?error=Category%20is%20required%20to%20publish.`);
+      }
+      if (!draftListing.cityId) {
+        redirect(`/sell/${listingId}/edit?error=City%20is%20required%20to%20publish.`);
+      }
+
+      const [priorPublishedPosts, categoryExists, cityExists] = await Promise.all([
+        prisma.listing.count({
+          where: {
+            sellerId: sessionUser.id,
+            id: { not: listingId },
+            status: { not: ListingStatus.DRAFT },
+          },
+        }),
+        prisma.category.count({
+          where: { id: draftListing.categoryId, isActive: true },
+        }),
+        prisma.city.count({
+          where: { id: draftListing.cityId },
+        }),
+      ]);
+
+      if (priorPublishedPosts > 0) {
+        redirect(
+          `/sell/${listingId}/edit?error=Dummy%20Stripe%20payment%20is%20required%20before%20activation.`,
+        );
+      }
+
+      if (categoryExists === 0) {
+        redirect(`/sell/${listingId}/edit?error=Selected%20category%20is%20invalid.`);
+      }
+      if (cityExists === 0) {
+        redirect(`/sell/${listingId}/edit?error=Selected%20city%20is%20invalid.`);
+      }
+
+      await prisma.listing.update({
+        where: { id: listingId },
+        data: {
+          status: ListingStatus.ACTIVE,
+          activeUntil: new Date(Date.now() + THIRTY_DAYS_MS),
+        },
+      });
+
+      markPrismaHealthy();
+    } catch (dbError) {
+      if (isPrismaConnectionError(dbError)) {
+        markPrismaUnavailable();
+        redirect("/sell/analytics?error=Database%20is%20temporarily%20unreachable");
+      }
+      throw dbError;
+    }
+
+    revalidatePath("/browse");
+    revalidatePath("/sell");
+    revalidatePath("/sell/analytics");
+    revalidatePath(`/listing/${listingId}`);
+    redirect("/sell/analytics?free=1");
+  }
 
   return (
     <div className="space-y-6">
@@ -174,36 +294,41 @@ export default async function SellerAnalyticsPage({
           <div>
             <h1 className="text-4xl font-black">Seller Dashboard</h1>
             <p className="mt-2 max-w-2xl text-muted-foreground">
-              Category control + instant create popup.
+              Full category control with compact listing management.
             </p>
           </div>
-          {categories.length > 0 && cities.length > 0 ? (
-            <CreateListingPopout
-              mode="button"
-              buttonLabel="Create now"
-              action={createListingFromAnalytics}
-              categories={categories}
-              cities={cities}
-              templatesByCategory={templatesByCategory}
-              allowDraft={false}
-              showPlanSelector={hasPublishedListing}
-              publishLabel={
-                hasPublishedListing
-                  ? "Pay dummy Stripe & publish"
-                  : "Publish first 30-day listing (free)"
-              }
-              paymentProvider={hasPublishedListing ? "stripe-dummy" : "none"}
-              openOnMount={createRequested}
-              initial={{
-                categoryId: selectedCategory?.id || categories[0]?.id,
-                phone: parsedPhone.localPhone,
-                phoneCountry: parsedPhone.countryCode,
-                currency: Currency.MKD,
-              }}
-            />
-          ) : (
-            <Button disabled>Create now</Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <Link href="/profile">
+              <Button variant="outline">Profile</Button>
+            </Link>
+            {categories.length > 0 && cities.length > 0 ? (
+              <CreateListingPopout
+                mode="button"
+                buttonLabel="Create now"
+                action={createListingFromAnalytics}
+                categories={categories}
+                cities={cities}
+                templatesByCategory={templatesByCategory}
+                allowDraft={false}
+                showPlanSelector={hasPublishedListing}
+                publishLabel={
+                  hasPublishedListing
+                    ? "Pay dummy Stripe & publish"
+                    : "Publish first 30-day listing (free)"
+                }
+                paymentProvider={hasPublishedListing ? "stripe-dummy" : "none"}
+                openOnMount={createRequested}
+                initial={{
+                  categoryId: selectedCategory?.id || categories[0]?.id,
+                  phone: parsedPhone.localPhone,
+                  phoneCountry: parsedPhone.countryCode,
+                  currency: Currency.MKD,
+                }}
+              />
+            ) : (
+              <Button disabled>Create now</Button>
+            )}
+          </div>
         </div>
       </section>
 
@@ -215,85 +340,49 @@ export default async function SellerAnalyticsPage({
       {draftSaved && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-4 text-sm text-success">
-            Draft saved. Continue from your category cards.
+            Draft saved. Continue from category controls.
+          </CardContent>
+        </Card>
+      )}
+      {freeActivated && (
+        <Card className="border-success/30 bg-success/10">
+          <CardContent className="py-4 text-sm text-success">
+            Listing published. Your first 30-day post is free.
+          </CardContent>
+        </Card>
+      )}
+      {paidActivated && (
+        <Card className="border-success/30 bg-success/10">
+          <CardContent className="py-4 text-sm text-success">
+            Dummy Stripe payment approved. Listing is now active.
           </CardContent>
         </Card>
       )}
 
       <Card className="border-secondary/20">
         <CardHeader className="pb-2">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>My categories</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Full control of your posted categories and listings.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <details className="group relative">
-                <summary className="list-none cursor-pointer rounded-xl border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted/30">
-                  Profile info
-                </summary>
-                <div className="absolute right-0 top-10 z-20 w-[min(92vw,360px)] rounded-xl border border-border/80 bg-background p-3 shadow-lg">
-                  <p className="text-sm font-semibold">Your seller profile</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Full handle</p>
-                  <p className="text-base font-bold">{sellerHandle}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Member since{" "}
-                    {new Date(userRecord?.createdAt || now).toLocaleDateString()}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-1">
-                      {primaryCity || "No primary city"}
-                    </span>
-                    <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-1">
-                      {totalPhotos} photos
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">Email</p>
-                  <p className="text-sm font-medium">{userRecord?.email || user.email}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Public phone for all posts
-                  </p>
-                  <p className="text-sm font-medium">
-                    {parsedPhone.countryCode} {parsedPhone.localPhone || "No phone saved"}
-                  </p>
-                  <Link href="/profile" className="mt-3 block">
-                    <Button size="sm" className="w-full">
-                      Open full profile
-                    </Button>
-                  </Link>
-                </div>
-              </details>
-
-              <details className="group relative">
-                <summary className="list-none cursor-pointer rounded-xl border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted/30">
-                  Billing options
-                </summary>
-                <div className="absolute right-0 top-10 z-20 w-[min(92vw,360px)] rounded-xl border border-border/80 bg-background p-3 shadow-lg">
-                  <p className="text-sm font-semibold">Billing & publish</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    First listing: free 30 days.
-                  </p>
-                  <div className="mt-2 grid gap-2">
-                    <div className="rounded-lg border border-border/70 bg-muted/20 p-2 text-xs">
-                      <p className="font-semibold">Pay per listing</p>
-                      <p className="text-muted-foreground">$4 per listing / 30 days</p>
-                      <p className="mt-1">Active now: {payPerListingActive}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/70 bg-muted/20 p-2 text-xs">
-                      <p className="font-semibold">Subscription</p>
-                      <p className="text-muted-foreground">$30 / month unlimited</p>
-                      <p className="mt-1">Subscription active: {subscriptionActive}</p>
-                    </div>
-                  </div>
-                </div>
-              </details>
-            </div>
-          </div>
+          <CardTitle>My categories</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            One place to switch category, filter by status, edit, and view.
+          </p>
         </CardHeader>
 
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-border/70 bg-muted/20 px-2.5 py-1 font-semibold">
+              Total: {allListings.length}
+            </span>
+            <span className="rounded-full border border-success/35 bg-success/10 px-2.5 py-1 font-semibold text-success">
+              Active: {activeListings.length}
+            </span>
+            <span className="rounded-full border border-border/70 bg-muted/20 px-2.5 py-1 font-semibold">
+              Drafts: {draftCount}
+            </span>
+            <span className="rounded-full border border-warning/35 bg-warning/10 px-2.5 py-1 font-semibold text-warning">
+              Expiring soon: {expiringSoon}
+            </span>
+          </div>
+
           {userCategories.length === 0 ? (
             <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
               No category activity yet.
@@ -306,7 +395,7 @@ export default async function SellerAnalyticsPage({
                   return (
                     <Link
                       key={category.id}
-                      href={`/sell/analytics?cat=${category.id}`}
+                      href={`/sell/analytics?cat=${category.id}&view=${selectedView}`}
                       className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                         isSelected
                           ? "border-primary/45 bg-primary/10 text-primary"
@@ -327,41 +416,40 @@ export default async function SellerAnalyticsPage({
                       {selectedCategory.posted} total
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {categories.length > 0 && cities.length > 0 && (
-                        <CreateListingPopout
-                          mode="button"
-                          buttonLabel="Create in category"
-                          buttonSize="sm"
-                          action={createListingFromAnalytics}
-                          categories={categories}
-                          cities={cities}
-                          templatesByCategory={templatesByCategory}
-                          allowDraft={false}
-                          showPlanSelector={hasPublishedListing}
-                          publishLabel={
-                            hasPublishedListing
-                              ? "Pay dummy Stripe & publish"
-                              : "Publish first 30-day listing (free)"
-                          }
-                          paymentProvider={hasPublishedListing ? "stripe-dummy" : "none"}
-                          initial={{
-                            categoryId: selectedCategory.id,
-                            phone: parsedPhone.localPhone,
-                            phoneCountry: parsedPhone.countryCode,
-                            currency: Currency.MKD,
-                          }}
-                        />
-                      )}
+                      <Link href={`${categoryBaseHref}&view=all`}>
+                        <Button
+                          size="sm"
+                          variant={selectedView === "all" ? "default" : "outline"}
+                        >
+                          All
+                        </Button>
+                      </Link>
+                      <Link href={`${categoryBaseHref}&view=active`}>
+                        <Button
+                          size="sm"
+                          variant={selectedView === "active" ? "default" : "outline"}
+                        >
+                          Active
+                        </Button>
+                      </Link>
+                      <Link href={`${categoryBaseHref}&view=draft`}>
+                        <Button
+                          size="sm"
+                          variant={selectedView === "draft" ? "default" : "outline"}
+                        >
+                          Draft
+                        </Button>
+                      </Link>
                     </div>
                   </div>
 
                   {selectedCategoryListings.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      No listings in this category yet.
+                      No listings in this category for this filter.
                     </p>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {selectedCategoryListings.slice(0, 9).map((listing) => {
+                      {selectedCategoryListings.slice(0, 12).map((listing) => {
                         const heroImage = listing.images[0]?.url;
                         const isActive = listing.status === ListingStatus.ACTIVE;
 
@@ -410,29 +498,40 @@ export default async function SellerAnalyticsPage({
                                 )}
                               </div>
 
-                              <div className="grid grid-cols-2 gap-2">
-                                <Link href={`/sell/${listing.id}/edit`}>
-                                  <Button size="sm" variant="outline" className="w-full">
-                                    Edit
-                                  </Button>
-                                </Link>
-                                {isActive ? (
+                              {isActive ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Link href={`/sell/${listing.id}/edit`}>
+                                    <Button size="sm" variant="outline" className="w-full">
+                                      Edit
+                                    </Button>
+                                  </Link>
                                   <Link href={`/listing/${listing.id}`}>
                                     <Button size="sm" variant="ghost" className="w-full">
                                       View
                                     </Button>
                                   </Link>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    disabled
-                                    className="w-full"
-                                  >
-                                    View
-                                  </Button>
-                                )}
-                              </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Link href={`/sell/${listing.id}/edit`}>
+                                      <Button size="sm" variant="outline" className="w-full">
+                                        Edit
+                                      </Button>
+                                    </Link>
+                                    <form action={publishDraftFromDashboard}>
+                                      <input type="hidden" name="id" value={listing.id} />
+                                      <Button size="sm" type="submit" className="w-full">
+                                        Publish
+                                      </Button>
+                                    </form>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    Direct publish works for first post. Later posts require
+                                    dummy payment in edit.
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           </article>
                         );
