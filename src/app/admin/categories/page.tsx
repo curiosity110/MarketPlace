@@ -1,6 +1,6 @@
 import { CategoryFieldType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
+import { requireControlAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/select";
 
 async function toggleCategory(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireControlAccess();
 
   const categoryId = String(formData.get("categoryId") || "");
   const isActive = String(formData.get("isActive") || "") === "true";
@@ -27,7 +27,7 @@ async function toggleCategory(formData: FormData) {
 
 async function createTemplate(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireControlAccess();
 
   const categoryId = String(formData.get("categoryId") || "");
   const key = String(formData.get("key") || "").trim();
@@ -64,7 +64,7 @@ async function createTemplate(formData: FormData) {
 
 async function updateTemplate(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireControlAccess();
 
   const id = String(formData.get("id") || "");
   const label = String(formData.get("label") || "").trim();
@@ -82,7 +82,7 @@ async function updateTemplate(formData: FormData) {
 
 async function deleteTemplate(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireControlAccess();
 
   const id = String(formData.get("id") || "");
   await prisma.categoryFieldTemplate.delete({ where: { id } });
@@ -90,7 +90,7 @@ async function deleteTemplate(formData: FormData) {
 }
 
 export default async function AdminCategoriesPage() {
-  await requireAdmin();
+  await requireControlAccess();
 
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },

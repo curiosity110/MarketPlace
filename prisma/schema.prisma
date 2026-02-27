@@ -8,8 +8,11 @@ generator client {
 }
 
 enum Role {
-  USER
+  BUYER
+  SELLER
+  STAFF
   ADMIN
+  CEO
 }
 
 enum ListingCondition {
@@ -23,6 +26,11 @@ enum ListingStatus {
   ACTIVE
   INACTIVE
   REMOVED
+}
+
+enum Currency {
+  EUR
+  MKD
 }
 
 enum CategoryFieldType {
@@ -59,11 +67,12 @@ model User {
   email                   String             @unique
   name                    String?
   phone                   String?
-  role                    Role               @default(USER)
+  role                    Role               @default(SELLER)
   bannedAt                DateTime?
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
   listings                Listing[]
+  sales                   Sale[]
   reports                 Report[]           @relation("ReporterReports")
   adminActions            AdminAction[]      @relation("AdminActions")
   categoryRequests        CategoryRequest[]
@@ -99,7 +108,7 @@ model Listing {
   title       String
   description String
   priceCents  Int
-  currency    String           @default("EUR")
+  currency    Currency         @default(EUR)
   categoryId  String
   category    Category         @relation(fields: [categoryId], references: [id])
   cityId      String
@@ -111,11 +120,29 @@ model Listing {
   fieldValues ListingFieldValue[]
   reports     Report[]
   contactRequests ContactRequest[]
+  sale        Sale?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   @@index([status, activeUntil])
   @@index([title])
+}
+
+model Sale {
+  id              String   @id @default(cuid())
+  listingId       String   @unique
+  listing         Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sellerId        String
+  seller          User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  amountCents     Int
+  currency        Currency
+  platformFeeCents Int     @default(0)
+  netAmountCents  Int
+  soldAt          DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([sellerId, soldAt])
+  @@index([soldAt])
 }
 
 model ContactRequest {

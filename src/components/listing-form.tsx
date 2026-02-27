@@ -3,13 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ListingCondition } from "@prisma/client";
+import { Currency, ListingCondition } from "@prisma/client";
 import { CirclePlus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
 import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
+import { PHONE_COUNTRIES } from "@/lib/phone";
 
 type Category = { id: string; name: string; slug: string };
 type City = { id: string; name: string };
@@ -39,6 +41,7 @@ type Props = {
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
   allowDraft?: boolean;
+  showPlanSelector?: boolean;
   publishLabel?: string;
   paymentProvider?: "none" | "stripe-dummy";
   initial?: {
@@ -46,9 +49,12 @@ type Props = {
     title?: string;
     description?: string;
     price?: number;
+    currency?: Currency;
     condition?: ListingCondition;
     categoryId?: string;
     cityId?: string;
+    phone?: string;
+    phoneCountry?: string;
     dynamicValues?: Record<string, string>;
     plan?: ListingPlan;
   };
@@ -60,6 +66,7 @@ export function ListingForm({
   cities,
   templatesByCategory,
   allowDraft = true,
+  showPlanSelector = true,
   publishLabel = "Publish listing",
   paymentProvider = "none",
   initial,
@@ -70,7 +77,10 @@ export function ListingForm({
   const photoPopoverRef = useRef<HTMLDivElement | null>(null);
 
   const initialCategory = initial?.categoryId ?? categories[0]?.id ?? "";
+  const hasSavedProfilePhone = Boolean((initial?.phone ?? "").trim());
   const [categoryId, setCategoryId] = useState(initialCategory);
+  const [phoneCountry, setPhoneCountry] = useState(initial?.phoneCountry ?? "MK");
+  const [useSavedPhone, setUseSavedPhone] = useState(hasSavedProfilePhone);
   const [plan, setPlan] = useState<ListingPlan>(
     initial?.plan ?? "pay-per-listing",
   );
@@ -110,6 +120,13 @@ export function ListingForm({
     if (value && cities.some((city) => city.id === value)) return value;
     return initial?.cityId ?? cities[0]?.id;
   }, [cities, initial?.cityId, isCreateMode, restoredValues.cityId]);
+
+  const restoredCurrency = useMemo(() => {
+    if (!isCreateMode) return initial?.currency ?? Currency.MKD;
+    const value = restoredValues.currency as Currency | undefined;
+    if (value === Currency.MKD || value === Currency.EUR) return value;
+    return initial?.currency ?? Currency.MKD;
+  }, [initial?.currency, isCreateMode, restoredValues.currency]);
 
   const readValue = useCallback(
     (key: string, fallback = "") => {
@@ -165,17 +182,26 @@ export function ListingForm({
       if (parsed.plan === "subscription" || parsed.plan === "pay-per-listing") {
         setPlan(parsed.plan);
       }
+
+      const parsedCountry = parsed.values?.phoneCountry;
+      if (parsedCountry && PHONE_COUNTRIES.some((country) => country.code === parsedCountry)) {
+        setPhoneCountry(parsedCountry);
+      }
+
+      if (hasSavedProfilePhone && parsed.values?.useSavedPhone === "false") {
+        setUseSavedPhone(false);
+      }
     } catch {
       window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
     } finally {
       setIsRestored(true);
     }
-  }, [categories, initial?.categoryId, isCreateMode]);
+  }, [categories, hasSavedProfilePhone, initial?.categoryId, isCreateMode]);
 
   useEffect(() => {
     if (!isCreateMode || !isRestored) return;
     persistDraft();
-  }, [categoryId, isCreateMode, isRestored, persistDraft, plan]);
+  }, [categoryId, isCreateMode, isRestored, persistDraft, phoneCountry, plan]);
 
   useEffect(() => {
     return () => {
@@ -245,15 +271,13 @@ export function ListingForm({
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
           <h3 className="text-lg font-semibold">Listing details</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="space-y-1 sm:col-span-2">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="space-y-1 sm:col-span-3">
               <span className="text-sm font-medium">Title</span>
               <Input
                 name="title"
                 defaultValue={readValue("title", initial?.title ?? "")}
                 placeholder="Example: Volkswagen Golf 7 2017"
-                required
-                minLength={5}
               />
             </label>
 
@@ -266,8 +290,18 @@ export function ListingForm({
                 name="price"
                 defaultValue={readValue("price", String(initial?.price ?? 0))}
                 placeholder="Price"
-                required
               />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-sm font-medium">Currency</span>
+              <Select name="currency" defaultValue={restoredCurrency}>
+                {MARKETPLACE_CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </Select>
             </label>
 
             <label className="space-y-1">
@@ -284,14 +318,13 @@ export function ListingForm({
               </Select>
             </label>
 
-            <label className="space-y-1 sm:col-span-2">
+            <label className="space-y-1 sm:col-span-3">
               <span className="text-sm font-medium">Description</span>
               <textarea
                 name="description"
                 defaultValue={readValue("description", initial?.description ?? "")}
                 className="min-h-32 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
                 placeholder="Describe condition, features, delivery, and payment terms."
-                required
               />
             </label>
           </div>
@@ -315,24 +348,96 @@ export function ListingForm({
             </Select>
           </label>
 
-          <Link
-            href="#category-request"
-            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-          >
-            <CirclePlus size={13} />
-            Request new category
-          </Link>
+          <div>
+            <Link
+              href="/sell/analytics"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              <CirclePlus size={13} />
+              Request new category in dashboard
+            </Link>
+          </div>
 
           <label className="space-y-1">
             <span className="text-sm font-medium">City</span>
-            <Select name="cityId" defaultValue={restoredCityId}>
-              {cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
+            <Select name="cityId" defaultValue={restoredCityId} required>
+              {cities.length === 0 ? (
+                <option value="" disabled>
+                  No city available
                 </option>
-              ))}
+              ) : (
+                cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}
+                  </option>
+                ))
+              )}
             </Select>
           </label>
+
+          <div className="space-y-2 rounded-xl border border-border/70 bg-card p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">Seller phone for all posts</p>
+              {hasSavedProfilePhone && (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-primary hover:underline"
+                  onClick={() => setUseSavedPhone((prev) => !prev)}
+                >
+                  {useSavedPhone ? "Use different phone for this post" : "Use saved phone"}
+                </button>
+              )}
+            </div>
+            <input type="hidden" name="useSavedPhone" value={String(useSavedPhone)} />
+
+            {hasSavedProfilePhone && useSavedPhone ? (
+              <>
+                <input
+                  type="hidden"
+                  name="phoneCountry"
+                  value={initial?.phoneCountry ?? phoneCountry}
+                />
+                <input type="hidden" name="phone" value={initial?.phone ?? ""} />
+                <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    Using your saved seller phone automatically on this post.
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {initial?.phoneCountry || "MK"} {initial?.phone}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-[170px_1fr]">
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Country</span>
+                  <Select
+                    name="phoneCountry"
+                    value={phoneCountry}
+                    onChange={(event) => setPhoneCountry(event.target.value)}
+                  >
+                    {PHONE_COUNTRIES.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.flag} {country.label} (+{country.dialCode})
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Phone</span>
+                  <Input
+                    name="phone"
+                    defaultValue={readValue("phone", initial?.phone ?? "")}
+                    placeholder="Enter phone number"
+                  />
+                </label>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Use local format, +country prefix, or 00country prefix.
+            </p>
+          </div>
 
           {!initial?.id && (
             <div className="space-y-2 rounded-xl border border-border/70 bg-card p-3">
@@ -411,47 +516,49 @@ export function ListingForm({
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-lg font-semibold">Seller package</h3>
-          <span className="inline-flex items-center gap-1 rounded-full border border-secondary/25 bg-secondary/10 px-2 py-0.5 text-xs font-semibold text-secondary">
-            <Sparkles size={13} />
-            GPT included
-          </span>
-        </div>
+      {showPlanSelector && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-lg font-semibold">Seller package</h3>
+            <span className="inline-flex items-center gap-1 rounded-full border border-secondary/25 bg-secondary/10 px-2 py-0.5 text-xs font-semibold text-secondary">
+              <Sparkles size={13} />
+              GPT included
+            </span>
+          </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setPlan("pay-per-listing")}
-            className={`rounded-2xl border p-4 text-left transition-colors ${
-              plan === "pay-per-listing"
-                ? "border-primary bg-orange-50/70 dark:bg-orange-500/10"
-                : "border-border bg-card hover:border-primary/30"
-            }`}
-          >
-            <p className="text-sm font-semibold">Pay per listing</p>
-            <p className="text-2xl font-black text-primary">$4</p>
-            <p className="text-xs text-muted-foreground">30 days active</p>
-          </button>
+          <div className="grid gap-3 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setPlan("pay-per-listing")}
+              className={`rounded-2xl border p-4 text-left transition-colors ${
+                plan === "pay-per-listing"
+                  ? "border-primary bg-orange-50/70 dark:bg-orange-500/10"
+                  : "border-border bg-card hover:border-primary/30"
+              }`}
+            >
+              <p className="text-sm font-semibold">Pay per listing</p>
+              <p className="text-2xl font-black text-primary">$4</p>
+              <p className="text-xs text-muted-foreground">30 days active</p>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setPlan("subscription")}
-            className={`rounded-2xl border p-4 text-left transition-colors ${
-              plan === "subscription"
-                ? "border-secondary bg-blue-50/70 dark:bg-blue-500/10"
-                : "border-border bg-card hover:border-secondary/30"
-            }`}
-          >
-            <p className="text-sm font-semibold">Subscription</p>
-            <p className="text-2xl font-black text-secondary">$30</p>
-            <p className="text-xs text-muted-foreground">
-              monthly, unlimited listings
-            </p>
-          </button>
-        </div>
-      </section>
+            <button
+              type="button"
+              onClick={() => setPlan("subscription")}
+              className={`rounded-2xl border p-4 text-left transition-colors ${
+                plan === "subscription"
+                  ? "border-secondary bg-blue-50/70 dark:bg-blue-500/10"
+                  : "border-border bg-card hover:border-secondary/30"
+              }`}
+            >
+              <p className="text-sm font-semibold">Subscription</p>
+              <p className="text-2xl font-black text-secondary">$30</p>
+              <p className="text-xs text-muted-foreground">
+                monthly, unlimited listings
+              </p>
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
         <h3 className="text-lg font-semibold">Category fields</h3>
@@ -474,7 +581,7 @@ export function ListingForm({
           {publishLabel}
         </Button>
       </div>
-      {isCreateMode && paymentProvider === "stripe-dummy" && (
+      {isCreateMode && showPlanSelector && paymentProvider === "stripe-dummy" && (
         <p className="text-xs text-muted-foreground">
           Stripe dummy payment is simulated before activation.
         </p>

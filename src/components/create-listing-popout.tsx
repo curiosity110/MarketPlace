@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { PlusCircle, X } from "lucide-react";
-import { ListingCondition } from "@prisma/client";
+import { Currency, ListingCondition } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { ListingForm } from "@/components/listing-form";
 
@@ -27,6 +27,7 @@ type Props = {
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
   allowDraft?: boolean;
+  showPlanSelector?: boolean;
   publishLabel?: string;
   paymentProvider?: "none" | "stripe-dummy";
   mode?: "card" | "button";
@@ -34,14 +35,18 @@ type Props = {
   buttonVariant?: "default" | "outline" | "ghost" | "destructive" | "secondary";
   buttonSize?: "sm" | "md" | "lg";
   buttonClassName?: string;
+  openOnMount?: boolean;
   initial?: {
     id?: string;
     title?: string;
     description?: string;
     price?: number;
+    currency?: Currency;
     condition?: ListingCondition;
     categoryId?: string;
     cityId?: string;
+    phone?: string;
+    phoneCountry?: string;
     dynamicValues?: Record<string, string>;
     plan?: ListingPlan;
   };
@@ -53,6 +58,7 @@ export function CreateListingPopout({
   cities,
   templatesByCategory,
   allowDraft = true,
+  showPlanSelector = true,
   publishLabel = "Publish listing",
   paymentProvider = "none",
   mode = "card",
@@ -60,11 +66,13 @@ export function CreateListingPopout({
   buttonVariant = "default",
   buttonSize = "md",
   buttonClassName = "",
+  openOnMount = false,
   initial,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
+  const autoOpenDoneRef = useRef(false);
 
   function openPopout() {
     setIsOpen(true);
@@ -76,6 +84,13 @@ export function CreateListingPopout({
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => setIsOpen(false), 190);
   }
+
+  useEffect(() => {
+    if (!openOnMount || autoOpenDoneRef.current) return;
+    autoOpenDoneRef.current = true;
+    const timer = window.setTimeout(() => openPopout(), 0);
+    return () => window.clearTimeout(timer);
+  }, [openOnMount]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -131,7 +146,11 @@ export function CreateListingPopout({
       )}
 
       {isOpen && (
-        <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <button
             type="button"
             aria-label="Close create listing form"
@@ -142,8 +161,10 @@ export function CreateListingPopout({
           />
 
           <div
-            className={`relative mx-auto mt-3 flex h-[calc(100vh-1.5rem)] w-[min(1120px,96vw)] flex-col rounded-2xl border border-border bg-background shadow-2xl transition-all duration-200 ${
-              isActive ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            className={`relative mx-auto flex h-full max-h-[86vh] w-full max-w-[980px] flex-col rounded-2xl border border-border bg-background shadow-2xl transition-all duration-200 ${
+              isActive
+                ? "translate-y-0 scale-100 opacity-100"
+                : "translate-y-2 scale-[0.99] opacity-0"
             }`}
           >
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-6">
@@ -166,6 +187,7 @@ export function CreateListingPopout({
                 cities={cities}
                 templatesByCategory={templatesByCategory}
                 allowDraft={allowDraft}
+                showPlanSelector={showPlanSelector}
                 publishLabel={publishLabel}
                 paymentProvider={paymentProvider}
                 initial={initial}

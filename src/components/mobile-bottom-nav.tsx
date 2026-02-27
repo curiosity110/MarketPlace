@@ -9,7 +9,6 @@ import {
   Home,
   LogIn,
   Settings,
-  ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +31,6 @@ export function MobileBottomNav({ isLoggedIn, isAdmin }: Props) {
     { href: "/", label: "Home", icon: Home, show: true },
     { href: "/browse", label: "Browse", icon: Compass, show: true },
     { href: "/categories", label: "Categories", icon: FolderKanban, show: true },
-    { href: "/sell", label: "Sell", icon: ShoppingBag, show: true },
     {
       href: isAdmin ? "/admin" : isLoggedIn ? "/sell/analytics" : "/login",
       label: isAdmin ? "Admin" : isLoggedIn ? "Dashboard" : "Login",
@@ -43,7 +41,7 @@ export function MobileBottomNav({ isLoggedIn, isAdmin }: Props) {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden">
-      <div className="mx-auto grid max-w-3xl grid-cols-5 gap-1">
+      <div className="mx-auto grid max-w-3xl grid-cols-4 gap-1">
         {items
           .filter((item) => item.show !== false)
           .map((item) => {

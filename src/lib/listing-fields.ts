@@ -42,8 +42,6 @@ export function getDynamicFieldEntries(formData: FormData): Record<string, strin
 export function validatePublishInputs(input: {
   title: string;
   priceCents: number;
-  templates: CategoryFieldTemplate[];
-  dynamicValues: Record<string, string>;
 }) {
   const errors: string[] = [];
 
@@ -53,14 +51,6 @@ export function validatePublishInputs(input: {
 
   if (input.priceCents <= 0) {
     errors.push("Price must be greater than 0 to publish.");
-  }
-
-  for (const template of input.templates) {
-    if (!template.required) continue;
-    const value = input.dynamicValues[template.key] ?? "";
-    if (!value.trim()) {
-      errors.push(`${template.label} is required to publish.`);
-    }
   }
 
   return {

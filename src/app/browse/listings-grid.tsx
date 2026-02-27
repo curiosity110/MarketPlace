@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Listing } from "@prisma/client";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 type ListingWithRelations = Listing & {
   category?: {
@@ -28,9 +29,7 @@ export function ListingsGrid({
       <div className="flex items-end justify-between">
         <div>
           <div className="text-lg font-semibold">Browse</div>
-          <div className="text-sm text-muted-foreground">
-            {totalCount} results
-          </div>
+          <div className="text-sm text-muted-foreground">{totalCount} results</div>
         </div>
       </div>
 
@@ -40,26 +39,24 @@ export function ListingsGrid({
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {listings.map((l: ListingWithRelations) => (
+          {listings.map((listing) => (
             <Link
-              key={l.id}
-              href={`/listing/${l.id}`}
-              className="rounded-xl border border-border bg-background p-4 hover:shadow-sm transition"
+              key={listing.id}
+              href={`/listing/${listing.id}`}
+              className="rounded-xl border border-border bg-background p-4 transition hover:shadow-sm"
             >
-              <div className="text-sm font-semibold line-clamp-1">
-                {l.title}
-              </div>
+              <div className="line-clamp-1 text-sm font-semibold">{listing.title}</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {l.category?.parent
-                  ? `${l.category.parent.name} / ${l.category.name}`
-                  : l.category?.name}{" "}
-                • {l.city?.name}
+                {listing.category?.parent
+                  ? `${listing.category.parent.name} / ${listing.category.name}`
+                  : listing.category?.name}{" "}
+                | {listing.city?.name}
               </div>
               <div className="mt-3 text-base font-semibold">
-                €{(l.priceCents / 100).toFixed(0)}
+                {formatCurrencyFromCents(listing.priceCents, listing.currency)}
               </div>
-              <div className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                {l.description}
+              <div className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                {listing.description}
               </div>
             </Link>
           ))}

@@ -10,6 +10,7 @@ import type {
 } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 type ListingCardProps = {
   listing: Listing & {
@@ -62,7 +63,7 @@ export function ListingCard({ listing }: ListingCardProps) {
           )}
 
           <div className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-sm font-bold text-primary shadow-sm dark:bg-background/95">
-            {listing.currency} {Math.round(listing.priceCents / 100)}
+            {formatCurrencyFromCents(listing.priceCents, listing.currency)}
           </div>
         </div>
 
@@ -72,7 +73,7 @@ export function ListingCard({ listing }: ListingCardProps) {
           </h3>
 
           <p className="text-xs text-muted-foreground">
-            {listing.city.name} · {categoryLabel}
+            {listing.city.name} | {categoryLabel}
           </p>
 
           <div className="flex flex-wrap gap-1.5">
@@ -92,3 +93,4 @@ export function ListingCard({ listing }: ListingCardProps) {
     </Link>
   );
 }
+

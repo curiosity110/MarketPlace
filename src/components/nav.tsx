@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getSessionUser } from "@/lib/auth";
+import { canAccessControl, getSessionUser } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { en } from "@/messages/en";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 
 export async function Nav() {
   const user = await getSessionUser();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user ? canAccessControl(user.role) : false;
 
   return (
     <>
@@ -34,12 +34,6 @@ export async function Nav() {
                 className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
               >
                 {en.nav.categories}
-              </Link>
-              <Link
-                href="/sell"
-                className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
-              >
-                {en.nav.sell}
               </Link>
               {user && (
                 <Link

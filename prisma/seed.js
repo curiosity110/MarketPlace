@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {
   PrismaClient,
+  Currency,
   Role,
   CategoryFieldType,
   ListingCondition,
@@ -14,6 +15,26 @@ const TESTER_EMAIL = (process.env.SEED_TESTER_EMAIL || "tester@marketplace.mkd")
 const TESTER_NAME = process.env.SEED_TESTER_NAME || "Marketplace Tester";
 const TESTER_PHONE = process.env.SEED_TESTER_PHONE || "+38970111222";
 const RESET_LISTINGS = process.env.SEED_RESET !== "false";
+const FAKE_SELLER_COUNT = Math.max(
+  0,
+  Number.parseInt(process.env.SEED_FAKE_SELLERS || "10", 10) || 10,
+);
+const FAKE_SELLER_DOMAIN = process.env.SEED_FAKE_SELLER_DOMAIN || "seed.marketplace.mkd";
+
+const fakeSellerNames = [
+  "Ana Trajkovska",
+  "Marko Petrovski",
+  "Elena Stojanova",
+  "Nikola Ristevski",
+  "Mila Jovanovska",
+  "Stefan Georgievski",
+  "Sara Dimitrova",
+  "Bojan Talevski",
+  "Ivana Velkovska",
+  "Filip Krstevski",
+  "Marija Ilievska",
+  "Darko Nikoloski",
+];
 
 const categories = [
   ["Cars", "cars"],
@@ -288,6 +309,15 @@ function fieldValueForTemplate(template, listingIndex, categoryName, listingTitl
   return `${template.label} ${listingIndex + 1}`;
 }
 
+function buildFakeSellerSeed(index) {
+  const name = fakeSellerNames[index % fakeSellerNames.length];
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, ".");
+  const email = `${slug}.${index + 1}@${FAKE_SELLER_DOMAIN}`.toLowerCase();
+  const localPhone = String(70000000 + index * 1111).slice(-8).padStart(8, "0");
+  const phone = `+389${localPhone}`;
+  return { name, email, phone };
+}
+
 async function resetListingData() {
   if (!RESET_LISTINGS) {
     console.log("Skipping listing reset (SEED_RESET=false).");
@@ -316,14 +346,14 @@ async function ensureTesterUser() {
       update: {
         name: TESTER_NAME,
         phone: TESTER_PHONE,
-        role: Role.USER,
+        role: Role.SELLER,
         bannedAt: null,
       },
       create: {
         email: TESTER_EMAIL,
         name: TESTER_NAME,
         phone: TESTER_PHONE,
-        role: Role.USER,
+        role: Role.SELLER,
       },
     });
   } catch (error) {
@@ -334,16 +364,43 @@ async function ensureTesterUser() {
       where: { email: TESTER_EMAIL },
       update: {
         name: TESTER_NAME,
-        role: Role.USER,
+        role: Role.SELLER,
         bannedAt: null,
       },
       create: {
         email: TESTER_EMAIL,
         name: TESTER_NAME,
-        role: Role.USER,
+        role: Role.SELLER,
       },
     });
   }
+}
+
+async function ensureFakeSellers() {
+  const fakeSellers = [];
+
+  for (let index = 0; index < FAKE_SELLER_COUNT; index += 1) {
+    const seed = buildFakeSellerSeed(index);
+    const fakeSeller = await prisma.user.upsert({
+      where: { email: seed.email },
+      update: {
+        name: seed.name,
+        phone: seed.phone,
+        role: Role.SELLER,
+        bannedAt: null,
+      },
+      create: {
+        email: seed.email,
+        name: seed.name,
+        phone: seed.phone,
+        role: Role.SELLER,
+      },
+    });
+
+    fakeSellers.push(fakeSeller);
+  }
+
+  return fakeSellers;
 }
 
 async function main() {
@@ -351,15 +408,15 @@ async function main() {
 
   await resetListingData();
 
-  const upsertedCategories = await Promise.all(
-    categories.map(([name, slug]) =>
-      prisma.category.upsert({
-        where: { slug },
-        update: { name, isActive: true },
-        create: { name, slug, isActive: true },
-      }),
-    ),
-  );
+  const upsertedCategories = [];
+  for (const [name, slug] of categories) {
+    const category = await prisma.category.upsert({
+      where: { slug },
+      update: { name, isActive: true },
+      create: { name, slug, isActive: true },
+    });
+    upsertedCategories.push(category);
+  }
   console.log(`Categories upserted: ${upsertedCategories.length}`);
 
   let templateCount = 0;
@@ -392,15 +449,15 @@ async function main() {
   }
   console.log(`Templates upserted: ${templateCount}`);
 
-  const upsertedCities = await Promise.all(
-    cities.map((cityName) =>
-      prisma.city.upsert({
-        where: { slug: slugify(cityName) },
-        update: { name: cityName },
-        create: { name: cityName, slug: slugify(cityName) },
-      }),
-    ),
-  );
+  const upsertedCities = [];
+  for (const cityName of cities) {
+    const city = await prisma.city.upsert({
+      where: { slug: slugify(cityName) },
+      update: { name: cityName },
+      create: { name: cityName, slug: slugify(cityName) },
+    });
+    upsertedCities.push(city);
+  }
   console.log(`Cities upserted: ${upsertedCities.length}`);
 
   const adminEmail = process.env.ADMIN_BOOTSTRAP_EMAIL;
@@ -415,6 +472,9 @@ async function main() {
 
   const tester = await ensureTesterUser();
   console.log(`Tester ensured: ${tester.email}`);
+  const fakeSellers = await ensureFakeSellers();
+  console.log(`Fake sellers ensured: ${fakeSellers.length}`);
+  const listingSellers = [tester, ...fakeSellers];
 
   const templatesByCategoryId = await prisma.categoryFieldTemplate.findMany({
     where: { isActive: true },
@@ -452,13 +512,21 @@ async function main() {
         ListingCondition.REFURBISHED,
       ];
       const condition = conditions[(categoryIndex + listingIndex) % conditions.length];
+      const currency =
+        (categoryIndex + listingIndex) % 2 === 0 ? Currency.MKD : Currency.EUR;
+      const normalizedPrice =
+        currency === Currency.MKD
+          ? Math.round(seed.priceEur * 61.5)
+          : seed.priceEur;
 
+      const seller = listingSellers[(categoryIndex + listingIndex) % listingSellers.length];
       const listing = await prisma.listing.create({
         data: {
-          sellerId: tester.id,
+          sellerId: seller.id,
           title: seed.title,
           description: seed.description,
-          priceCents: Math.round(seed.priceEur * 100),
+          priceCents: Math.round(normalizedPrice * 100),
+          currency,
           categoryId: category.id,
           cityId: city.id,
           condition,

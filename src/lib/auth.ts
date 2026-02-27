@@ -22,6 +22,17 @@ export type SessionUser = {
   role: Role;
 };
 
+const SELL_ACCESS_ROLES = new Set<Role>([
+  Role.SELLER,
+  Role.ADMIN,
+  Role.STAFF,
+  Role.CEO,
+]);
+
+const CONTROL_ACCESS_ROLES = new Set<Role>([Role.ADMIN, Role.STAFF, Role.CEO]);
+
+const MONEY_ANALYTICS_ROLES = new Set<Role>([Role.ADMIN, Role.CEO]);
+
 export async function getSessionUser(): Promise<SessionUser | null> {
   if (
     !getSupabasePublicConfig() ||
@@ -60,7 +71,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     userRecord = await prisma.user.upsert({
       where: { email },
       update: {},
-      create: { email, role: Role.USER },
+      create: { email, role: Role.SELLER },
       select: { id: true, email: true, role: true, bannedAt: true },
     });
     markPrismaHealthy();
@@ -81,6 +92,36 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+export function canSell(role: Role) {
+  return SELL_ACCESS_ROLES.has(role);
+}
+
+export function canAccessControl(role: Role) {
+  return CONTROL_ACCESS_ROLES.has(role);
+}
+
+export function canAccessMoneyAnalytics(role: Role) {
+  return MONEY_ANALYTICS_ROLES.has(role);
+}
+
+export async function requireSeller(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!canSell(user.role)) redirect("/browse");
+  return user;
+}
+
+export async function requireControlAccess(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!canAccessControl(user.role)) redirect("/browse");
+  return user;
+}
+
+export async function requireMoneyAnalyticsAccess(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!canAccessMoneyAnalytics(user.role)) redirect("/browse");
   return user;
 }
 

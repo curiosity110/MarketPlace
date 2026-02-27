@@ -87,7 +87,12 @@ export async function middleware(request: NextRequest) {
       throw error;
     }
 
-    if (dbUser?.role !== "ADMIN") return buildLoginRedirect(request);
+    if (
+      !dbUser ||
+      (dbUser.role !== "ADMIN" && dbUser.role !== "STAFF" && dbUser.role !== "CEO")
+    ) {
+      return buildLoginRedirect(request);
+    }
   }
 
   return response;

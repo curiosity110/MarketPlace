@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ListingStatus, Prisma } from "@prisma/client";
+import { Currency, ListingStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { Camera } from "lucide-react";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
@@ -10,11 +10,12 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { requireUser } from "@/lib/auth";
+import { requireSeller } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ListingForm } from "@/components/listing-form";
+import { isMarketplaceCurrency } from "@/lib/currency";
 import {
   getDynamicFieldEntries,
   groupTemplatesByCategory,
@@ -22,6 +23,7 @@ import {
   statusFromIntent,
   validatePublishInputs,
 } from "@/lib/listing-fields";
+import { normalizePhoneInput, parseStoredPhone } from "@/lib/phone";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -34,7 +36,7 @@ function resolveActiveUntil(status: ListingStatus, plan: string) {
 async function updateListing(formData: FormData) {
   "use server";
 
-  const user = await requireUser();
+  const user = await requireSeller();
   if (shouldSkipPrismaCalls()) {
     redirect("/sell?error=Database%20is%20temporarily%20unreachable");
   }
@@ -64,26 +66,29 @@ async function updateListing(formData: FormData) {
   const description = String(formData.get("description") || "").trim();
   const categoryId = String(formData.get("categoryId") || "");
   const cityId = String(formData.get("cityId") || "");
+  const currencyRaw = String(formData.get("currency") || Currency.MKD);
+  if (!isMarketplaceCurrency(currencyRaw)) {
+    redirect(`/sell/${id}/edit?error=Only%20EUR%20and%20MKD%20are%20allowed.`);
+  }
+  const currency = currencyRaw;
   const condition = formData.get(
     "condition",
   ) as Prisma.ListingUncheckedCreateInput["condition"];
+  const phoneCountry = String(formData.get("phoneCountry") || "MK");
+  const phoneRaw = String(formData.get("phone") || "").trim();
+  let sellerPhoneToSave: string | null = null;
+  if (phoneRaw.length > 0) {
+    const normalizedPhoneResult = normalizePhoneInput(phoneRaw, phoneCountry);
+    if (!normalizedPhoneResult.ok) {
+      redirect(`/sell/${id}/edit?error=${encodeURIComponent(normalizedPhoneResult.error)}`);
+    }
+    sellerPhoneToSave = normalizedPhoneResult.e164;
+  } else if (status === ListingStatus.ACTIVE) {
+    redirect(`/sell/${id}/edit?error=Phone%20number%20is%20required%20to%20publish.`);
+  }
   const price = Number(formData.get("price") || 0);
   const priceCents = Number.isFinite(price) ? Math.round(price * 100) : 0;
 
-  let templates: Awaited<ReturnType<typeof prisma.categoryFieldTemplate.findMany>> = [];
-  try {
-    templates = await prisma.categoryFieldTemplate.findMany({
-      where: { categoryId, isActive: true },
-      orderBy: { order: "asc" },
-    });
-    markPrismaHealthy();
-  } catch (error) {
-    if (isPrismaConnectionError(error)) {
-      markPrismaUnavailable();
-      redirect("/sell?error=Database%20is%20temporarily%20unreachable");
-    }
-    throw error;
-  }
   const dynamicValues = getDynamicFieldEntries(formData);
 
   if (status === ListingStatus.ACTIVE && listing.status === ListingStatus.DRAFT) {
@@ -111,11 +116,40 @@ async function updateListing(formData: FormData) {
   }
 
   if (status === ListingStatus.ACTIVE) {
+    if (!categoryId) {
+      redirect(`/sell/${id}/edit?error=Category%20is%20required%20to%20publish.`);
+    }
+    if (!cityId) {
+      redirect(`/sell/${id}/edit?error=City%20is%20required%20to%20publish.`);
+    }
+
+    try {
+      const [categoryExists, cityExists] = await Promise.all([
+        prisma.category.count({
+          where: { id: categoryId, isActive: true },
+        }),
+        prisma.city.count({
+          where: { id: cityId },
+        }),
+      ]);
+      markPrismaHealthy();
+      if (categoryExists === 0) {
+        redirect(`/sell/${id}/edit?error=Selected%20category%20is%20invalid.`);
+      }
+      if (cityExists === 0) {
+        redirect(`/sell/${id}/edit?error=Selected%20city%20is%20invalid.`);
+      }
+    } catch (error) {
+      if (isPrismaConnectionError(error)) {
+        markPrismaUnavailable();
+        redirect("/sell?error=Database%20is%20temporarily%20unreachable");
+      }
+      throw error;
+    }
+
     const validation = validatePublishInputs({
       title,
       priceCents,
-      templates,
-      dynamicValues,
     });
     if (!validation.isValid) {
       redirect(`/sell/${id}/edit?error=${encodeURIComponent(validation.errors[0])}`);
@@ -130,6 +164,7 @@ async function updateListing(formData: FormData) {
           title,
           description,
           priceCents,
+          currency,
           categoryId,
           cityId,
           condition,
@@ -144,6 +179,13 @@ async function updateListing(formData: FormData) {
           ),
         },
       });
+
+      if (sellerPhoneToSave) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { phone: sellerPhoneToSave },
+        });
+      }
 
       await tx.listingFieldValue.deleteMany({ where: { listingId: id } });
 
@@ -176,12 +218,15 @@ async function updateListing(formData: FormData) {
       redirect("/sell?paid=1");
     }
   }
+  if (status === ListingStatus.DRAFT) {
+    redirect("/sell/analytics?draft=1");
+  }
   redirect("/sell");
 }
 
 async function deleteListing(formData: FormData) {
   "use server";
-  const user = await requireUser();
+  const user = await requireSeller();
   if (shouldSkipPrismaCalls()) {
     redirect("/sell?error=Database%20is%20temporarily%20unreachable");
   }
@@ -210,12 +255,16 @@ export default async function EditListing({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const user = await requireUser();
+  const user = await requireSeller();
   const { id } = await params;
   const sp = await searchParams;
 
   async function fetchEditData() {
     return Promise.all([
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { phone: true },
+      }),
       prisma.listing.findUnique({ where: { id }, include: { images: true } }),
       prisma.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
       prisma.city.findMany({ orderBy: { name: "asc" } }),
@@ -257,9 +306,10 @@ export default async function EditListing({
     );
   }
 
-  const [listing, categories, cities, templates, fieldValues] = editData;
+  const [sellerProfile, listing, categories, cities, templates, fieldValues] = editData;
 
   if (!listing || listing.sellerId !== user.id) notFound();
+  const initialPhone = parseStoredPhone(sellerProfile?.phone);
 
   const templatesByCategory = groupTemplatesByCategory(normalizeTemplates(templates));
   const dynamicValues = Object.fromEntries(
@@ -297,9 +347,12 @@ export default async function EditListing({
               title: listing.title,
               description: listing.description,
               price: listing.priceCents / 100,
+              currency: listing.currency,
               condition: listing.condition,
               categoryId: listing.categoryId,
               cityId: listing.cityId,
+              phone: initialPhone.localPhone,
+              phoneCountry: initialPhone.countryCode,
               dynamicValues,
               plan:
                 listing.status === ListingStatus.ACTIVE && !listing.activeUntil

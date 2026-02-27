@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ContactRequestStatus, ListingStatus } from "@prisma/client";
+import { ListingStatus } from "@prisma/client";
 import { MapPin, ShieldAlert, UserRound } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
@@ -14,18 +14,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 export default async function ListingDetails({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
-  const sp = await searchParams;
-  const contactState =
-    typeof sp.contact === "string" ? sp.contact.trim().toLowerCase() : "";
   const sessionUser = await getSessionUser();
 
   async function fetchListingDetails() {
@@ -93,41 +89,6 @@ export default async function ListingDetails({
   if (!listing) notFound();
 
   const isOwner = sessionUser?.id === listing.seller.id;
-
-  let latestContactRequest: {
-    id: string;
-    status: ContactRequestStatus;
-    message: string;
-    sellerResponse: string | null;
-    createdAt: Date;
-  } | null = null;
-
-  if (sessionUser && !isOwner) {
-    try {
-      latestContactRequest = await prisma.contactRequest.findFirst({
-        where: {
-          listingId: listing.id,
-          requesterUserId: sessionUser.id,
-        },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          status: true,
-          message: true,
-          sellerResponse: true,
-          createdAt: true,
-        },
-      });
-      markPrismaHealthy();
-    } catch (error) {
-      if (isPrismaConnectionError(error)) {
-        markPrismaUnavailable();
-      } else {
-        throw error;
-      }
-    }
-  }
-
   const valuesByKey = Object.fromEntries(
     listing.fieldValues.map((field) => [field.key, field.value]),
   );
@@ -136,46 +97,8 @@ export default async function ListingDetails({
     ? `${listing.category.parent.name} / ${listing.category.name}`
     : listing.category.name;
 
-  const isApproved =
-    latestContactRequest?.status === ContactRequestStatus.APPROVED;
-  const isPending =
-    latestContactRequest?.status === ContactRequestStatus.PENDING;
-  const isRejected =
-    latestContactRequest?.status === ContactRequestStatus.REJECTED;
-  const canSeePhone = Boolean(listing.seller.phone) && (isOwner || isApproved);
-
-  const contactNoticeByState: Record<string, { className: string; text: string }> = {
-    requested: {
-      className: "border-success/30 bg-success/10 text-success",
-      text: "Phone access request sent. Seller will review it.",
-    },
-    pending: {
-      className: "border-warning/30 bg-warning/10 text-foreground",
-      text: "You already have a pending request for this listing.",
-    },
-    invalid: {
-      className: "border-destructive/30 bg-destructive/5 text-destructive",
-      text: "Please add a short reason (minimum 8 characters).",
-    },
-    self: {
-      className: "border-warning/30 bg-warning/10 text-foreground",
-      text: "You cannot request your own listing.",
-    },
-    dberror: {
-      className: "border-warning/30 bg-warning/10 text-foreground",
-      text: "Database is temporarily unavailable. Please retry.",
-    },
-  };
-  const contactNotice = contactNoticeByState[contactState] || null;
-
   return (
     <div className="space-y-6">
-      {contactNotice && (
-        <Card className={contactNotice.className}>
-          <CardContent className="py-4 text-sm">{contactNotice.text}</CardContent>
-        </Card>
-      )}
-
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold sm:text-4xl">{listing.title}</h1>
@@ -196,7 +119,7 @@ export default async function ListingDetails({
             Price
           </p>
           <p className="text-3xl font-black text-primary">
-            {listing.currency} {(listing.priceCents / 100).toFixed(2)}
+            {formatCurrencyFromCents(listing.priceCents, listing.currency)}
           </p>
         </div>
       </div>
@@ -272,89 +195,21 @@ export default async function ListingDetails({
               </p>
               <Badge variant="secondary">Member since marketplace launch</Badge>
 
-              {canSeePhone ? (
-                <div className="rounded-xl border border-success/35 bg-success/10 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-success">
-                    Seller phone
-                  </p>
-                  <p className="text-lg font-bold">{listing.seller.phone}</p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-                  Phone is hidden until seller approves your request.
-                </div>
-              )}
+              <div className="rounded-xl border border-success/35 bg-success/10 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-success">
+                  Seller phone
+                </p>
+                <p className="text-lg font-bold">
+                  {listing.seller.phone || "Phone not set yet"}
+                </p>
+              </div>
 
-              {isOwner ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    You can manage your phone visibility from your seller profile.
-                  </p>
-                  <Link href="/sell/analytics" className="block">
-                    <Button variant="outline" className="w-full">
-                      Manage phone in profile
-                    </Button>
-                  </Link>
-                </div>
-              ) : !sessionUser ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Login to request phone access and send a reason to the seller.
-                  </p>
-                  <Link href={`/login?next=/listing/${listing.id}`} className="block">
-                    <Button className="w-full">Login to request phone</Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {latestContactRequest && (
-                    <div className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-sm">
-                      <p className="font-semibold">Latest request</p>
-                      <p className="text-muted-foreground">
-                        Status: {latestContactRequest.status}
-                      </p>
-                      <p className="mt-1 text-muted-foreground">
-                        Sent {new Date(latestContactRequest.createdAt).toLocaleDateString()}
-                      </p>
-                      {latestContactRequest.sellerResponse && (
-                        <p className="mt-1 text-muted-foreground">
-                          Seller note: {latestContactRequest.sellerResponse}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {isApproved && !listing.seller.phone && (
-                    <div className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm">
-                      Seller approved access but has not added a phone number yet.
-                    </div>
-                  )}
-
-                  {!isPending && (!isApproved || !listing.seller.phone) && (
-                    <form
-                      action="/api/contact-requests"
-                      method="post"
-                      className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3"
-                    >
-                      <input type="hidden" name="listingId" value={listing.id} />
-                      <label className="space-y-1">
-                        <span className="text-sm font-medium">
-                          Why do you need seller phone access?
-                        </span>
-                        <textarea
-                          name="message"
-                          required
-                          minLength={8}
-                          className="min-h-20 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
-                          placeholder="Example: I am ready to buy and want pickup details."
-                        />
-                      </label>
-                      <Button type="submit" className="w-full">
-                        {isRejected ? "Send new request" : "Request phone access"}
-                      </Button>
-                    </form>
-                  )}
-                </div>
+              {isOwner && (
+                <Link href="/sell/analytics" className="block">
+                  <Button variant="outline" className="w-full">
+                    Manage seller profile
+                  </Button>
+                </Link>
               )}
             </CardContent>
           </Card>

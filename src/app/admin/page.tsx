@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ListingStatus } from "@prisma/client";
+import { ListingStatus, Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import {
   AlertTriangle,
@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireControlAccess } from "@/lib/auth";
 import { isMissingCategoryRequestTableError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
@@ -37,10 +37,18 @@ function monthLabel(date: Date) {
   return date.toLocaleString("en-US", { month: "short" });
 }
 
+const ROLE_OPTIONS: Role[] = [
+  Role.BUYER,
+  Role.SELLER,
+  Role.STAFF,
+  Role.ADMIN,
+  Role.CEO,
+];
+
 async function reviewCategoryRequest(formData: FormData) {
   "use server";
 
-  await requireAdmin();
+  await requireControlAccess();
   const requestId = String(formData.get("requestId") || "");
   const decision = String(formData.get("decision") || "");
   const adminNotes = String(formData.get("adminNotes") || "").trim();
@@ -103,8 +111,46 @@ async function reviewCategoryRequest(formData: FormData) {
   revalidatePath("/sell");
 }
 
+async function updateUserRole(formData: FormData) {
+  "use server";
+
+  const actor = await requireAdmin();
+  const userId = String(formData.get("userId") || "").trim();
+  const nextRole = String(formData.get("role") || "").trim() as Role;
+
+  if (!userId || !ROLE_OPTIONS.includes(nextRole)) return;
+
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true },
+  });
+
+  if (!existing || existing.role === nextRole) return;
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { role: nextRole },
+    }),
+    prisma.adminAction.create({
+      data: {
+        adminId: actor.id,
+        actionType: "UPDATE_ROLE",
+        targetType: "USER",
+        targetId: userId,
+        notes: `New role: ${nextRole}`,
+      },
+    }),
+  ]);
+
+  revalidatePath("/admin");
+  revalidatePath("/sell");
+  revalidatePath("/sell/analytics");
+}
+
 export default async function AdminPage() {
-  await requireAdmin();
+  const currentUser = await requireControlAccess();
+  const canManageRoles = currentUser.role === Role.ADMIN;
 
   const trendStartDate = new Date();
   trendStartDate.setUTCMonth(trendStartDate.getUTCMonth() - 5);
@@ -118,6 +164,7 @@ export default async function AdminPage() {
     activeListingsCount,
     totalUsers,
     activeSellerRows,
+    recentPlatformUsers,
     recentUsers,
     recentListings,
     recentReports,
@@ -155,6 +202,11 @@ export default async function AdminPage() {
         },
       },
       take: 20,
+    }),
+    prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      take: 25,
     }),
     prisma.user.findMany({
       where: { createdAt: { gte: trendStartDate } },
@@ -535,6 +587,62 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
       </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>User roles and privileges</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            `BUYER` and `SELLER` are standard profiles. `STAFF` and `CEO` have full control access.
+            Only `ADMIN` can assign or change roles.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {recentPlatformUsers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No users yet.</p>
+          ) : (
+            recentPlatformUsers.map((platformUser) => (
+              <div
+                key={platformUser.id}
+                className="rounded-xl border border-border/70 bg-card p-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">
+                      {platformUser.name || platformUser.email.split("@")[0]}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {platformUser.email} | joined{" "}
+                      {new Date(platformUser.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {canManageRoles ? (
+                    <form action={updateUserRole} className="flex items-center gap-2">
+                      <input type="hidden" name="userId" value={platformUser.id} />
+                      <select
+                        name="role"
+                        defaultValue={platformUser.role}
+                        className="h-9 rounded-lg border border-border bg-input px-3 text-sm"
+                      >
+                        {ROLE_OPTIONS.map((roleOption) => (
+                          <option key={roleOption} value={roleOption}>
+                            {roleOption}
+                          </option>
+                        ))}
+                      </select>
+                      <Button type="submit" size="sm">
+                        Save role
+                      </Button>
+                    </form>
+                  ) : (
+                    <Badge variant="secondary">{platformUser.role}</Badge>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">

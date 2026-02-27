@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
+import { requireControlAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
-  const admin = await requireAdmin();
+  const admin = await requireControlAccess();
   const form = await request.formData();
   const listingId = String(form.get("listingId") || "");
   const reportId = String(form.get("reportId") || "");

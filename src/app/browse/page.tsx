@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   CategoryFieldType,
   ListingCondition,
@@ -192,6 +193,40 @@ export default async function BrowsePage({
     } else {
       throw error;
     }
+  }
+
+  const validParentCategoryIds = new Set(
+    parentCategories.map((category) => category.id),
+  );
+  const validSubcategoryIds = new Set(
+    parentCategories.flatMap((category) =>
+      category.children.map((child) => child.id),
+    ),
+  );
+  const validCityIds = new Set(cities.map((cityItem) => cityItem.id));
+  const validConditionValues = new Set(Object.values(ListingCondition));
+
+  const hasInvalidCat = Boolean(cat && !validParentCategoryIds.has(cat));
+  const hasInvalidSub = Boolean(sub && !validSubcategoryIds.has(sub));
+  const hasInvalidCity = Boolean(city && !validCityIds.has(city));
+  const hasInvalidCondition = Boolean(
+    condition && !validConditionValues.has(condition as ListingCondition),
+  );
+
+  if (hasInvalidCat || hasInvalidSub || hasInvalidCity || hasInvalidCondition) {
+    const sanitized = new URLSearchParams();
+    Object.entries(sp).forEach(([key, value]) => {
+      const single = Array.isArray(value) ? value[0] : value;
+      if (!single) return;
+      if (key === "cat" && hasInvalidCat) return;
+      if (key === "sub" && hasInvalidSub) return;
+      if (key === "city" && hasInvalidCity) return;
+      if (key === "condition" && hasInvalidCondition) return;
+      sanitized.set(key, single);
+    });
+
+    const query = sanitized.toString();
+    redirect(query ? `/browse?${query}` : "/browse");
   }
 
   const templatesByCategory = parentCategories.reduce<

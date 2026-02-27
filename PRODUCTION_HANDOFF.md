@@ -5,37 +5,58 @@
 - Posting is login-only.
   - Route protection: `middleware.ts`
   - Server-side guard: `src/lib/auth.ts`
+- Role model is now expanded and enforced:
+  - Roles: `BUYER`, `SELLER`, `STAFF`, `ADMIN`, `CEO`
+  - `STAFF/CEO/ADMIN` can access control center.
+  - Only `ADMIN` can assign roles in admin dashboard.
+- Seller experience is split cleanly:
+  - `/sell` redirects to `/sell/analytics?create=1`.
+  - `/sell/analytics` is the main seller dashboard for `SELLER/STAFF/CEO` with create popup.
+  - `/profile` is the dedicated profile management page.
 - First published listing is free for 30 days.
 - Any next publish requires payment flow (`stripe-dummy` currently).
   - Create flow: `src/app/sell/page.tsx`
   - Edit flow (draft -> active): `src/app/sell/[id]/edit/page.tsx`
-- Email notifications are integrated via Resend.
-  - `src/lib/notifications.ts`
-- Contact request and phone reveal flow is implemented.
-  - Buyer request endpoint: `src/app/api/contact-requests/route.ts`
-  - Listing-side UI: `src/app/listing/[id]/page.tsx`
-  - Seller moderation UI: `src/app/sell/page.tsx`
+- Listing publish now enforces:
+  - Required seller phone with country select (default Macedonia).
+  - Macedonian format support: `070...`, `+389...`, `00389...`.
+  - Only `EUR` and `MKD` are allowed currencies.
+- Listing contact behavior:
+  - Seller phone is directly visible on listing details (`/listing/[id]`).
+  - Contact request endpoint is currently a redirect stub (no gated phone-reveal workflow).
+- Sold-money tracking is live:
+  - Seller can mark active listing as sold.
+  - `Sale` record is created with gross, platform fee, and net.
+  - Seller and admin revenue screens are connected to sold totals.
+- Browse is live against active listings and seeded data.
+  - Main page: `src/app/browse/page.tsx`
+  - Card UI: `src/components/listing-card.tsx`
 
 ## Seeder
 
-- Seeder now creates 3 active listings per category from tester account and supports reset.
+- Seeder creates 3 active listings per category from tester account and supports reset.
   - `prisma/seed.js`
 - Environment knobs:
   - `SEED_RESET=true`
   - `SEED_TESTER_EMAIL`
   - `SEED_TESTER_NAME`
   - `SEED_TESTER_PHONE`
+  - `SEED_FAKE_SELLERS` (default `10`)
+  - `SEED_FAKE_SELLER_DOMAIN`
 
 Run:
 
 ```bash
 pnpm prisma migrate deploy
+pnpm prisma generate
 pnpm prisma:seed
+pnpm build
+pnpm start
 ```
 
 ## Information Needed From You
 
-- Production sender email/domain verified in Resend (exact From address).
+- Production sender email/domain verified in Resend (exact From address), if email notifications are enabled.
 - Final payment provider choice:
   - Keep dummy Stripe or switch to real Stripe.
 - Marketplace legal content:
@@ -48,8 +69,8 @@ pnpm prisma:seed
 1. Replace dummy payments with real Stripe Checkout + webhook.
    - Main publish enforcement: `src/app/sell/page.tsx`
    - Draft->active publish enforcement: `src/app/sell/[id]/edit/page.tsx`
-2. Add durable email templates (HTML + localization).
-   - `src/lib/notifications.ts`
+2. Add durable email templates (HTML + localization), if enabling outbound email.
+   - `src/lib/notifications.ts` (or equivalent provider integration point)
 3. Add anti-abuse controls:
    - Rate limits on auth/chat/contact request/report endpoints.
    - Captcha on registration and high-risk forms.
@@ -57,6 +78,8 @@ pnpm prisma:seed
    - Sentry (server + client), structured request logs, uptime checks.
 5. Add SEO + growth pages:
    - Static city/category landing pages and sitemap expansion.
+6. Add a dedicated production smoke test script:
+   - Auth flow, listing publish, browse visibility, listing detail render, admin access checks.
 
 ## Global-Level Recommendations
 
