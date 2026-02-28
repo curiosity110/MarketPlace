@@ -146,6 +146,7 @@ async function updateUserRole(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/sell");
   revalidatePath("/sell/analytics");
+  revalidatePath("/dashboard");
 }
 
 export default async function AdminPage() {

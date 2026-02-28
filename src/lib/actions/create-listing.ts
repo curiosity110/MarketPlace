@@ -20,7 +20,7 @@ import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
-type CreateRedirectBase = "/sell" | "/sell/analytics";
+type CreateRedirectBase = "/sell" | "/sell/analytics" | "/dashboard";
 
 function resolveActiveUntil(status: ListingStatus, plan: string) {
   if (status !== ListingStatus.ACTIVE) return null;
@@ -207,6 +207,7 @@ async function createListingWithBase(
   revalidatePath("/browse");
   revalidatePath("/sell");
   revalidatePath("/sell/analytics");
+  revalidatePath("/dashboard");
   if (listingId) revalidatePath(`/listing/${listingId}`);
 
   if (status === ListingStatus.ACTIVE && isFirstPublishedPost) {
@@ -233,4 +234,9 @@ export async function createListingFromSell(formData: FormData) {
 export async function createListingFromAnalytics(formData: FormData) {
   "use server";
   await createListingWithBase(formData, "/sell/analytics");
+}
+
+export async function createListingFromDashboard(formData: FormData) {
+  "use server";
+  await createListingWithBase(formData, "/dashboard");
 }

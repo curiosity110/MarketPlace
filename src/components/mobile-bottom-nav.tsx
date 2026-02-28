@@ -42,7 +42,7 @@ export function MobileBottomNav({ isLoggedIn, isAdmin }: Props) {
     { href: "/browse", label: "Browse", icon: Compass, show: true },
     { href: "/categories", label: "Categories", icon: FolderKanban, show: true },
     {
-      href: isAdmin ? "/admin" : isLoggedIn ? "/sell/analytics" : loginHref,
+      href: isAdmin ? "/admin" : isLoggedIn ? "/dashboard" : loginHref,
       label: isAdmin ? "Admin" : isLoggedIn ? "Dashboard" : "Login",
       icon: isAdmin ? Settings : isLoggedIn ? Compass : LogIn,
       show: true,

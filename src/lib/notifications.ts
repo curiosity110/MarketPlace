@@ -59,7 +59,7 @@ export async function sendContactRequestEmail(params: {
     `Reason/message:`,
     params.message,
     "",
-    `Review in dashboard: /sell`,
+    `Review in dashboard: /dashboard`,
     `Listing id: ${params.listingId}`,
   ].join("\n");
 

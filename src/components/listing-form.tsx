@@ -332,7 +332,7 @@ export function ListingForm({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-semibold">Category and location</h3>
             <Link
-              href="/sell/analytics"
+              href="/dashboard"
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               <CirclePlus size={13} />

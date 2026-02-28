@@ -193,7 +193,7 @@ export default async function CategoriesPage({
                       Browse
                     </Button>
                   </Link>
-                  <Link href={`/sell/analytics?create=1&cat=${category.id}`}>
+                  <Link href={`/dashboard?create=1&cat=${category.id}`}>
                     <Button className="w-full">Create here</Button>
                   </Link>
                 </div>
@@ -208,7 +208,7 @@ export default async function CategoriesPage({
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
           Open your dashboard and request a new category. The team can approve it quickly.
         </p>
-        <Link href="/sell/analytics" className="mt-4 inline-block">
+        <Link href="/dashboard" className="mt-4 inline-block">
           <Button variant="outline" className="gap-2">
             <PlusCircle size={16} />
             Open dashboard categories

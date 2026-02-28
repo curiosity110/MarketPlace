@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const isProtected =
+    path.startsWith("/dashboard") ||
     path.startsWith("/sell") ||
     path.startsWith("/admin") ||
     path.startsWith("/profile");
@@ -22,5 +23,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/sell/:path*", "/admin/:path*", "/profile/:path*"],
+  matcher: ["/dashboard/:path*", "/sell/:path*", "/admin/:path*", "/profile/:path*"],
 };

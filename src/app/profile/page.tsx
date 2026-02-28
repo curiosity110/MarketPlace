@@ -123,7 +123,7 @@ async function updateProfile(formData: FormData) {
   }
 
   revalidatePath("/profile");
-  revalidatePath("/sell/analytics");
+  revalidatePath("/dashboard");
   revalidatePath("/sell");
   redirect("/profile?saved=1");
 }
@@ -161,7 +161,7 @@ export default async function ProfilePage({
   const billingSuccess = sp.billing === "success";
   const dbUnavailableError =
     "Database is temporarily unreachable. Please retry in a moment.";
-  const dashboardHref = canSell(user.role) ? "/sell/analytics" : "/browse";
+  const dashboardHref = canSell(user.role) ? "/dashboard" : "/browse";
 
   async function fetchProfileData() {
     return Promise.all([
@@ -448,7 +448,7 @@ export default async function ProfilePage({
               <p className="mt-1 text-xs text-muted-foreground">
                 Active with this plan: {payPerListingActive}
               </p>
-              <Link href="/sell/analytics?create=1&plan=pay-per-listing" className="mt-2 block">
+              <Link href="/dashboard?create=1&plan=pay-per-listing" className="mt-2 block">
                 <Button className="w-full">Post with $4 plan</Button>
               </Link>
             </div>
@@ -460,7 +460,7 @@ export default async function ProfilePage({
               <p className="mt-1 text-xs text-muted-foreground">
                 Active with subscription: {subscriptionActive}
               </p>
-              <Link href="/sell/analytics?create=1&plan=subscription" className="mt-2 block">
+              <Link href="/dashboard?create=1&plan=subscription" className="mt-2 block">
                 <Button variant="outline" className="w-full">
                   Start subscription flow
                 </Button>
