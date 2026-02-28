@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ListingStatus } from "@prisma/client";
@@ -11,7 +10,7 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { Badge } from "@/components/ui/badge";
+import { ListingGallery } from "@/components/listing-gallery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrencyFromCents } from "@/lib/currency";
@@ -81,7 +80,8 @@ export default async function ListingDetails({
       <div className="space-y-4">
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="py-5 text-sm text-foreground">
-            Listing details are temporarily unavailable because the database is unreachable.
+            Listing details are temporarily unavailable because the database is
+            unreachable.
           </CardContent>
         </Card>
         <Link href="/browse">
@@ -97,6 +97,19 @@ export default async function ListingDetails({
   const valuesByKey = Object.fromEntries(
     listing.fieldValues.map((field) => [field.key, field.value]),
   );
+  const categoryDetails = listing.category.fieldTemplates
+    .map((template) => {
+      const value = valuesByKey[template.key];
+      if (!value) return null;
+      return {
+        id: template.id,
+        label: template.label,
+        value,
+      };
+    })
+    .filter((item): item is { id: string; label: string; value: string } =>
+      Boolean(item),
+    );
 
   const categoryLabel = listing.category.parent
     ? `${listing.category.parent.name} / ${listing.category.name}`
@@ -144,70 +157,56 @@ export default async function ListingDetails({
         </Card>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-4">
           <Card>
-            <CardContent className="grid gap-4 md:grid-cols-[1fr_0.8fr]">
-              <div>
-                {listing.images.length > 0 ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {listing.images.map((image, index) => (
-                      <div
-                        key={image.id}
-                        className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border/70 bg-muted"
-                      >
-                        <Image
-                          src={image.url}
-                          alt={`${listing.title} image ${index + 1}`}
-                          fill
-                          unoptimized
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, 50vw"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex aspect-[5/3] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-                    No photos uploaded
-                  </div>
-                )}
-              </div>
+            <CardContent className="space-y-4">
+              <ListingGallery
+                images={listing.images.map((image) => image.url)}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="space-y-3">
               <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
                 <h2 className="text-xl font-semibold">Description</h2>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/90">
                   {listing.description}
                 </p>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardContent className="space-y-3">
-              <h2 className="text-xl font-semibold">Category details</h2>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {listing.category.fieldTemplates.map((template) => {
-                  const value = valuesByKey[template.key];
-                  if (!value) return null;
-                  return (
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-lg font-semibold">Category details</h2>
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                  {categoryDetails.length}
+                </span>
+              </div>
+
+              {categoryDetails.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                  {categoryDetails.map((detail) => (
                     <div
-                      key={template.id}
-                      className="rounded-xl border border-border/70 bg-muted/30 p-3"
+                      key={detail.id}
+                      className="rounded-xl border border-border/70 bg-muted/20 p-3"
                     >
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {template.label}
+                        {detail.label}
                       </p>
-                      <p className="text-sm font-semibold">{value}</p>
+                      <p className="text-sm font-semibold">{detail.value}</p>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No category details were provided.
+                </p>
+              )}
             </CardContent>
           </Card>
-        </div>
 
-        <div className="space-y-4">
           <Card>
             <CardContent className="space-y-3">
               <div className="flex items-start justify-between gap-3">
@@ -224,15 +223,28 @@ export default async function ListingDetails({
                     <p className="mt-1 text-xs text-muted-foreground">
                       If something looks unsafe or fake, report it for review.
                     </p>
-                    <form action="/api/reports" method="post" className="mt-2 space-y-2">
+                    <form
+                      action="/api/reports"
+                      method="post"
+                      className="mt-2 space-y-2"
+                    >
                       <input type="hidden" name="targetType" value="LISTING" />
                       <input type="hidden" name="targetId" value={listing.id} />
-                      <input type="hidden" name="listingId" value={listing.id} />
-                      <input type="hidden" name="returnTo" value={`/listing/${listing.id}`} />
+                      <input
+                        type="hidden"
+                        name="listingId"
+                        value={listing.id}
+                      />
+                      <input
+                        type="hidden"
+                        name="returnTo"
+                        value={`/listing/${listing.id}`}
+                      />
                       <textarea
                         name="reason"
                         required
                         minLength={8}
+                        maxLength={500}
                         className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
                         placeholder="Explain why this listing should be reviewed"
                       />
@@ -248,39 +260,51 @@ export default async function ListingDetails({
                   </div>
                 </details>
               </div>
-              <p className="inline-flex items-center gap-2 text-sm">
-                <UserRound size={16} className="text-muted-foreground" />
-                {listing.seller.name || listing.seller.email}
-              </p>
-              <Badge variant="secondary">Member since marketplace launch</Badge>
-
-              <div className="rounded-xl border border-success/35 bg-success/10 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-success">
-                  Seller phone
-                </p>
-                <p className="text-lg font-bold">
-                  {listing.seller.phone || "Phone not set yet"}
-                </p>
+              <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                <details>
+                  <summary className="list-none">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-center"
+                    >
+                      Seller profile
+                    </Button>
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Seller contact
+                    </p>
+                    <p className="inline-flex items-center gap-2 text-sm font-semibold">
+                      <UserRound size={16} className="text-muted-foreground" />
+                      {listing.seller.name || listing.seller.email}
+                    </p>
+                    <div className="rounded-lg border border-success/35 bg-success/10 px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-success">
+                        Phone
+                      </p>
+                      <p className="text-lg font-bold">
+                        {listing.seller.phone || "Phone not set yet"}
+                      </p>
+                    </div>
+                  </div>
+                </details>
               </div>
 
-              {isOwner && (
-                <Link href="/sell/analytics" className="block">
-                  <Button variant="outline" className="w-full">
-                    Manage seller profile
+              <div className="flex flex-wrap gap-2">
+                {isOwner && (
+                  <Link href="/profile" className="flex-1 min-w-[160px]">
+                    <Button variant="outline" className="w-full">
+                      View profile
+                    </Button>
+                  </Link>
+                )}
+                <Link href="/browse" className="flex-1 min-w-[160px]">
+                  <Button variant="ghost" className="w-full">
+                    Back to browse
                   </Button>
                 </Link>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="space-y-3">
-              <h2 className="text-lg font-semibold">More actions</h2>
-              <Link href="/browse" className="block">
-                <Button variant="ghost" className="w-full justify-start">
-                  Back to browse
-                </Button>
-              </Link>
+              </div>
             </CardContent>
           </Card>
         </div>

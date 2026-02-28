@@ -26,13 +26,23 @@ type NavItem = {
 
 export function MobileBottomNav({ isLoggedIn, isAdmin }: Props) {
   const pathname = usePathname();
+  const currentPath = pathname;
+  const safeNextPath =
+    currentPath.startsWith("/") &&
+    !currentPath.startsWith("//") &&
+    !currentPath.startsWith("/login") &&
+    !currentPath.startsWith("/register") &&
+    !currentPath.startsWith("/api/auth")
+      ? currentPath
+      : "/browse";
+  const loginHref = `/login?next=${encodeURIComponent(safeNextPath)}`;
 
   const items: NavItem[] = [
     { href: "/", label: "Home", icon: Home, show: true },
     { href: "/browse", label: "Browse", icon: Compass, show: true },
     { href: "/categories", label: "Categories", icon: FolderKanban, show: true },
     {
-      href: isAdmin ? "/admin" : isLoggedIn ? "/sell/analytics" : "/login",
+      href: isAdmin ? "/admin" : isLoggedIn ? "/sell/analytics" : loginHref,
       label: isAdmin ? "Admin" : isLoggedIn ? "Dashboard" : "Login",
       icon: isAdmin ? Settings : isLoggedIn ? Compass : LogIn,
       show: true,

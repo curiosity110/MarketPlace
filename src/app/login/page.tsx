@@ -14,6 +14,7 @@ export default async function LoginPage({
     sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
       ? sp.next
       : "/browse";
+  const encodedNext = encodeURIComponent(next);
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -46,7 +47,10 @@ export default async function LoginPage({
         </p>
         <p>
           New here?{" "}
-          <Link href="/register" className="font-semibold text-primary hover:underline">
+          <Link
+            href={`/register?next=${encodedNext}`}
+            className="font-semibold text-primary hover:underline"
+          >
             Open register page
           </Link>
         </p>

@@ -3,7 +3,18 @@ import { UserRoundPlus } from "lucide-react";
 import { LoginForm } from "@/components/login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const sp = await searchParams;
+  const next =
+    sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
+      ? sp.next
+      : "/browse";
+  const encodedNext = encodeURIComponent(next);
+
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <section className="text-center">
@@ -23,13 +34,16 @@ export default function RegisterPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <LoginForm defaultMode="register" />
+          <LoginForm defaultMode="register" nextPath={next} />
         </CardContent>
       </Card>
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-primary hover:underline">
+        <Link
+          href={`/login?next=${encodedNext}`}
+          className="font-semibold text-primary hover:underline"
+        >
           Go to login
         </Link>
       </p>

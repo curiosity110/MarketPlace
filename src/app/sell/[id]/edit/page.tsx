@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Currency, ListingStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { Camera } from "lucide-react";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import {
@@ -12,8 +11,7 @@ import {
 } from "@/lib/prisma-circuit-breaker";
 import { requireSeller } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { ListingForm } from "@/components/listing-form";
 import { isMarketplaceCurrency } from "@/lib/currency";
 import {
@@ -372,47 +370,11 @@ export default async function EditListing({
                   ? "subscription"
                   : "pay-per-listing",
             }}
+            existingImages={listing.images.map((image) => ({
+              id: image.id,
+              url: image.url,
+            }))}
           />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <Camera size={18} className="text-secondary" />
-            Photos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <form
-            action="/api/upload"
-            method="post"
-            encType="multipart/form-data"
-            className="space-y-2"
-          >
-            <input type="hidden" name="listingId" value={listing.id} />
-            <Input type="file" name="file" accept="image/*" required />
-            <Button variant="outline" type="submit">
-              Upload image
-            </Button>
-          </form>
-          {listing.images.length > 0 ? (
-            <ul className="space-y-1 text-sm">
-              {listing.images.map((image) => (
-                <li key={image.id}>
-                  <a
-                    className="break-all text-muted-foreground underline hover:text-primary"
-                    href={image.url}
-                    target="_blank"
-                  >
-                    {image.url}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">No images uploaded yet.</p>
-          )}
         </CardContent>
       </Card>
 

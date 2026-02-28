@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
@@ -8,21 +7,25 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { getSupabaseServiceConfig } from "@/lib/supabase/config";
+import { getSupabaseAdminStorageContext } from "@/lib/supabase/admin";
 import { getSafeErrorMessage, isLikelySupabaseConnectionError } from "@/lib/supabase/errors";
 
 const MAX_FILE_SIZE = 6 * 1024 * 1024; // 6MB
+const MAX_IMAGES_PER_LISTING = 10;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
 }
 
+function jsonError(error: string, status: number) {
+  return NextResponse.json({ ok: false, error }, { status });
+}
+
 export async function POST(request: Request) {
   const user = await requireUser();
   if (shouldSkipPrismaCalls()) {
-    return NextResponse.redirect(
-      new URL("/sell?error=Database%20is%20temporarily%20unreachable", request.url),
-    );
+    return jsonError("Database is temporarily unreachable", 503);
   }
 
   const formData = await request.formData();
@@ -30,17 +33,15 @@ export async function POST(request: Request) {
   const file = formData.get("file");
 
   if (!listingId || !(file instanceof File)) {
-    return NextResponse.redirect(new URL("/sell?error=Invalid upload request", request.url));
+    return jsonError("Invalid upload request", 400);
   }
 
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.redirect(new URL(`/sell/${listingId}/edit?error=Only image files are allowed`, request.url));
+  if (!ALLOWED_IMAGE_TYPES.has(file.type.toLowerCase())) {
+    return jsonError("Only JPG, PNG, or WEBP images are allowed", 400);
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.redirect(
-      new URL(`/sell/${listingId}/edit?error=Image must be 6MB or smaller`, request.url),
-    );
+    return jsonError("Image must be 6MB or smaller", 400);
   }
 
   let listing: Awaited<ReturnType<typeof prisma.listing.findUnique>>;
@@ -50,74 +51,71 @@ export async function POST(request: Request) {
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      return NextResponse.redirect(
-        new URL(
-          `/sell/${listingId}/edit?error=${encodeURIComponent("Database is temporarily unreachable")}`,
-          request.url,
-        ),
-      );
+      return jsonError("Database is temporarily unreachable", 503);
     }
     throw error;
   }
 
   if (!listing || listing.sellerId !== user.id) {
-    return NextResponse.redirect(new URL("/sell", request.url));
+    return jsonError("You do not have permission to upload for this listing", 403);
   }
 
-  const supabaseConfig = getSupabaseServiceConfig();
-  if (!supabaseConfig) {
-    return NextResponse.redirect(
-      new URL(
-        `/sell/${listingId}/edit?error=${encodeURIComponent("Storage is not configured yet")}`,
-        request.url,
-      ),
-    );
+  try {
+    const imageCount = await prisma.listingImage.count({ where: { listingId } });
+    markPrismaHealthy();
+    if (imageCount >= MAX_IMAGES_PER_LISTING) {
+      return jsonError(
+        `You can upload up to ${MAX_IMAGES_PER_LISTING} images per listing`,
+        400,
+      );
+    }
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      return jsonError("Database is temporarily unreachable", 503);
+    }
+    throw error;
   }
 
-  const supabase = createClient(supabaseConfig.url, supabaseConfig.serviceRoleKey);
+  const { context: storageContext, error: storageError } =
+    getSupabaseAdminStorageContext();
+  if (!storageContext) {
+    return jsonError(storageError || "Storage is not configured yet", 500);
+  }
 
   const safeName = sanitizeFileName(file.name);
   const path = `${listingId}/${Date.now()}-${safeName}`;
-  const bucket = supabaseConfig.storageBucket;
+  const bucket = storageContext.bucket;
 
   try {
-    const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    const { error } = await storageContext.client.storage.from(bucket).upload(path, file, {
       cacheControl: "3600",
       upsert: false,
       contentType: file.type,
     });
 
     if (error) {
-      return NextResponse.redirect(
-        new URL(`/sell/${listingId}/edit?error=${encodeURIComponent(error.message)}`, request.url),
-      );
+      return jsonError(error.message, 502);
     }
 
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    const { data } = storageContext.client.storage.from(bucket).getPublicUrl(path);
     try {
       await prisma.listingImage.create({ data: { listingId, url: data.publicUrl } });
       markPrismaHealthy();
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
-        return NextResponse.redirect(
-          new URL(
-            `/sell/${listingId}/edit?error=${encodeURIComponent("Database is temporarily unreachable")}`,
-            request.url,
-          ),
-        );
+        return jsonError("Database is temporarily unreachable", 503);
       }
       throw error;
     }
+
+    return NextResponse.json({ ok: true, url: data.publicUrl }, { status: 200 });
   } catch (error) {
     const message = isLikelySupabaseConnectionError(error)
       ? "Storage host is unreachable. Check your Supabase URL and DNS."
       : getSafeErrorMessage(error, "Image upload failed.");
 
-    return NextResponse.redirect(
-      new URL(`/sell/${listingId}/edit?error=${encodeURIComponent(message)}`, request.url),
-    );
+    return jsonError(message, 500);
   }
-
-  return NextResponse.redirect(new URL(`/sell/${listingId}/edit`, request.url));
 }

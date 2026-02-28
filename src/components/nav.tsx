@@ -5,6 +5,7 @@ import { en } from "@/messages/en";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { AuthCtaLinks } from "@/components/auth-cta-links";
 
 export async function Nav() {
   const user = await getSessionUser();
@@ -63,16 +64,7 @@ export async function Nav() {
                 </Button>
               </form>
             ) : (
-              <div className="hidden items-center gap-2 sm:flex">
-                <Link href="/register">
-                  <Button variant="outline" size="sm">
-                    {en.nav.register}
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button size="sm">{en.nav.login}</Button>
-                </Link>
-              </div>
+              <AuthCtaLinks />
             )}
           </div>
         </Container>

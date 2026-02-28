@@ -321,6 +321,7 @@ export default async function ProfilePage({
                   name="name"
                   defaultValue={userRecord?.name || ""}
                   placeholder="Enter your full name"
+                  maxLength={80}
                 />
               </label>
 
@@ -330,6 +331,9 @@ export default async function ProfilePage({
                   name="username"
                   defaultValue={userRecord?.username || ""}
                   placeholder="your.handle"
+                  minLength={3}
+                  maxLength={40}
+                  pattern="[a-z0-9._-]{3,40}"
                 />
                 <span className="block text-[11px] text-muted-foreground">
                   3-40 chars, lowercase letters, numbers, dot, dash, underscore.
@@ -365,6 +369,11 @@ export default async function ProfilePage({
                   defaultValue={parsedPhone.localPhone}
                   placeholder="Enter phone number"
                   required
+                  minLength={6}
+                  maxLength={20}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  pattern="[0-9+()\\-\\s]{6,20}"
                 />
               </label>
 
@@ -374,6 +383,7 @@ export default async function ProfilePage({
                   name="company"
                   defaultValue={userRecord?.company || ""}
                   placeholder="Company name"
+                  maxLength={80}
                 />
               </label>
 
@@ -383,6 +393,9 @@ export default async function ProfilePage({
                   name="website"
                   defaultValue={userRecord?.website || ""}
                   placeholder="https://example.com"
+                  type="url"
+                  inputMode="url"
+                  maxLength={180}
                 />
               </label>
 
@@ -392,6 +405,7 @@ export default async function ProfilePage({
                   name="address"
                   defaultValue={userRecord?.address || ""}
                   placeholder="Street and area"
+                  maxLength={180}
                 />
               </label>
 
@@ -402,6 +416,7 @@ export default async function ProfilePage({
                   defaultValue={userRecord?.bio || ""}
                   placeholder="Short description about your store or products"
                   className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                  maxLength={500}
                 />
               </label>
             </div>
@@ -465,6 +480,8 @@ export default async function ProfilePage({
                   placeholder="4242 4242 4242 4242"
                   inputMode="numeric"
                   autoComplete="cc-number"
+                  required
+                  pattern="[0-9 ]{16,23}"
                 />
               </label>
               <label className="space-y-1">
@@ -473,6 +490,8 @@ export default async function ProfilePage({
                   name="dummyCardExp"
                   placeholder="MM/YY"
                   autoComplete="cc-exp"
+                  required
+                  pattern="(0[1-9]|1[0-2])/[0-9]{2}"
                 />
               </label>
               <label className="space-y-1">
@@ -482,6 +501,8 @@ export default async function ProfilePage({
                   placeholder="CVC"
                   inputMode="numeric"
                   autoComplete="cc-csc"
+                  required
+                  pattern="[0-9]{3,4}"
                 />
               </label>
               <div className="sm:col-span-4">

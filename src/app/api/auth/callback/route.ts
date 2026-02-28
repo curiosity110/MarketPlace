@@ -13,15 +13,19 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const next = getSafeNextPath(url.searchParams.get("next"));
   const errorDescription = url.searchParams.get("error_description");
+  const loginWithNext = new URL("/login", url.origin);
+  loginWithNext.searchParams.set("next", next);
 
   if (errorDescription) {
+    loginWithNext.searchParams.set("error", errorDescription);
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(errorDescription)}`, url.origin),
+      loginWithNext,
     );
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=Missing%20auth%20code", url.origin));
+    loginWithNext.searchParams.set("error", "Missing auth code");
+    return NextResponse.redirect(loginWithNext);
   }
 
   const response = NextResponse.redirect(new URL(next, url.origin));
@@ -29,8 +33,9 @@ export async function GET(request: Request) {
   try {
     supabase = await createSupabaseServerClient(response);
   } catch {
+    loginWithNext.searchParams.set("error", "Auth service is not configured");
     return NextResponse.redirect(
-      new URL("/login?error=Auth%20service%20is%20not%20configured", url.origin),
+      loginWithNext,
     );
   }
 
@@ -40,18 +45,21 @@ export async function GET(request: Request) {
     error = result.error;
   } catch (exchangeError) {
     if (isLikelySupabaseConnectionError(exchangeError)) {
+      loginWithNext.searchParams.set("error", "Auth service is unreachable");
       return NextResponse.redirect(
-        new URL("/login?error=Auth%20service%20is%20unreachable", url.origin),
+        loginWithNext,
       );
     }
+    loginWithNext.searchParams.set("error", "Failed to complete login");
     return NextResponse.redirect(
-      new URL("/login?error=Failed%20to%20complete%20login", url.origin),
+      loginWithNext,
     );
   }
 
   if (error) {
+    loginWithNext.searchParams.set("error", error.message);
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error.message)}`, url.origin),
+      loginWithNext,
     );
   }
 

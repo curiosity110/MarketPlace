@@ -54,6 +54,28 @@ pnpm build
 pnpm start
 ```
 
+## Promote One User To ADMIN (No UI)
+
+Exact run command (bash):
+
+```bash
+ALLOW_MAKE_ADMIN=true ADMIN_EMAIL=admin@example.com pnpm make:admin
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:ALLOW_MAKE_ADMIN="true"; $env:ADMIN_EMAIL="admin@example.com"; pnpm make:admin
+```
+
+## Supabase Cookie Reset (If You See "Invalid Compact JWS")
+
+If you change Supabase project keys/URL and uploads or auth start failing with `Invalid Compact JWS`:
+
+1. Clear browser cookies for `localhost` (or your dev host).
+2. Restart `pnpm dev`.
+3. Login again to refresh Supabase session cookies.
+
 ## Information Needed From You
 
 - Production sender email/domain verified in Resend (exact From address), if email notifications are enabled.

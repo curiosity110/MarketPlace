@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "make:admin": "tsx scripts/make-admin.ts",
     "prisma:generate": "prisma generate",
     "prisma:seed": "node prisma/seed.js",
     "db:migrate": "prisma migrate deploy"
@@ -36,6 +37,7 @@
     "eslint-config-next": "16.1.6",
     "prisma": "^6.19.2",
     "tailwindcss": "^4",
+    "tsx": "^4.20.3",
     "typescript": "^5"
   }
 }

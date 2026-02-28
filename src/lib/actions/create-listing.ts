@@ -1,5 +1,4 @@
 import { Currency, ListingStatus, Prisma } from "@prisma/client";
-import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSeller } from "@/lib/auth";
@@ -10,8 +9,6 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { getSupabaseServiceConfig } from "@/lib/supabase/config";
-import { isLikelySupabaseConnectionError } from "@/lib/supabase/errors";
 import {
   getDynamicFieldEntries,
   statusFromIntent,
@@ -22,7 +19,6 @@ import { normalizePhoneInput } from "@/lib/phone";
 import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_CREATE_PHOTO_SIZE = 6 * 1024 * 1024; // 6MB
 
 type CreateRedirectBase = "/sell" | "/sell/analytics";
 
@@ -30,54 +26,6 @@ function resolveActiveUntil(status: ListingStatus, plan: string) {
   if (status !== ListingStatus.ACTIVE) return null;
   if (plan === "subscription") return null;
   return new Date(Date.now() + THIRTY_DAYS_MS);
-}
-
-function sanitizeFileName(fileName: string) {
-  return fileName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-}
-
-async function uploadPhotoForListing(listingId: string, file: File) {
-  if (!file.type.startsWith("image/")) {
-    return "Photo must be an image file.";
-  }
-
-  if (file.size > MAX_CREATE_PHOTO_SIZE) {
-    return "Photo must be 6MB or smaller.";
-  }
-
-  const supabaseConfig = getSupabaseServiceConfig();
-  if (!supabaseConfig) {
-    return "Storage is not configured.";
-  }
-
-  const supabase = createClient(
-    supabaseConfig.url,
-    supabaseConfig.serviceRoleKey,
-  );
-  const safeName = sanitizeFileName(file.name);
-  const path = `${listingId}/${Date.now()}-${safeName}`;
-  const bucket = supabaseConfig.storageBucket;
-
-  try {
-    const { error } = await supabase.storage.from(bucket).upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: file.type,
-    });
-    if (error) return error.message;
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    await prisma.listingImage.create({
-      data: { listingId, url: data.publicUrl },
-    });
-  } catch (error) {
-    if (isLikelySupabaseConnectionError(error)) {
-      return "Storage host is unreachable. Check Supabase URL and DNS.";
-    }
-    return "Photo upload failed due to a storage error.";
-  }
-
-  return null;
 }
 
 function redirectWithError(basePath: CreateRedirectBase, message: string): never {
@@ -123,7 +71,6 @@ async function createListingWithBase(
   } else if (status === ListingStatus.ACTIVE) {
     redirectWithError(basePath, "Phone number is required to publish.");
   }
-  const photo = formData.get("photo");
   const price = Number(formData.get("price") || 0);
   const priceCents = Number.isFinite(price) ? Math.round(price * 100) : 0;
 
@@ -257,16 +204,6 @@ async function createListingWithBase(
     throw error;
   }
 
-  if (listingId && photo instanceof File && photo.size > 0) {
-    const photoUploadError = await uploadPhotoForListing(listingId, photo);
-    if (photoUploadError) {
-      redirectWithError(
-        basePath,
-        `Listing created, but photo upload failed: ${photoUploadError}`,
-      );
-    }
-  }
-
   revalidatePath("/browse");
   revalidatePath("/sell");
   revalidatePath("/sell/analytics");
@@ -279,10 +216,10 @@ async function createListingWithBase(
     redirect(`${basePath}?paid=1`);
   }
   if (status === ListingStatus.DRAFT) {
-    if (basePath === "/sell") {
-      redirect("/sell?draft=1");
+    if (listingId) {
+      redirect(`/sell/${listingId}/edit`);
     }
-    redirect(`${basePath}?draft=1`);
+    redirect(`${basePath}?error=Draft%20save%20failed`);
   }
 
   redirect(basePath);

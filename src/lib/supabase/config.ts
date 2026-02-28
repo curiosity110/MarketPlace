@@ -26,13 +26,30 @@ function normalizeUrl(rawUrl: string) {
   }
 }
 
-export function getSupabasePublicConfig(): SupabasePublicConfig | null {
+export function getSupabasePublicConfigError(): string | null {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
 
-  if (!rawUrl || !anonKey || hasPlaceholder(rawUrl) || hasPlaceholder(anonKey)) {
-    return null;
+  if (!rawUrl) return "Missing NEXT_PUBLIC_SUPABASE_URL.";
+  if (hasPlaceholder(rawUrl)) return "NEXT_PUBLIC_SUPABASE_URL contains a placeholder value.";
+
+  if (!anonKey) return "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY.";
+  if (hasPlaceholder(anonKey)) {
+    return "NEXT_PUBLIC_SUPABASE_ANON_KEY contains a placeholder value.";
   }
+
+  const url = normalizeUrl(rawUrl);
+  if (!url) return "NEXT_PUBLIC_SUPABASE_URL is invalid.";
+
+  return null;
+}
+
+export function getSupabasePublicConfig(): SupabasePublicConfig | null {
+  const configError = getSupabasePublicConfigError();
+  if (configError) return null;
+
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
 
   const url = normalizeUrl(rawUrl);
   if (!url) return null;
@@ -40,12 +57,27 @@ export function getSupabasePublicConfig(): SupabasePublicConfig | null {
   return { url, anonKey };
 }
 
+export function getSupabaseServiceConfigError(): string | null {
+  const publicError = getSupabasePublicConfigError();
+  if (publicError) return publicError;
+
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
+  if (!serviceRoleKey) return "Missing SUPABASE_SERVICE_ROLE_KEY.";
+  if (hasPlaceholder(serviceRoleKey)) {
+    return "SUPABASE_SERVICE_ROLE_KEY contains a placeholder value.";
+  }
+
+  return null;
+}
+
 export function getSupabaseServiceConfig(): SupabaseServiceConfig | null {
+  const configError = getSupabaseServiceConfigError();
+  if (configError) return null;
+
   const publicConfig = getSupabasePublicConfig();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
   const storageBucket = (process.env.SUPABASE_STORAGE_BUCKET || "listing-images").trim();
-
-  if (!publicConfig || !serviceRoleKey || hasPlaceholder(serviceRoleKey)) {
+  if (!publicConfig) {
     return null;
   }
 

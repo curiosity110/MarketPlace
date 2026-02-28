@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   if (
     !targetId ||
     reason.length < 8 ||
+    reason.length > 500 ||
     !Object.values(ReportTargetType).includes(targetType as ReportTargetType)
   ) {
     return NextResponse.redirect(

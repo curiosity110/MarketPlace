@@ -139,16 +139,16 @@ export function DynamicFieldsEditor({
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+    <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <p className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground">
           <WandSparkles size={14} />
           Smart assist
         </p>
-        <Button type="button" variant="outline" onClick={autofillDemo}>
+        <Button type="button" size="sm" variant="outline" onClick={autofillDemo}>
           Auto-fill demo
         </Button>
-        <Button type="button" variant="ghost" onClick={clearFields}>
+        <Button type="button" size="sm" variant="ghost" onClick={clearFields}>
           Clear
         </Button>
         {Object.keys(availablePresets).length > 0 && (
@@ -169,13 +169,17 @@ export function DynamicFieldsEditor({
         )}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {templates.map((template) => {
+      <div className="grid gap-2 md:grid-cols-2">
+        {templates.map((template, index) => {
           const name = `${DYNAMIC_FIELD_PREFIX}${template.key}`;
           const value = fieldValues[template.key] ?? "";
+          const isLastOddItem = templates.length % 2 === 1 && index === templates.length - 1;
 
           return (
-            <label key={template.id} className="space-y-1 text-sm">
+            <label
+              key={template.id}
+              className={`space-y-1 text-sm ${isLastOddItem ? "md:col-span-2" : ""}`}
+            >
               <span className="font-medium">
                 {template.label}
                 {template.required && (

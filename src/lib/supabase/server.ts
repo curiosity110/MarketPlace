@@ -1,13 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
-import { getSupabasePublicConfig } from "@/lib/supabase/config";
+import {
+  getSupabasePublicConfig,
+  getSupabasePublicConfigError,
+} from "@/lib/supabase/config";
 
 export async function createSupabaseServerClient(response?: NextResponse) {
   const cookieStore = await cookies();
   const config = getSupabasePublicConfig();
   if (!config) {
-    throw new Error("Supabase auth is not configured.");
+    throw new Error(
+      getSupabasePublicConfigError() || "Supabase auth is not configured.",
+    );
   }
 
   return createServerClient(

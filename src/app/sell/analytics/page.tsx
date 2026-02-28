@@ -495,7 +495,7 @@ export default async function SellerAnalyticsPage({
                             selectedView === "all" ? "default" : "outline"
                           }
                         >
-                          All
+                          All ({selectedCategory.posted})
                         </Button>
                       </Link>
                       <Link href={`${categoryBaseHref}&view=active`}>
@@ -505,7 +505,7 @@ export default async function SellerAnalyticsPage({
                             selectedView === "active" ? "default" : "outline"
                           }
                         >
-                          Active
+                          Active ({selectedCategory.active})
                         </Button>
                       </Link>
                       <Link href={`${categoryBaseHref}&view=draft`}>
@@ -515,7 +515,7 @@ export default async function SellerAnalyticsPage({
                             selectedView === "draft" ? "default" : "outline"
                           }
                         >
-                          Draft
+                          Draft ({Math.max(0, selectedCategory.posted - selectedCategory.active)})
                         </Button>
                       </Link>
                     </div>
@@ -527,7 +527,7 @@ export default async function SellerAnalyticsPage({
                     </p>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {selectedCategoryListings.slice(0, 12).map((listing) => {
+                      {selectedCategoryListings.map((listing) => {
                         const heroImage = listing.images[0]?.url;
                         const isActive =
                           listing.status === ListingStatus.ACTIVE;
@@ -623,35 +623,64 @@ export default async function SellerAnalyticsPage({
                                 </div>
                               ) : (
                                 <div className="space-y-2">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <Link href={`/sell/${listing.id}/edit`}>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="w-full"
-                                      >
-                                        Edit
-                                      </Button>
-                                    </Link>
-                                    <form action={publishDraftFromDashboard}>
-                                      <input
-                                        type="hidden"
-                                        name="id"
-                                        value={listing.id}
-                                      />
-                                      <Button
-                                        size="sm"
-                                        type="submit"
-                                        className="w-full"
-                                      >
-                                        Publish
-                                      </Button>
-                                    </form>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">
-                                    Direct publish works for first post. Later
-                                    posts require dummy payment in edit.
-                                  </p>
+                                  {hasPublishedListing ? (
+                                    <>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <Link href={`/sell/${listing.id}/edit`}>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full"
+                                          >
+                                            Edit
+                                          </Button>
+                                        </Link>
+                                        <Link href={`/sell/${listing.id}/edit`}>
+                                          <Button
+                                            size="sm"
+                                            type="button"
+                                            className="w-full"
+                                          >
+                                            Pay & publish
+                                          </Button>
+                                        </Link>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        Open edit to complete payment popup and publish.
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <Link href={`/sell/${listing.id}/edit`}>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full"
+                                          >
+                                            Edit
+                                          </Button>
+                                        </Link>
+                                        <form action={publishDraftFromDashboard}>
+                                          <input
+                                            type="hidden"
+                                            name="id"
+                                            value={listing.id}
+                                          />
+                                          <Button
+                                            size="sm"
+                                            type="submit"
+                                            className="w-full"
+                                          >
+                                            Publish free
+                                          </Button>
+                                        </form>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        First 30-day publish is free.
+                                      </p>
+                                    </>
+                                  )}
                                 </div>
                               )}
                             </div>
