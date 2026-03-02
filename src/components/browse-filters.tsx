@@ -32,6 +32,7 @@ type Props = {
   categories: ParentCategory[];
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
+  locale?: "en" | "mk";
 };
 
 function setParam(params: URLSearchParams, key: string, value?: string) {
@@ -53,9 +54,66 @@ function getInitialDynamicValues(
   return values;
 }
 
-export function BrowseFilters({ categories, cities, templatesByCategory }: Props) {
+export function BrowseFilters({
+  categories,
+  cities,
+  templatesByCategory,
+  locale = "en",
+}: Props) {
   const router = useRouter();
   const sp = useSearchParams();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        search: "Пребарување",
+        searchPlaceholder: "Наслов, модел, клучен збор...",
+        category: "Категорија",
+        allCategories: "Сите категории",
+        subcategory: "Поткатегорија",
+        allSubcategories: "Сите поткатегории",
+        selectCategoryFirst: "Прво избери категорија",
+        city: "Град",
+        allCities: "Сите градови",
+        condition: "Состојба",
+        anyCondition: "Секоја состојба",
+        priceRange: "Опсег на цена",
+        minPrice: "Мин цена",
+        maxPrice: "Макс цена",
+        sort: "Подреди",
+        newest: "Најнови прво",
+        priceAsc: "Цена од ниска кон висока",
+        priceDesc: "Цена од висока кон ниска",
+        categoryFilters: "Филтри за категорија",
+        extraFilters: "Дополнителни филтри",
+        any: "Секој",
+        apply: "Примени филтри",
+        clear: "Исчисти сè",
+      }
+    : {
+        search: "Search",
+        searchPlaceholder: "Title, model, keyword...",
+        category: "Category",
+        allCategories: "All categories",
+        subcategory: "Subcategory",
+        allSubcategories: "All subcategories",
+        selectCategoryFirst: "Select category first",
+        city: "City",
+        allCities: "All cities",
+        condition: "Condition",
+        anyCondition: "Any condition",
+        priceRange: "Price range",
+        minPrice: "Min price",
+        maxPrice: "Max price",
+        sort: "Sort",
+        newest: "Newest first",
+        priceAsc: "Price low to high",
+        priceDesc: "Price high to low",
+        categoryFilters: "Category specific filters",
+        extraFilters: "Extra filters",
+        any: "Any",
+        apply: "Apply filters",
+        clear: "Clear all",
+      };
 
   const [q, setQ] = React.useState(sp.get("q") ?? "");
   const [cat, setCat] = React.useState(sp.get("cat") ?? "");
@@ -163,7 +221,9 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
           }
           className={commonClasses}
         >
-          <option value="">Any {template.label.toLowerCase()}</option>
+          <option value="">
+            {text.any} {template.label.toLowerCase()}
+          </option>
           {template.options.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -184,7 +244,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
         }
         className={commonClasses}
         type={template.type === CategoryFieldType.NUMBER ? "number" : "text"}
-        placeholder={`Any ${template.label.toLowerCase()}`}
+        placeholder={`${text.any} ${template.label.toLowerCase()}`}
       />
     );
   }
@@ -200,7 +260,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Search
+            {text.search}
           </span>
           <div className="relative">
             <Search
@@ -210,7 +270,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
             <Input
               value={q}
               onChange={(event) => setQ(event.target.value)}
-              placeholder="Title, model, keyword..."
+              placeholder={text.searchPlaceholder}
               className="pl-9"
             />
           </div>
@@ -218,7 +278,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
 
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Category
+            {text.category}
           </span>
           <Select
             value={cat}
@@ -227,7 +287,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
               setSub("");
             }}
           >
-            <option value="">All categories</option>
+            <option value="">{text.allCategories}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -238,7 +298,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
 
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Subcategory
+            {text.subcategory}
           </span>
           <Select
             value={sub}
@@ -248,7 +308,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
             }
           >
             <option value="">
-              {cat ? "All subcategories" : "Select category first"}
+              {cat ? text.allSubcategories : text.selectCategoryFirst}
             </option>
             {subcategories.map((subcategory) => (
               <option key={subcategory.id} value={subcategory.id}>
@@ -260,7 +320,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
 
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            City
+            {text.city}
           </span>
           <Select
             value={city}
@@ -268,7 +328,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
               setCity(event.target.value)
             }
           >
-            <option value="">All cities</option>
+            <option value="">{text.allCities}</option>
             {cities.map((cityItem) => (
               <option key={cityItem.id} value={cityItem.id}>
                 {cityItem.name}
@@ -281,7 +341,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Condition
+            {text.condition}
           </span>
           <Select
             value={condition}
@@ -289,7 +349,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
               setCondition(event.target.value)
             }
           >
-            <option value="">Any condition</option>
+            <option value="">{text.anyCondition}</option>
             {Object.values(ListingCondition).map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -301,7 +361,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
         <div className="price-shapes rounded-2xl border border-dashed border-primary/25 bg-orange-50/40 p-3 dark:bg-orange-500/5 md:col-span-2">
           <p className="mb-2 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <CircleDollarSign size={14} />
-            Price range
+            {text.priceRange}
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             <Input
@@ -310,7 +370,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
               min="0"
               value={min}
               onChange={(event) => setMin(event.target.value)}
-              placeholder="Min price"
+              placeholder={text.minPrice}
             />
             <Input
               type="number"
@@ -318,14 +378,14 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
               min="0"
               value={max}
               onChange={(event) => setMax(event.target.value)}
-              placeholder="Max price"
+              placeholder={text.maxPrice}
             />
           </div>
         </div>
 
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Sort
+            {text.sort}
           </span>
           <Select
             value={sort}
@@ -333,9 +393,9 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
               setSort(event.target.value)
             }
           >
-            <option value="newest">Newest first</option>
-            <option value="price-asc">Price low to high</option>
-            <option value="price-desc">Price high to low</option>
+            <option value="newest">{text.newest}</option>
+            <option value="price-asc">{text.priceAsc}</option>
+            <option value="price-desc">{text.priceDesc}</option>
           </Select>
         </label>
       </div>
@@ -344,7 +404,7 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
         <div className="rounded-2xl border border-secondary/20 bg-blue-50/40 p-3 dark:bg-blue-500/5">
           <p className="mb-3 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Filter size={14} />
-            {cat || sub ? "Category specific filters" : "Extra filters"}
+            {cat || sub ? text.categoryFilters : text.extraFilters}
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {dynamicTemplates.map((template) => (
@@ -361,10 +421,10 @@ export function BrowseFilters({ categories, cities, templatesByCategory }: Props
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" className="min-w-28">
-          Apply filters
+          {text.apply}
         </Button>
         <Button type="button" variant="outline" onClick={clearAll}>
-          Clear all
+          {text.clear}
         </Button>
       </div>
     </form>

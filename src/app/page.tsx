@@ -18,41 +18,138 @@ import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const pricingPlans = [
-  {
-    name: "Pay Per Listing",
-    price: "$4",
-    cadence: "for 30 days",
-    description: "Great for occasional sellers",
-    bullets: [
-      "One active listing for 30 days",
-      "GPT writing assistant",
-      "Photos and dynamic category fields",
-      "Basic seller insights",
-    ],
-    cta: "Start with $4",
-    href: "/sell",
-    featured: false,
-  },
-  {
-    name: "Seller Subscription",
-    price: "$30",
-    cadence: "per month",
-    description: "Best for active stores and resellers",
-    bullets: [
-      "Unlimited active listings",
-      "Priority marketplace support",
-      "Advanced analytics dashboard",
-      "Higher visibility options",
-    ],
-    cta: "Subscribe for $30",
-    href: "/sell",
-    featured: true,
-  },
-];
+import { getServerLocale } from "@/lib/i18n";
 
 export default async function Home() {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        heroBadge: "Изградено за Македонија. Подготвено за глобален пазар.",
+        heroTitleA: "Купувај и продавај брзо",
+        heroTitleB: "во јасен маркетплејс",
+        heroDesc:
+          "Удобно на телефон и десктоп, со фокус на читливост и GPT помош низ целиот сајт.",
+        explore: "Пребарај огласи",
+        startSelling: "Започни со продавање",
+        gptAssistance: "GPT помош",
+        gptAssistanceDesc: "Пиши подобри огласи и добиј брз совет.",
+        saferTrading: "Побезбедно тргување",
+        saferTradingDesc: "Модерација и пријавување за поголема доверба.",
+        localGlobal: "Локално + глобално",
+        localGlobalDesc: "Продавај во Македонија и објавувај глобално.",
+        popularCategories: "Популарни категории",
+        whatBuyNow: "Што се купува сега",
+        listings: "огласи",
+        viewAllCategories: "Види ги сите категории",
+        dbUnavailable:
+          "Базата е привремено недостапна. Прикажуваме ограничена содржина.",
+        sellerPricing: "Цени за продавачи",
+        sellerPricingDesc:
+          "Едноставно: $4 за еден оглас (30 дена), или $30 месечна претплата.",
+        recommended: "Препорачано",
+        latestListings: "Најнови огласи",
+        latestListingsDesc: "Свежи огласи од продавачи од Македонија и пошироко.",
+        noListings: "Сè уште нема активни огласи. Објави го првиот.",
+        listItem: "Објави производ",
+        browseAll: "Пребарај ги сите огласи",
+      }
+    : {
+        heroBadge: "Built for Macedonia. Ready for worldwide reach.",
+        heroTitleA: "Buy and Sell Fast",
+        heroTitleB: "in a Clear Marketplace",
+        heroDesc:
+          "Comfortable on phone and desktop, focused on readability, and powered by GPT help across the full site.",
+        explore: "Explore Listings",
+        startSelling: "Start Selling",
+        gptAssistance: "GPT Assistance",
+        gptAssistanceDesc: "Write stronger listings and get instant advice.",
+        saferTrading: "Safer Trading",
+        saferTradingDesc: "Moderation tools and reporting flow for trust.",
+        localGlobal: "Local + Global",
+        localGlobalDesc: "Sell in Macedonia and publish globally.",
+        popularCategories: "Popular categories",
+        whatBuyNow: "What people buy now",
+        listings: "listings",
+        viewAllCategories: "View all categories",
+        dbUnavailable:
+          "Marketplace database is temporarily unreachable. Showing limited content.",
+        sellerPricing: "Seller Pricing",
+        sellerPricingDesc:
+          "Simple model: $4 one listing for 30 days, or $30 monthly subscription.",
+        recommended: "Recommended",
+        latestListings: "Latest Listings",
+        latestListingsDesc: "Fresh items from sellers in Macedonia and beyond.",
+        noListings: "No active listings yet. Create the first one.",
+        listItem: "List an Item",
+        browseAll: "Browse all listings",
+      };
+  const pricingPlans = isMk
+    ? [
+        {
+          name: "Плаќање по оглас",
+          price: "$4",
+          cadence: "за 30 дена",
+          description: "Одлично за повремени продавачи",
+          bullets: [
+            "Еден активен оглас за 30 дена",
+            "GPT асистент за пишување",
+            "Фотографии и динамични полиња",
+            "Основни увиди за продавач",
+          ],
+          cta: "Почни со $4",
+          href: "/sell",
+          featured: false,
+        },
+        {
+          name: "Претплата за продавач",
+          price: "$30",
+          cadence: "месечно",
+          description: "Најдобро за активни продавници и препродавачи",
+          bullets: [
+            "Неограничени активни огласи",
+            "Приоритетна поддршка",
+            "Напредна аналитика",
+            "Поголема видливост",
+          ],
+          cta: "Претплати се за $30",
+          href: "/sell",
+          featured: true,
+        },
+      ]
+    : [
+        {
+          name: "Pay Per Listing",
+          price: "$4",
+          cadence: "for 30 days",
+          description: "Great for occasional sellers",
+          bullets: [
+            "One active listing for 30 days",
+            "GPT writing assistant",
+            "Photos and dynamic category fields",
+            "Basic seller insights",
+          ],
+          cta: "Start with $4",
+          href: "/sell",
+          featured: false,
+        },
+        {
+          name: "Seller Subscription",
+          price: "$30",
+          cadence: "per month",
+          description: "Best for active stores and resellers",
+          bullets: [
+            "Unlimited active listings",
+            "Priority marketplace support",
+            "Advanced analytics dashboard",
+            "Higher visibility options",
+          ],
+          cta: "Subscribe for $30",
+          href: "/sell",
+          featured: true,
+        },
+      ];
+
   async function fetchHomeData() {
     return Promise.all([
       prisma.listing.findMany({
@@ -114,28 +211,27 @@ export default async function Home() {
         <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div className="space-y-6">
             <Badge className="rounded-full border border-secondary/25 bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary">
-              Built for Macedonia. Ready for worldwide reach.
+              {text.heroBadge}
             </Badge>
             <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-              Buy and Sell Fast
+              {text.heroTitleA}
               <span className="block bg-gradient-to-r from-orange-500 to-blue-600 bg-clip-text text-transparent">
-                in a Clear Marketplace
+                {text.heroTitleB}
               </span>
             </h1>
             <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
-              Comfortable on phone and desktop, focused on readability, and
-              powered by GPT help across the full site.
+              {text.heroDesc}
             </p>
 
             <div className="flex flex-wrap gap-3">
               <Link href="/browse">
                 <Button size="lg" className="gap-2">
-                  Explore Listings <ArrowRight size={16} />
+                  {text.explore} <ArrowRight size={16} />
                 </Button>
               </Link>
               <Link href="/sell">
                 <Button size="lg" variant="outline">
-                  Start Selling
+                  {text.startSelling}
                 </Button>
               </Link>
             </div>
@@ -143,23 +239,23 @@ export default async function Home() {
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-border/70 bg-card p-3">
                 <Sparkles className="mb-2 text-primary" size={18} />
-                <p className="text-sm font-semibold">GPT Assistance</p>
+                <p className="text-sm font-semibold">{text.gptAssistance}</p>
                 <p className="text-xs text-muted-foreground">
-                  Write stronger listings and get instant advice.
+                  {text.gptAssistanceDesc}
                 </p>
               </div>
               <div className="rounded-2xl border border-border/70 bg-card p-3">
                 <ShieldCheck className="mb-2 text-secondary" size={18} />
-                <p className="text-sm font-semibold">Safer Trading</p>
+                <p className="text-sm font-semibold">{text.saferTrading}</p>
                 <p className="text-xs text-muted-foreground">
-                  Moderation tools and reporting flow for trust.
+                  {text.saferTradingDesc}
                 </p>
               </div>
               <div className="rounded-2xl border border-border/70 bg-card p-3">
                 <Globe className="mb-2 text-primary" size={18} />
-                <p className="text-sm font-semibold">Local + Global</p>
+                <p className="text-sm font-semibold">{text.localGlobal}</p>
                 <p className="text-xs text-muted-foreground">
-                  Sell in Macedonia and publish globally.
+                  {text.localGlobalDesc}
                 </p>
               </div>
             </div>
@@ -168,9 +264,9 @@ export default async function Home() {
           <Card className="border-primary/20 bg-card/80">
             <CardHeader className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Popular categories
+                {text.popularCategories}
               </p>
-              <CardTitle className="text-2xl">What people buy now</CardTitle>
+              <CardTitle className="text-2xl">{text.whatBuyNow}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {categoryHighlights.map((category) => (
@@ -181,13 +277,13 @@ export default async function Home() {
                 >
                   <span className="font-medium">{category.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {category._count.listings} listings
+                    {category._count.listings} {text.listings}
                   </span>
                 </Link>
               ))}
               <Link href="/categories" className="inline-block pt-2">
                 <Button variant="ghost" className="gap-1 px-0">
-                  View all categories <ArrowRight size={14} />
+                  {text.viewAllCategories} <ArrowRight size={14} />
                 </Button>
               </Link>
             </CardContent>
@@ -198,7 +294,7 @@ export default async function Home() {
       {dbUnavailable && (
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="py-4 text-sm text-foreground">
-            Marketplace database is temporarily unreachable. Showing limited content.
+            {text.dbUnavailable}
           </CardContent>
         </Card>
       )}
@@ -206,10 +302,9 @@ export default async function Home() {
       <section className="space-y-6">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold">Seller Pricing</h2>
+            <h2 className="text-3xl font-bold">{text.sellerPricing}</h2>
             <p className="text-muted-foreground">
-              Simple model: $4 one listing for 30 days, or $30 monthly
-              subscription.
+              {text.sellerPricingDesc}
             </p>
           </div>
         </div>
@@ -228,7 +323,7 @@ export default async function Home() {
                 <div className="space-y-2">
                   {plan.featured && (
                     <Badge variant="primary" className="rounded-full px-3 py-1">
-                      Recommended
+                      {text.recommended}
                     </Badge>
                   )}
                   <h3 className="text-2xl font-bold">{plan.name}</h3>
@@ -269,9 +364,9 @@ export default async function Home() {
 
       <section className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold">Latest Listings</h2>
+          <h2 className="text-3xl font-bold">{text.latestListings}</h2>
           <p className="text-muted-foreground">
-            Fresh items from sellers in Macedonia and beyond.
+            {text.latestListingsDesc}
           </p>
         </div>
 
@@ -279,10 +374,10 @@ export default async function Home() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
-                No active listings yet. Create the first one.
+                {text.noListings}
               </p>
               <Link href="/sell" className="mt-4 inline-block">
-                <Button>List an Item</Button>
+                <Button>{text.listItem}</Button>
               </Link>
             </CardContent>
           </Card>
@@ -295,7 +390,7 @@ export default async function Home() {
             </div>
             <div className="text-center">
               <Link href="/browse">
-                <Button variant="outline">Browse all listings</Button>
+                <Button variant="outline">{text.browseAll}</Button>
               </Link>
             </div>
           </>

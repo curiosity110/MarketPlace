@@ -11,6 +11,7 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { getServerLocale } from "@/lib/i18n";
 
 type ListingCardProps = {
   listing: Listing & {
@@ -28,7 +29,23 @@ type ListingCardProps = {
   };
 };
 
-export function ListingCard({ listing }: ListingCardProps) {
+export async function ListingCard({ listing }: ListingCardProps) {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        noImage: "Нема слика",
+        seller: "Продавач",
+        by: "Од",
+        listed: "Објавено",
+      }
+    : {
+        noImage: "No image",
+        seller: "Seller",
+        by: "By",
+        listed: "Listed",
+      };
+
   const firstImage = listing.images[0]?.url;
   const valuesByKey = Object.fromEntries(
     listing.fieldValues.map((field) => [field.key, field.value]),
@@ -47,7 +64,7 @@ export function ListingCard({ listing }: ListingCardProps) {
     ? `${listing.category.parent.name} / ${listing.category.name}`
     : listing.category.name;
   const sellerLabel =
-    listing.seller?.name || listing.seller?.email?.split("@")[0] || "Seller";
+    listing.seller?.name || listing.seller?.email?.split("@")[0] || text.seller;
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
@@ -64,7 +81,7 @@ export function ListingCard({ listing }: ListingCardProps) {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/60">
-              <span className="text-sm text-muted-foreground">No image</span>
+              <span className="text-sm text-muted-foreground">{text.noImage}</span>
             </div>
           )}
 
@@ -81,7 +98,9 @@ export function ListingCard({ listing }: ListingCardProps) {
           <p className="text-xs text-muted-foreground">
             {listing.city.name} | {categoryLabel}
           </p>
-          <p className="text-xs text-muted-foreground">By {sellerLabel}</p>
+          <p className="text-xs text-muted-foreground">
+            {text.by} {sellerLabel}
+          </p>
 
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="secondary">{listing.condition}</Badge>
@@ -93,7 +112,8 @@ export function ListingCard({ listing }: ListingCardProps) {
           </div>
 
           <p className="border-t border-border/60 pt-2 text-xs text-muted-foreground">
-            Listed {new Date(listing.createdAt).toLocaleDateString()}
+            {text.listed}{" "}
+            {new Date(listing.createdAt).toLocaleDateString(isMk ? "mk-MK" : "en-US")}
           </p>
         </CardContent>
       </Card>

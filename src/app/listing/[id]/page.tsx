@@ -14,6 +14,7 @@ import { ListingGallery } from "@/components/listing-gallery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { getServerLocale } from "@/lib/i18n";
 
 export default async function ListingDetails({
   params,
@@ -22,6 +23,55 @@ export default async function ListingDetails({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        dbUnavailable:
+          "Деталите за огласот се привремено недостапни затоа што базата е недостапна.",
+        backToBrowse: "Назад кон пребарување",
+        price: "Цена",
+        reportSubmitted:
+          "Пријавата е поднесена. Благодариме што помагаш маркетплејсот да е побезбеден.",
+        description: "Опис",
+        categoryDetails: "Детали за категорија",
+        noCategoryDetails: "Не се внесени детали за категорија.",
+        seller: "Продавач",
+        report: "Пријави",
+        reportListing: "Пријави го овој оглас",
+        reportHelp:
+          "Ако нешто изгледа небезбедно или лажно, пријави за проверка.",
+        reportPlaceholder: "Објасни зошто овој оглас треба да се провери",
+        submitReport: "Поднеси пријава",
+        sellerProfile: "Профил на продавач",
+        sellerContact: "Контакт од продавач",
+        phone: "Телефон",
+        phoneNotSet: "Сè уште нема телефон",
+        viewProfile: "Погледни профил",
+      }
+    : {
+        dbUnavailable:
+          "Listing details are temporarily unavailable because the database is unreachable.",
+        backToBrowse: "Back to browse",
+        price: "Price",
+        reportSubmitted:
+          "Report submitted. Thank you for helping keep the marketplace safe.",
+        description: "Description",
+        categoryDetails: "Category details",
+        noCategoryDetails: "No category details were provided.",
+        seller: "Seller",
+        report: "Report",
+        reportListing: "Report this listing",
+        reportHelp:
+          "If something looks unsafe or fake, report it for review.",
+        reportPlaceholder: "Explain why this listing should be reviewed",
+        submitReport: "Submit report",
+        sellerProfile: "Seller profile",
+        sellerContact: "Seller contact",
+        phone: "Phone",
+        phoneNotSet: "Phone not set yet",
+        viewProfile: "View profile",
+      };
   const { id } = await params;
   const sp = await searchParams;
   const reportSaved = sp.reported === "1";
@@ -80,12 +130,11 @@ export default async function ListingDetails({
       <div className="space-y-4">
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="py-5 text-sm text-foreground">
-            Listing details are temporarily unavailable because the database is
-            unreachable.
+            {text.dbUnavailable}
           </CardContent>
         </Card>
         <Link href="/browse">
-          <Button variant="outline">Back to browse</Button>
+          <Button variant="outline">{text.backToBrowse}</Button>
         </Link>
       </div>
     );
@@ -134,7 +183,7 @@ export default async function ListingDetails({
 
         <div className="rounded-2xl border border-primary/30 bg-orange-50/70 px-4 py-2 text-right dark:bg-orange-950/20">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Price
+            {text.price}
           </p>
           <p className="text-3xl font-black text-primary">
             {formatCurrencyFromCents(listing.priceCents, listing.currency)}
@@ -145,7 +194,7 @@ export default async function ListingDetails({
       {reportSaved && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-3 text-sm text-success">
-            Report submitted. Thank you for helping keep the marketplace safe.
+            {text.reportSubmitted}
           </CardContent>
         </Card>
       )}
@@ -163,6 +212,7 @@ export default async function ListingDetails({
             <CardContent className="space-y-4">
               <ListingGallery
                 images={listing.images.map((image) => image.url)}
+                locale={locale}
               />
             </CardContent>
           </Card>
@@ -172,14 +222,14 @@ export default async function ListingDetails({
           <Card>
             <CardContent className="space-y-3">
               <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
-                <h2 className="text-xl font-semibold">Description</h2>
+                <h2 className="text-xl font-semibold">{text.description}</h2>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/90">
                   {listing.description}
                 </p>
               </div>
 
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-lg font-semibold">Category details</h2>
+                <h2 className="text-lg font-semibold">{text.categoryDetails}</h2>
                 <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
                   {categoryDetails.length}
                 </span>
@@ -201,7 +251,7 @@ export default async function ListingDetails({
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No category details were provided.
+                  {text.noCategoryDetails}
                 </p>
               )}
             </CardContent>
@@ -210,18 +260,18 @@ export default async function ListingDetails({
           <Card>
             <CardContent className="space-y-3">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-lg font-semibold">Seller</h2>
+                <h2 className="text-lg font-semibold">{text.seller}</h2>
                 <details className="relative">
                   <summary className="list-none">
                     <Button type="button" variant="outline" size="sm">
                       <ShieldAlert size={14} className="mr-1" />
-                      Report
+                      {text.report}
                     </Button>
                   </summary>
                   <div className="absolute right-0 top-11 z-20 w-[min(92vw,360px)] rounded-xl border border-border/80 bg-background p-3 shadow-xl">
-                    <p className="text-sm font-semibold">Report this listing</p>
+                    <p className="text-sm font-semibold">{text.reportListing}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      If something looks unsafe or fake, report it for review.
+                      {text.reportHelp}
                     </p>
                     <form
                       action="/api/reports"
@@ -246,7 +296,7 @@ export default async function ListingDetails({
                         minLength={8}
                         maxLength={500}
                         className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
-                        placeholder="Explain why this listing should be reviewed"
+                        placeholder={text.reportPlaceholder}
                       />
                       <Button
                         type="submit"
@@ -254,7 +304,7 @@ export default async function ListingDetails({
                         className="w-full justify-center gap-2"
                       >
                         <ShieldAlert size={16} />
-                        Submit report
+                        {text.submitReport}
                       </Button>
                     </form>
                   </div>
@@ -268,12 +318,12 @@ export default async function ListingDetails({
                       variant="outline"
                       className="w-full justify-center"
                     >
-                      Seller profile
+                      {text.sellerProfile}
                     </Button>
                   </summary>
                   <div className="mt-3 space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Seller contact
+                      {text.sellerContact}
                     </p>
                     <p className="inline-flex items-center gap-2 text-sm font-semibold">
                       <UserRound size={16} className="text-muted-foreground" />
@@ -281,10 +331,10 @@ export default async function ListingDetails({
                     </p>
                     <div className="rounded-lg border border-success/35 bg-success/10 px-3 py-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-success">
-                        Phone
+                        {text.phone}
                       </p>
                       <p className="text-lg font-bold">
-                        {listing.seller.phone || "Phone not set yet"}
+                        {listing.seller.phone || text.phoneNotSet}
                       </p>
                     </div>
                   </div>
@@ -295,13 +345,13 @@ export default async function ListingDetails({
                 {isOwner && (
                   <Link href="/profile" className="flex-1 min-w-[160px]">
                     <Button variant="outline" className="w-full">
-                      View profile
+                      {text.viewProfile}
                     </Button>
                   </Link>
                 )}
                 <Link href="/browse" className="flex-1 min-w-[160px]">
                   <Button variant="ghost" className="w-full">
-                    Back to browse
+                    {text.backToBrowse}
                   </Button>
                 </Link>
               </div>

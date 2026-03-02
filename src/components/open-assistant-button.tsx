@@ -7,13 +7,16 @@ type Props = {
   size?: "sm" | "md" | "lg";
   variant?: "default" | "outline" | "ghost" | "destructive" | "secondary";
   className?: string;
+  locale?: "en" | "mk";
 };
 
 export function OpenAssistantButton({
   size = "sm",
   variant = "secondary",
   className = "",
+  locale = "en",
 }: Props) {
+  const label = locale === "mk" ? "Прашај GPT" : "Ask GPT";
   return (
     <Button
       type="button"
@@ -25,7 +28,7 @@ export function OpenAssistantButton({
       }}
     >
       <MessageCircle size={15} />
-      Ask GPT
+      {label}
     </Button>
   );
 }

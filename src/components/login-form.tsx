@@ -12,6 +12,7 @@ type Props = {
   defaultMode?: Mode;
   initialError?: string | null;
   nextPath?: string;
+  locale?: "en" | "mk";
 };
 
 function getSafeNextPath(nextPath: string) {
@@ -39,7 +40,63 @@ export function LoginForm({
   defaultMode = "login",
   initialError = null,
   nextPath = "/browse",
+  locale = "en",
 }: Props) {
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        missingPassword: "Внеси лозинка за да се најавиш.",
+        loginFailed: "Најавата не успеа.",
+        confirmEmail:
+          "Провери ја е-поштата за потврда на профилот, па потоа најави се.",
+        registrationFailed: "Регистрацијата не успеа.",
+        magicLinkSent: "Magic линк е испратен. Провери го inbox.",
+        magicLinkFailed: "Не може да се испрати magic линк.",
+        login: "Најава",
+        register: "Регистрација",
+        nameOptional: "Име (опционално)",
+        namePlaceholder: "Твоето име",
+        email: "Е-пошта",
+        emailPlaceholder: "you@example.com",
+        password: "Лозинка",
+        min8: "(мин 8 карактери)",
+        registerPasswordPlaceholder: "Креирај безбедна лозинка",
+        loginPasswordPlaceholder: "Твојата лозинка",
+        wait: "Почекај...",
+        createAccount: "Креирај профил",
+        sendMagicLink: "Испрати magic линк",
+        policies:
+          "Со продолжување се согласуваш со правилата и модерацијата на маркетплејсот.",
+        adminAccess:
+          "Админ пристапот се контролира преку улога во базата.",
+        continueBrowsing: "Продолжи со пребарување",
+      }
+    : {
+        missingPassword: "Please enter your password to log in.",
+        loginFailed: "Login failed.",
+        confirmEmail:
+          "Check your email to confirm your account, then log in.",
+        registrationFailed: "Registration failed.",
+        magicLinkSent: "Magic link sent. Check your inbox.",
+        magicLinkFailed: "Unable to send magic link.",
+        login: "Login",
+        register: "Register",
+        nameOptional: "Name (optional)",
+        namePlaceholder: "Your name",
+        email: "Email",
+        emailPlaceholder: "you@example.com",
+        password: "Password",
+        min8: "(min 8 chars)",
+        registerPasswordPlaceholder: "Create a secure password",
+        loginPasswordPlaceholder: "Your password",
+        wait: "Please wait...",
+        createAccount: "Create account",
+        sendMagicLink: "Send magic link",
+        policies:
+          "By continuing you agree to marketplace policies and moderation rules.",
+        adminAccess: "Admin access is controlled by role in database.",
+        continueBrowsing: "Continue browsing",
+      };
   const safeNextPath = getSafeNextPath(nextPath);
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [email, setEmail] = useState("");
@@ -57,7 +114,7 @@ export function LoginForm({
 
   async function loginWithPassword() {
     if (!password.trim()) {
-      setMessage("Please enter your password to log in.");
+      setMessage(text.missingPassword);
       return;
     }
 
@@ -76,7 +133,7 @@ export function LoginForm({
       }
       window.location.href = safeNextPath;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Login failed.");
+      setMessage(error instanceof Error ? error.message : text.loginFailed);
     } finally {
       setLoading(false);
     }
@@ -112,14 +169,14 @@ export function LoginForm({
       }
 
       if (!data.session) {
-        setMessage("Check your email to confirm your account, then log in.");
+        setMessage(text.confirmEmail);
         setMode("login");
         return;
       }
 
       window.location.href = safeNextPath;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Registration failed.");
+      setMessage(error instanceof Error ? error.message : text.registrationFailed);
     } finally {
       setLoading(false);
     }
@@ -141,9 +198,9 @@ export function LoginForm({
         setMessage(error.message);
         return;
       }
-      setMessage("Magic link sent. Check your inbox.");
+      setMessage(text.magicLinkSent);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to send magic link.");
+      setMessage(error instanceof Error ? error.message : text.magicLinkFailed);
     } finally {
       setLoading(false);
     }
@@ -161,7 +218,7 @@ export function LoginForm({
           }`}
           onClick={() => setMode("login")}
         >
-          Login
+          {text.login}
         </button>
         <button
           type="button"
@@ -172,42 +229,46 @@ export function LoginForm({
           }`}
           onClick={() => setMode("register")}
         >
-          Register
+          {text.register}
         </button>
       </div>
 
       <div className="space-y-3">
         {isRegister && (
           <label className="space-y-1">
-            <span className="text-sm font-medium">Name (optional)</span>
+            <span className="text-sm font-medium">{text.nameOptional}</span>
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Your name"
+              placeholder={text.namePlaceholder}
             />
           </label>
         )}
 
         <label className="space-y-1">
-          <span className="text-sm font-medium">Email</span>
+          <span className="text-sm font-medium">{text.email}</span>
           <Input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
+            placeholder={text.emailPlaceholder}
             required
           />
         </label>
 
         <label className="space-y-1">
           <span className="text-sm font-medium">
-            Password {isRegister ? "(min 8 chars)" : ""}
+            {text.password} {isRegister ? text.min8 : ""}
           </span>
           <Input
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder={isRegister ? "Create a secure password" : "Your password"}
+            placeholder={
+              isRegister
+                ? text.registerPasswordPlaceholder
+                : text.loginPasswordPlaceholder
+            }
             required
           />
         </label>
@@ -220,7 +281,7 @@ export function LoginForm({
           onClick={isRegister ? registerWithPassword : loginWithPassword}
           className="w-full"
         >
-          {loading ? "Please wait..." : isRegister ? "Create account" : "Login"}
+          {loading ? text.wait : isRegister ? text.createAccount : text.login}
         </Button>
 
         <Button
@@ -230,12 +291,12 @@ export function LoginForm({
           onClick={sendMagicLink}
           className="w-full"
         >
-          Send magic link
+          {text.sendMagicLink}
         </Button>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        By continuing you agree to marketplace policies and moderation rules.
+        {text.policies}
       </p>
 
       {message && (
@@ -245,9 +306,9 @@ export function LoginForm({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Admin access is controlled by role in database.{" "}
+        {text.adminAccess}{" "}
         <Link href="/browse" className="text-primary hover:underline">
-          Continue browsing
+          {text.continueBrowsing}
         </Link>
       </p>
     </div>

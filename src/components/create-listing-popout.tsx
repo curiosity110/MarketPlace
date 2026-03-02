@@ -50,6 +50,7 @@ type Props = {
     dynamicValues?: Record<string, string>;
     plan?: ListingPlan;
   };
+  locale?: "en" | "mk";
 };
 
 export function CreateListingPopout({
@@ -59,16 +60,38 @@ export function CreateListingPopout({
   templatesByCategory,
   allowDraft = true,
   showPlanSelector = true,
-  publishLabel = "Publish listing",
+  publishLabel,
   paymentProvider = "none",
   mode = "card",
-  buttonLabel = "New listing",
+  buttonLabel,
   buttonVariant = "default",
   buttonSize = "md",
   buttonClassName = "",
   openOnMount = false,
   initial,
+  locale = "en",
 }: Props) {
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        createListing: "Креирај оглас",
+        openWhenNeeded: "Отвори ја формата кога ти треба.",
+        closeCreateListingForm: "Затвори форма за креирање оглас",
+        createNewListing: "Креирај нов оглас",
+        fillAndPublish: "Пополни детали и објави кога ќе бидеш спремен.",
+        close: "Затвори",
+      }
+    : {
+        createListing: "Create listing",
+        openWhenNeeded: "Open the form only when you need it.",
+        closeCreateListingForm: "Close create listing form",
+        createNewListing: "Create a new listing",
+        fillAndPublish: "Fill details and publish when ready.",
+        close: "Close",
+      };
+  const resolvedButtonLabel = buttonLabel ?? (isMk ? "Нов оглас" : "New listing");
+  const resolvedPublishLabel =
+    publishLabel ?? (isMk ? "Објави оглас" : "Publish listing");
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
@@ -121,14 +144,14 @@ export function CreateListingPopout({
         <CardLike>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-base font-bold">Create listing</p>
+              <p className="text-base font-bold">{text.createListing}</p>
               <p className="text-sm text-muted-foreground">
-                Open the form only when you need it.
+                {text.openWhenNeeded}
               </p>
             </div>
             <Button type="button" onClick={openPopout} className="gap-2">
               <PlusCircle size={16} />
-              {buttonLabel}
+              {resolvedButtonLabel}
             </Button>
           </div>
         </CardLike>
@@ -141,7 +164,7 @@ export function CreateListingPopout({
           className={`gap-2 ${buttonClassName}`}
         >
           <PlusCircle size={16} />
-          {buttonLabel}
+          {resolvedButtonLabel}
         </Button>
       )}
 
@@ -153,7 +176,7 @@ export function CreateListingPopout({
         >
           <button
             type="button"
-            aria-label="Close create listing form"
+            aria-label={text.closeCreateListingForm}
             onClick={closePopout}
             className={`absolute inset-0 bg-black/45 transition-opacity duration-200 ${
               isActive ? "opacity-100" : "opacity-0"
@@ -169,14 +192,14 @@ export function CreateListingPopout({
           >
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-6">
               <div>
-                <p className="text-xl font-black">Create a new listing</p>
+                <p className="text-xl font-black">{text.createNewListing}</p>
                 <p className="text-sm text-muted-foreground">
-                  Fill details and publish when ready.
+                  {text.fillAndPublish}
                 </p>
               </div>
               <Button type="button" variant="outline" onClick={closePopout} className="gap-1">
                 <X size={15} />
-                Close
+                {text.close}
               </Button>
             </div>
 
@@ -188,9 +211,10 @@ export function CreateListingPopout({
                 templatesByCategory={templatesByCategory}
                 allowDraft={allowDraft}
                 showPlanSelector={showPlanSelector}
-                publishLabel={publishLabel}
+                publishLabel={resolvedPublishLabel}
                 paymentProvider={paymentProvider}
                 initial={initial}
+                locale={locale}
               />
             </div>
           </div>

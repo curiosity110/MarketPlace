@@ -18,6 +18,7 @@ import {
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
 import { normalizePhoneInput, parseStoredPhone, PHONE_COUNTRIES } from "@/lib/phone";
+import { getServerLocale } from "@/lib/i18n";
 
 function sanitizeUsername(value: string) {
   return value
@@ -154,13 +155,127 @@ export default async function ProfilePage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        dbUnavailable: "Базата е привремено недостапна. Обиди се повторно наскоро.",
+        myProfile: "Мој профил",
+        manageAllInfo:
+          "Управувај со јавниот идентитет и приватните податоци на едно место.",
+        back: "Назад",
+        backToDashboard: "Назад кон табла",
+        profileSaved: "Профилот е зачуван.",
+        billingPassed: "Dummy Stripe плаќањето е успешно.",
+        profileSettings: "Подесувања на профил",
+        profileSettingsDesc:
+          "Чувај ги сите информации за продавач и јавниот телефон на едно место.",
+        publicHandle: "Јавен handle",
+        setUsernameHint: "Постави корисничко име за точен handle.",
+        memberSince: "Член од",
+        listings: "Огласи",
+        active: "Активни",
+        fullName: "Целосно име",
+        fullNamePlaceholder: "Внеси целосно име",
+        publicUsername: "Јавно корисничко име",
+        usernamePlaceholder: "your.handle",
+        usernameHint:
+          "3-40 знаци, мали букви, бројки, точка, цртичка, долна црта.",
+        email: "Е-пошта",
+        phoneCountry: "Држава за телефон",
+        publicPhone: "Јавен телефон за сите огласи",
+        phonePlaceholder: "Внеси телефонски број",
+        companyOptional: "Компанија (опционално)",
+        companyPlaceholder: "Име на компанија",
+        websiteOptional: "Веб сајт (опционално)",
+        addressOptional: "Адреса (опционално)",
+        addressPlaceholder: "Улица и област",
+        bioOptional: "Био (опционално)",
+        bioPlaceholder: "Краток опис за твојата продавница или производи",
+        phoneSavedHint:
+          "Зачуваниот јавен телефон се користи по дифолт за нови огласи.",
+        saveProfile: "Зачувај профил",
+        postingAndSubscription: "Објавување и претплата",
+        postingAndSubscriptionDesc:
+          "Започни од тука, потоа заврши плаќање при објава на оглас.",
+        payPerListing: "Плаќање по оглас",
+        listing30: "Оглас 30 дена",
+        activeWithPlan: "Активни со овој план",
+        postWith4: "Објави со $4 план",
+        subscription: "Претплата",
+        monthlyUnlimited: "Месечно неограничено",
+        activeWithSubscription: "Активни со претплата",
+        startSubscriptionFlow: "Почни тек на претплата",
+        dummyStripeOptional: "Dummy Stripe тест картичка (опционално)",
+        cardNumber: "Број на картичка",
+        expiry: "Важи до",
+        cvc: "CVC",
+        runBillingTest: "Пушти billing тест",
+        successCards: "Успешни картички",
+        failCards: "Неуспешни картички",
+      }
+    : {
+        dbUnavailable: "Database is temporarily unreachable. Please retry in a moment.",
+        myProfile: "My profile",
+        manageAllInfo:
+          "Manage your public seller identity and private info from one place.",
+        back: "Back",
+        backToDashboard: "Back to dashboard",
+        profileSaved: "Profile saved.",
+        billingPassed: "Dummy Stripe payment passed.",
+        profileSettings: "Profile settings",
+        profileSettingsDesc:
+          "Keep all your seller info and public phone in one place.",
+        publicHandle: "Public handle",
+        setUsernameHint: "Set a username to choose your exact handle.",
+        memberSince: "Member since",
+        listings: "Listings",
+        active: "Active",
+        fullName: "Full name",
+        fullNamePlaceholder: "Enter your full name",
+        publicUsername: "Public username",
+        usernamePlaceholder: "your.handle",
+        usernameHint:
+          "3-40 chars, lowercase letters, numbers, dot, dash, underscore.",
+        email: "Email",
+        phoneCountry: "Phone country",
+        publicPhone: "Public phone for all posts",
+        phonePlaceholder: "Enter phone number",
+        companyOptional: "Company (optional)",
+        companyPlaceholder: "Company name",
+        websiteOptional: "Website (optional)",
+        addressOptional: "Address (optional)",
+        addressPlaceholder: "Street and area",
+        bioOptional: "Bio (optional)",
+        bioPlaceholder: "Short description about your store or products",
+        phoneSavedHint:
+          "Saved public phone is used by default on new listings.",
+        saveProfile: "Save profile",
+        postingAndSubscription: "Posting and subscription",
+        postingAndSubscriptionDesc:
+          "Start from here, then complete payment while publishing your listing.",
+        payPerListing: "Pay per listing",
+        listing30: "30-day listing",
+        activeWithPlan: "Active with this plan",
+        postWith4: "Post with $4 plan",
+        subscription: "Subscription",
+        monthlyUnlimited: "Monthly unlimited",
+        activeWithSubscription: "Active with subscription",
+        startSubscriptionFlow: "Start subscription flow",
+        dummyStripeOptional: "Dummy Stripe test card (optional)",
+        cardNumber: "Card number",
+        expiry: "Expiry",
+        cvc: "CVC",
+        runBillingTest: "Run billing test",
+        successCards: "Success cards",
+        failCards: "Fail cards",
+      };
   const user = await requireUser();
   const sp = await searchParams;
   const error = sp.error;
   const saved = sp.saved === "1";
   const billingSuccess = sp.billing === "success";
-  const dbUnavailableError =
-    "Database is temporarily unreachable. Please retry in a moment.";
+  const dbUnavailableError = text.dbUnavailable;
   const dashboardHref = canSell(user.role) ? "/dashboard" : "/browse";
 
   async function fetchProfileData() {
@@ -210,9 +325,9 @@ export default async function ProfilePage({
     return (
       <div className="space-y-5">
         <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
-          <h1 className="text-4xl font-black">My profile</h1>
+          <h1 className="text-4xl font-black">{text.myProfile}</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Manage your public seller identity and private info from one place.
+            {text.manageAllInfo}
           </p>
         </section>
 
@@ -223,7 +338,7 @@ export default async function ProfilePage({
         </Card>
 
         <Link href={dashboardHref}>
-          <Button variant="outline">Back</Button>
+          <Button variant="outline">{text.back}</Button>
         </Link>
       </div>
     );
@@ -246,13 +361,13 @@ export default async function ProfilePage({
       <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-4xl font-black">My profile</h1>
+            <h1 className="text-4xl font-black">{text.myProfile}</h1>
             <p className="mt-2 max-w-2xl text-muted-foreground">
-              One edit saves all private profile info.
+              {text.manageAllInfo}
             </p>
           </div>
           <Link href={dashboardHref}>
-            <Button variant="outline">Back to dashboard</Button>
+            <Button variant="outline">{text.backToDashboard}</Button>
           </Link>
         </div>
       </section>
@@ -265,23 +380,23 @@ export default async function ProfilePage({
       {saved && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-4 text-sm text-success">
-            Profile saved.
+            {text.profileSaved}
           </CardContent>
         </Card>
       )}
       {billingSuccess && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-4 text-sm text-success">
-            Dummy Stripe payment passed.
+            {text.billingPassed}
           </CardContent>
         </Card>
       )}
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle>Profile settings</CardTitle>
+          <CardTitle>{text.profileSettings}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Keep all your seller info and public phone in one place.
+            {text.profileSettingsDesc}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -289,22 +404,22 @@ export default async function ProfilePage({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Public handle
+                  {text.publicHandle}
                 </p>
                 <p className="text-lg font-bold">{sellerHandle}</p>
                 {usingFallbackHandle && (
                   <p className="text-xs text-muted-foreground">
-                    Set a username to choose your exact handle.
+                    {text.setUsernameHint}
                   </p>
                 )}
               </div>
               <div className="text-xs text-muted-foreground">
                 <p>
-                  Member since{" "}
+                  {text.memberSince}{" "}
                   {new Date(userRecord?.createdAt || new Date()).toLocaleDateString()}
                 </p>
                 <p>
-                  Listings: {totalListings} | Active: {activeListings.length}
+                  {text.listings}: {totalListings} | {text.active}: {activeListings.length}
                 </p>
               </div>
             </div>
@@ -316,37 +431,37 @@ export default async function ProfilePage({
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Full name</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.fullName}</span>
                 <Input
                   name="name"
                   defaultValue={userRecord?.name || ""}
-                  placeholder="Enter your full name"
+                  placeholder={text.fullNamePlaceholder}
                   maxLength={80}
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Public username</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.publicUsername}</span>
                 <Input
                   name="username"
                   defaultValue={userRecord?.username || ""}
-                  placeholder="your.handle"
+                  placeholder={text.usernamePlaceholder}
                   minLength={3}
                   maxLength={40}
                   pattern="[a-z0-9._-]{3,40}"
                 />
                 <span className="block text-[11px] text-muted-foreground">
-                  3-40 chars, lowercase letters, numbers, dot, dash, underscore.
+                  {text.usernameHint}
                 </span>
               </label>
 
               <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">Email</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.email}</span>
                 <Input value={userRecord?.email || user.email} readOnly />
               </label>
 
               <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Phone country</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.phoneCountry}</span>
                 <select
                   name="phoneCountry"
                   defaultValue={parsedPhone.countryCode}
@@ -362,12 +477,12 @@ export default async function ProfilePage({
 
               <label className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Public phone for all posts
+                  {text.publicPhone}
                 </span>
                 <Input
                   name="phone"
                   defaultValue={parsedPhone.localPhone}
-                  placeholder="Enter phone number"
+                  placeholder={text.phonePlaceholder}
                   required
                   minLength={6}
                   maxLength={20}
@@ -378,17 +493,17 @@ export default async function ProfilePage({
               </label>
 
               <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Company (optional)</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.companyOptional}</span>
                 <Input
                   name="company"
                   defaultValue={userRecord?.company || ""}
-                  placeholder="Company name"
+                  placeholder={text.companyPlaceholder}
                   maxLength={80}
                 />
               </label>
 
               <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Website (optional)</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.websiteOptional}</span>
                 <Input
                   name="website"
                   defaultValue={userRecord?.website || ""}
@@ -400,21 +515,21 @@ export default async function ProfilePage({
               </label>
 
               <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">Address (optional)</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.addressOptional}</span>
                 <Input
                   name="address"
                   defaultValue={userRecord?.address || ""}
-                  placeholder="Street and area"
+                  placeholder={text.addressPlaceholder}
                   maxLength={180}
                 />
               </label>
 
               <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">Bio (optional)</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.bioOptional}</span>
                 <textarea
                   name="bio"
                   defaultValue={userRecord?.bio || ""}
-                  placeholder="Short description about your store or products"
+                  placeholder={text.bioPlaceholder}
                   className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
                   maxLength={500}
                 />
@@ -423,46 +538,46 @@ export default async function ProfilePage({
 
             <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
               <p>
-                Saved public phone is used by default on new listings.
+                {text.phoneSavedHint}
               </p>
               {storedPhoneE164 && <p className="mt-1 font-medium text-foreground">{storedPhoneE164}</p>}
             </div>
-            <Button type="submit">Save profile</Button>
+            <Button type="submit">{text.saveProfile}</Button>
           </form>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle>Posting and subscription</CardTitle>
+          <CardTitle>{text.postingAndSubscription}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Start from here, then complete payment while publishing your listing.
+            {text.postingAndSubscriptionDesc}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-border/70 bg-card p-3">
-              <p className="text-sm font-semibold">Pay per listing</p>
+              <p className="text-sm font-semibold">{text.payPerListing}</p>
               <p className="text-2xl font-black text-primary">$4</p>
-              <p className="text-xs text-muted-foreground">30-day listing</p>
+              <p className="text-xs text-muted-foreground">{text.listing30}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Active with this plan: {payPerListingActive}
+                {text.activeWithPlan}: {payPerListingActive}
               </p>
               <Link href="/dashboard?create=1&plan=pay-per-listing" className="mt-2 block">
-                <Button className="w-full">Post with $4 plan</Button>
+                <Button className="w-full">{text.postWith4}</Button>
               </Link>
             </div>
 
             <div className="rounded-xl border border-border/70 bg-card p-3">
-              <p className="text-sm font-semibold">Subscription</p>
+              <p className="text-sm font-semibold">{text.subscription}</p>
               <p className="text-2xl font-black text-secondary">$30</p>
-              <p className="text-xs text-muted-foreground">Monthly unlimited</p>
+              <p className="text-xs text-muted-foreground">{text.monthlyUnlimited}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Active with subscription: {subscriptionActive}
+                {text.activeWithSubscription}: {subscriptionActive}
               </p>
               <Link href="/dashboard?create=1&plan=subscription" className="mt-2 block">
                 <Button variant="outline" className="w-full">
-                  Start subscription flow
+                  {text.startSubscriptionFlow}
                 </Button>
               </Link>
             </div>
@@ -470,11 +585,11 @@ export default async function ProfilePage({
 
           <details className="rounded-xl border border-border/70 bg-card p-3">
             <summary className="cursor-pointer text-sm font-semibold">
-              Dummy Stripe test card (optional)
+              {text.dummyStripeOptional}
             </summary>
             <form action={testDummyBillingCard} className="mt-3 grid gap-3 sm:grid-cols-4">
               <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">Card number</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.cardNumber}</span>
                 <Input
                   name="dummyCardNumber"
                   placeholder="4242 4242 4242 4242"
@@ -485,7 +600,7 @@ export default async function ProfilePage({
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Expiry</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.expiry}</span>
                 <Input
                   name="dummyCardExp"
                   placeholder="MM/YY"
@@ -495,7 +610,7 @@ export default async function ProfilePage({
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">CVC</span>
+                <span className="text-xs font-medium text-muted-foreground">{text.cvc}</span>
                 <Input
                   name="dummyCardCvc"
                   placeholder="CVC"
@@ -506,12 +621,12 @@ export default async function ProfilePage({
                 />
               </label>
               <div className="sm:col-span-4">
-                <Button type="submit">Run billing test</Button>
+                <Button type="submit">{text.runBillingTest}</Button>
               </div>
             </form>
 
             <p className="mt-2 text-xs text-muted-foreground">
-              Success cards: {DUMMY_STRIPE_SUCCESS_CARDS.join(", ")}. Fail cards:{" "}
+              {text.successCards}: {DUMMY_STRIPE_SUCCESS_CARDS.join(", ")}. {text.failCards}:{" "}
               {DUMMY_STRIPE_FAIL_CARDS.join(", ")}.
             </p>
           </details>

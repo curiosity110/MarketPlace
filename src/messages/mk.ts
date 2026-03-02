@@ -1,4 +1,4 @@
-export const mk = {
+﻿export const mk = {
   appName: "MarketPlace MKD",
   language: {
     label: "Јазик",
@@ -17,4 +17,3 @@ export const mk = {
     logout: "Одјава",
   },
 };
-

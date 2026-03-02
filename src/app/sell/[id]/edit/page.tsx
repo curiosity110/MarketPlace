@@ -23,6 +23,7 @@ import {
 } from "@/lib/listing-fields";
 import { normalizePhoneInput, parseStoredPhone } from "@/lib/phone";
 import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
+import { getServerLocale } from "@/lib/i18n";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -266,6 +267,27 @@ export default async function EditListing({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        dbUnavailable: "Базата е привремено недостапна. Обиди се повторно наскоро.",
+        backToDashboard: "Назад кон табла",
+        editListing: "Уреди оглас",
+        editSubtitle:
+          "Ажурирај содржина, план и полиња по категорија без губење податоци.",
+        payAndPublish: "Плати dummy Stripe и објави",
+        deleteDraft: "Избриши нацрт",
+      }
+    : {
+        dbUnavailable: "Database is temporarily unreachable. Please retry in a moment.",
+        backToDashboard: "Back to dashboard",
+        editListing: "Edit listing",
+        editSubtitle:
+          "Update content, plan, and category fields without losing data.",
+        payAndPublish: "Pay dummy Stripe & publish",
+        deleteDraft: "Delete draft",
+      };
   const user = await requireSeller();
   const { id } = await params;
   const sp = await searchParams;
@@ -307,11 +329,11 @@ export default async function EditListing({
       <div className="space-y-4">
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="py-5 text-sm text-foreground">
-            Database is temporarily unreachable. Please retry in a moment.
+            {text.dbUnavailable}
           </CardContent>
         </Card>
         <Link href="/dashboard">
-          <Button variant="outline">Back to dashboard</Button>
+          <Button variant="outline">{text.backToDashboard}</Button>
         </Link>
       </div>
     );
@@ -330,9 +352,9 @@ export default async function EditListing({
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <h1 className="text-3xl font-bold">Edit listing</h1>
+        <h1 className="text-3xl font-bold">{text.editListing}</h1>
         <p className="text-sm text-muted-foreground">
-          Update content, plan, and category fields without losing data.
+          {text.editSubtitle}
         </p>
       </section>
 
@@ -352,7 +374,7 @@ export default async function EditListing({
             cities={cities}
             templatesByCategory={templatesByCategory}
             paymentProvider="stripe-dummy"
-            publishLabel="Pay dummy Stripe & publish"
+            publishLabel={text.payAndPublish}
             initial={{
               id: listing.id,
               title: listing.title,
@@ -374,6 +396,7 @@ export default async function EditListing({
               id: image.id,
               url: image.url,
             }))}
+            locale={locale}
           />
         </CardContent>
       </Card>
@@ -382,11 +405,11 @@ export default async function EditListing({
         <form action={deleteListing}>
           <input type="hidden" name="id" value={listing.id} />
           <Button variant="destructive" type="submit">
-            Delete draft
+            {text.deleteDraft}
           </Button>
         </form>
         <Link href="/dashboard">
-          <Button variant="outline">Back to dashboard</Button>
+          <Button variant="outline">{text.backToDashboard}</Button>
         </Link>
       </div>
     </div>

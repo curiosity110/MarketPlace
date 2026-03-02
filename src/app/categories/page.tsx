@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getServerLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import {
@@ -40,6 +41,45 @@ export default async function CategoriesPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        title: "Категории",
+        subtitle:
+          "Прегледна мапа на категории за пребарување и продавање. Избери категорија, филтрирај брзо и креирај оглас.",
+        mainCategories: "Главни категории",
+        subcategories: "Поткатегории",
+        activeListings: "Активни огласи",
+        searchPlaceholder: "Пребарај категории",
+        dbUnavailable:
+          "Категориите се привремено недостапни затоа што базата е недостапна.",
+        browse: "Пребарувај",
+        createHere: "Креирај тука",
+        missingCategory: "Недостига категорија?",
+        missingCategoryText:
+          "Отвори ја контролната табла и побарај нова категорија. Тимот може брзо да ја одобри.",
+        openDashboardCategories: "Отвори категории во табла",
+        continueBrowsing: "Продолжи со пребарување",
+      }
+    : {
+        title: "Categories",
+        subtitle:
+          "Clean category map for browsing and selling. Pick category, filter fast, and create listings directly.",
+        mainCategories: "Main categories",
+        subcategories: "Subcategories",
+        activeListings: "Active listings",
+        searchPlaceholder: "Search categories",
+        dbUnavailable:
+          "Categories are temporarily unavailable because the database is unreachable.",
+        browse: "Browse",
+        createHere: "Create here",
+        missingCategory: "Missing a category?",
+        missingCategoryText:
+          "Open your dashboard and request a new category. The team can approve it quickly.",
+        openDashboardCategories: "Open dashboard categories",
+        continueBrowsing: "Continue browsing",
+      };
   const sp = await searchParams;
   const query = (sp.q || "").trim().toLowerCase();
 
@@ -96,27 +136,28 @@ export default async function CategoriesPage({
       <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
         <div className="space-y-5">
           <div className="space-y-2">
-            <h1 className="text-4xl font-black sm:text-5xl">Categories</h1>
+            <h1 className="text-4xl font-black sm:text-5xl">{text.title}</h1>
             <p className="max-w-2xl text-muted-foreground">
-              Clean category map for browsing and selling. Pick category, filter fast, and create
-              listings directly.
+              {text.subtitle}
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-border/70 bg-card px-4 py-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Main categories
+                {text.mainCategories}
               </p>
               <p className="text-2xl font-black">{categories.length}</p>
             </div>
             <div className="rounded-2xl border border-border/70 bg-card px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Subcategories</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {text.subcategories}
+              </p>
               <p className="text-2xl font-black">{totalSubcategories}</p>
             </div>
             <div className="rounded-2xl border border-border/70 bg-card px-4 py-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Active listings
+                {text.activeListings}
               </p>
               <p className="text-2xl font-black">{totalActiveListings}</p>
             </div>
@@ -131,7 +172,7 @@ export default async function CategoriesPage({
               <Input
                 name="q"
                 defaultValue={query}
-                placeholder="Search categories"
+                placeholder={text.searchPlaceholder}
                 className="pl-9"
               />
             </div>
@@ -142,7 +183,7 @@ export default async function CategoriesPage({
       {dbUnavailable && (
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="py-4 text-sm text-foreground">
-            Categories are temporarily unavailable because the database is unreachable.
+            {text.dbUnavailable}
           </CardContent>
         </Card>
       )}
@@ -190,11 +231,11 @@ export default async function CategoriesPage({
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Link href={`/browse?cat=${category.id}`}>
                     <Button variant="outline" className="w-full">
-                      Browse
+                      {text.browse}
                     </Button>
                   </Link>
                   <Link href={`/dashboard?create=1&cat=${category.id}`}>
-                    <Button className="w-full">Create here</Button>
+                    <Button className="w-full">{text.createHere}</Button>
                   </Link>
                 </div>
               </CardContent>
@@ -204,21 +245,21 @@ export default async function CategoriesPage({
       </section>
 
       <section className="rounded-3xl border border-dashed border-border bg-card p-6 text-center">
-        <h2 className="text-2xl font-bold">Missing a category?</h2>
+        <h2 className="text-2xl font-bold">{text.missingCategory}</h2>
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
-          Open your dashboard and request a new category. The team can approve it quickly.
+          {text.missingCategoryText}
         </p>
         <Link href="/dashboard" className="mt-4 inline-block">
           <Button variant="outline" className="gap-2">
             <PlusCircle size={16} />
-            Open dashboard categories
+            {text.openDashboardCategories}
           </Button>
         </Link>
         <Link
           href="/browse"
           className="mt-3 inline-flex items-center gap-1 text-sm text-primary hover:underline"
         >
-          Continue browsing <ArrowRight size={14} />
+          {text.continueBrowsing} <ArrowRight size={14} />
         </Link>
       </section>
     </div>

@@ -9,19 +9,53 @@ interface AIHelperProps {
   context?: string;
   placeholder?: string;
   title?: string;
+  locale?: "en" | "mk";
 }
-
-const quickQuestions = [
-  "Help me write a better title",
-  "What should I ask before buying?",
-  "How do I price this item?",
-];
 
 export function AIHelper({
   context = "You are a helpful marketplace assistant.",
   placeholder = "Ask anything...",
   title = "Marketplace Assistant",
+  locale = "en",
 }: AIHelperProps) {
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        openAssistant: "Отвори GPT асистент за маркетплејс",
+        askGpt: "Прашај GPT",
+        alwaysAvailable: "Секогаш достапен",
+        closeAssistant: "Затвори асистент",
+        loadingFallback: "Не можев да генерирам одговор.",
+        unavailable:
+          "Асистентот е привремено недостапен. Обиди се повторно за кратко.",
+        initialHint:
+          "Побарај помош за купување, продавање, цена или безбедност.",
+        sendLabel: "Испрати",
+        ariaInput: "Прашај го GPT асистентот",
+        quickQuestions: [
+          "Помогни ми да напишам подобар наслов",
+          "Што да прашам пред да купам?",
+          "Како да ја поставам цената?",
+        ],
+      }
+    : {
+        openAssistant: "Open GPT marketplace assistant",
+        askGpt: "Ask GPT",
+        alwaysAvailable: "Always available",
+        closeAssistant: "Close assistant",
+        loadingFallback: "I could not generate a reply.",
+        unavailable:
+          "Assistant is temporarily unavailable. Please try again in a moment.",
+        initialHint: "Ask for help with buying, selling, pricing, or safety.",
+        sendLabel: "Send",
+        ariaInput: "Ask GPT assistant",
+        quickQuestions: [
+          "Help me write a better title",
+          "What should I ask before buying?",
+          "How do I price this item?",
+        ],
+      };
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<
     Array<{ role: "user" | "assistant"; content: string }>
@@ -31,10 +65,7 @@ export function AIHelper({
 
   const canSend = input.trim().length > 0 && !loading;
 
-  const initialHint = useMemo(
-    () => `Ask for help with buying, selling, pricing, or safety.`,
-    [],
-  );
+  const initialHint = useMemo(() => text.initialHint, [text.initialHint]);
 
   useEffect(() => {
     function openAssistant() {
@@ -67,7 +98,7 @@ export function AIHelper({
         ...prev,
         {
           role: "assistant",
-          content: data.answer || data.error || "I could not generate a reply.",
+          content: data.answer || data.error || text.loadingFallback,
         },
       ]);
     } catch {
@@ -75,8 +106,7 @@ export function AIHelper({
         ...prev,
         {
           role: "assistant",
-          content:
-            "Assistant is temporarily unavailable. Please try again in a moment.",
+          content: text.unavailable,
         },
       ]);
     } finally {
@@ -90,10 +120,10 @@ export function AIHelper({
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl md:bottom-6 md:right-6"
-          aria-label="Open GPT marketplace assistant"
+          aria-label={text.openAssistant}
         >
           <MessageCircle size={18} />
-          <span>Ask GPT</span>
+          <span>{text.askGpt}</span>
         </button>
       )}
 
@@ -102,12 +132,12 @@ export function AIHelper({
           <header className="flex items-center justify-between border-b border-border/80 bg-gradient-to-r from-orange-50 via-white to-blue-50 px-4 py-3 dark:from-orange-950/20 dark:via-card dark:to-blue-950/20">
             <div>
               <h3 className="text-base font-bold">{title}</h3>
-              <p className="text-xs text-muted-foreground">Always available</p>
+              <p className="text-xs text-muted-foreground">{text.alwaysAvailable}</p>
             </div>
             <button
               onClick={() => setIsOpen(false)}
               className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Close assistant"
+              aria-label={text.closeAssistant}
             >
               <X size={18} />
             </button>
@@ -120,7 +150,7 @@ export function AIHelper({
                   {initialHint}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {quickQuestions.map((question) => (
+                  {text.quickQuestions.map((question) => (
                     <button
                       key={question}
                       type="button"
@@ -174,7 +204,7 @@ export function AIHelper({
                 }}
                 placeholder={placeholder}
                 disabled={loading}
-                aria-label="Ask GPT assistant"
+                aria-label={text.ariaInput}
               />
               <Button
                 onClick={() => sendMessage(input)}
@@ -183,6 +213,7 @@ export function AIHelper({
                 className="h-10 px-3"
               >
                 <Send size={14} />
+                <span className="sr-only">{text.sendLabel}</span>
               </Button>
             </div>
           </footer>

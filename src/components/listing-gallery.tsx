@@ -8,9 +8,36 @@ import { Button } from "@/components/ui/button";
 type Props = {
   images: string[];
   thumbs?: string[];
+  locale?: "en" | "mk";
 };
 
-export function ListingGallery({ images, thumbs }: Props) {
+export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        noPhotos: "Нема прикачени фотографии",
+        openLightbox: "Отвори галерија",
+        openImage: "Отвори слика",
+        closeLightbox: "Затвори галерија",
+        prevImage: "Претходна слика",
+        nextImage: "Следна слика",
+        listingPhoto: "Слика од оглас",
+        thumbnail: "Минијатура",
+        imageOf: "Слика",
+        of: "од",
+      }
+    : {
+        noPhotos: "No photos uploaded",
+        openLightbox: "Open photo lightbox",
+        openImage: "Open image",
+        closeLightbox: "Close lightbox",
+        prevImage: "Previous image",
+        nextImage: "Next image",
+        listingPhoto: "Listing photo",
+        thumbnail: "Thumbnail",
+        imageOf: "Image",
+        of: "of",
+      };
   const normalizedImages = useMemo(
     () => images.map((value) => value.trim()).filter(Boolean),
     [images],
@@ -59,7 +86,7 @@ export function ListingGallery({ images, thumbs }: Props) {
   if (normalizedImages.length === 0) {
     return (
       <div className="flex aspect-[5/3] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-        No photos uploaded
+        {text.noPhotos}
       </div>
     );
   }
@@ -86,12 +113,12 @@ export function ListingGallery({ images, thumbs }: Props) {
         type="button"
         onClick={() => openLightbox(safeActiveIndex)}
         className="relative block w-full overflow-hidden rounded-xl border border-border/70 bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        aria-label="Open photo lightbox"
+        aria-label={text.openLightbox}
       >
         <div className="relative aspect-[16/10]">
           <Image
             src={currentImage}
-            alt={`Listing photo ${safeActiveIndex + 1}`}
+            alt={`${text.listingPhoto} ${safeActiveIndex + 1}`}
             fill
             unoptimized
             className="object-cover"
@@ -103,7 +130,7 @@ export function ListingGallery({ images, thumbs }: Props) {
       <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
         {thumbnailSources.map((thumbSrc, index) => {
           const isActive = index === activeIndex;
-          const label = `Open image ${index + 1}`;
+          const label = `${text.openImage} ${index + 1}`;
           const showOverflow = overflowThumbCount > 0 && index === thumbnailSources.length - 1;
           return (
             <button
@@ -122,7 +149,7 @@ export function ListingGallery({ images, thumbs }: Props) {
               <div className="relative aspect-square">
                 <Image
                   src={thumbSrc}
-                  alt={`Thumbnail ${index + 1}`}
+                  alt={`${text.thumbnail} ${index + 1}`}
                   fill
                   unoptimized
                   className="object-cover"
@@ -149,7 +176,7 @@ export function ListingGallery({ images, thumbs }: Props) {
             type="button"
             className="absolute inset-0 bg-black/80"
             onClick={() => setIsLightboxOpen(false)}
-            aria-label="Close lightbox"
+            aria-label={text.closeLightbox}
           />
 
           <div className="relative z-[1] w-full max-w-5xl">
@@ -159,7 +186,7 @@ export function ListingGallery({ images, thumbs }: Props) {
               size="sm"
               className="absolute right-2 top-2 z-[2] h-9 w-9 bg-background/90 p-0"
               onClick={() => setIsLightboxOpen(false)}
-              aria-label="Close lightbox"
+              aria-label={text.closeLightbox}
             >
               <X size={16} />
             </Button>
@@ -168,7 +195,7 @@ export function ListingGallery({ images, thumbs }: Props) {
               <div className="relative aspect-[16/10]">
                 <Image
                   src={currentImage}
-                  alt={`Listing photo ${safeActiveIndex + 1}`}
+                  alt={`${text.listingPhoto} ${safeActiveIndex + 1}`}
                   fill
                   unoptimized
                   className="object-contain"
@@ -185,7 +212,7 @@ export function ListingGallery({ images, thumbs }: Props) {
                   size="sm"
                   className="absolute left-2 top-1/2 h-9 w-9 -translate-y-1/2 bg-background/90 p-0"
                   onClick={goPrev}
-                  aria-label="Previous image"
+                  aria-label={text.prevImage}
                 >
                   <ChevronLeft size={18} />
                 </Button>
@@ -195,7 +222,7 @@ export function ListingGallery({ images, thumbs }: Props) {
                   size="sm"
                   className="absolute right-2 top-1/2 h-9 w-9 -translate-y-1/2 bg-background/90 p-0"
                   onClick={goNext}
-                  aria-label="Next image"
+                  aria-label={text.nextImage}
                 >
                   <ChevronRight size={18} />
                 </Button>
@@ -203,7 +230,7 @@ export function ListingGallery({ images, thumbs }: Props) {
             )}
 
             <p className="mt-2 text-center text-xs text-white/80">
-              Image {safeActiveIndex + 1} of {normalizedImages.length}
+              {text.imageOf} {safeActiveIndex + 1} {text.of} {normalizedImages.length}
             </p>
           </div>
         </div>

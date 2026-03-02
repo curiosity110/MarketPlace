@@ -21,6 +21,7 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
+import { getServerLocale } from "@/lib/i18n";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -42,6 +43,85 @@ export async function DashboardPageContent({
 }: {
   searchParams: Record<string, string | undefined>;
 }) {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        dbUnavailable: "Базата е привремено недостапна. Обиди се повторно наскоро.",
+        sellerDashboard: "Контролна табла за продавач",
+        dashboardSubtitle: "Целосна контрола по категории со компактен менаџмент.",
+        profile: "Профил",
+        createNow: "Креирај сега",
+        draftSaved: "Нацртот е зачуван. Продолжи од контролата на категории.",
+        firstFree: "Огласот е објавен. Првите 30 дена се бесплатни.",
+        paymentApproved: "Dummy Stripe плаќањето е одобрено. Огласот е активен.",
+        adminTools: "Админ алатки",
+        adminToolsDesc:
+          "Модерација и контрола за STAFF, ADMIN и CEO.",
+        moderation: "Модерација",
+        categoryApprovals: "Одобрување категории",
+        revenueAnalytics: "Аналитика за приходи",
+        usersActions: "Корисници и акции",
+        myCategories: "Мои категории",
+        myCategoriesDesc:
+          "Едно место за категорија, статус, уредување и преглед.",
+        noCategoryActivity: "Сè уште нема активност по категории.",
+        total: "Вкупно",
+        active: "Активни",
+        drafts: "Нацрти",
+        soon: "Наскоро",
+        listings: "огласи",
+        all: "Сите",
+        draft: "Нацрт",
+        noListingsForFilter: "Нема огласи за овој филтер.",
+        status: "статус",
+        updated: "Ажурирано",
+        ends: "Истекува",
+        edit: "Уреди",
+        view: "Преглед",
+        payAndPublish: "Плати и објави",
+        openEditHint: "Отвори уредување за плаќање и објава.",
+        publishFree: "Објави бесплатно",
+        firstPublishFreeHint: "Првото објавување за 30 дена е бесплатно.",
+      }
+    : {
+        dbUnavailable: "Database is temporarily unreachable. Please retry in a moment.",
+        sellerDashboard: "Seller Dashboard",
+        dashboardSubtitle: "Full category control with compact listing management.",
+        profile: "Profile",
+        createNow: "Create now",
+        draftSaved: "Draft saved. Continue from category controls.",
+        firstFree: "Listing published. Your first 30-day post is free.",
+        paymentApproved: "Dummy Stripe payment approved. Listing is now active.",
+        adminTools: "Admin tools",
+        adminToolsDesc:
+          "Moderation and marketplace control for STAFF, ADMIN, and CEO.",
+        moderation: "Moderation",
+        categoryApprovals: "Category approvals",
+        revenueAnalytics: "Revenue analytics",
+        usersActions: "Users and actions",
+        myCategories: "My categories",
+        myCategoriesDesc:
+          "One place to switch category, filter by status, edit, and view.",
+        noCategoryActivity: "No category activity yet.",
+        total: "Total",
+        active: "Active",
+        drafts: "Drafts",
+        soon: "Soon",
+        listings: "listings",
+        all: "All",
+        draft: "Draft",
+        noListingsForFilter: "No listings in this category for this filter.",
+        status: "status",
+        updated: "Updated",
+        ends: "Ends",
+        edit: "Edit",
+        view: "View",
+        payAndPublish: "Pay & publish",
+        openEditHint: "Open edit to complete payment popup and publish.",
+        publishFree: "Publish free",
+        firstPublishFreeHint: "First 30-day publish is free.",
+      };
   const user = await requireSeller();
   const showAdminTools = canAccessControl(user.role);
 
@@ -54,8 +134,7 @@ export async function DashboardPageContent({
   const createRequested = sp.create === "1";
   const selectedView = parseView(sp.view);
   const selectedPlan = parsePlan(sp.plan);
-  const dbUnavailableError =
-    "Database is temporarily unreachable. Please retry in a moment.";
+  const dbUnavailableError = text.dbUnavailable;
 
   async function fetchAnalyticsData() {
     return Promise.all([
@@ -108,9 +187,9 @@ export async function DashboardPageContent({
     return (
       <div className="space-y-6">
         <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
-          <h1 className="text-4xl font-black">Seller Dashboard</h1>
+          <h1 className="text-4xl font-black">{text.sellerDashboard}</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Category-first dashboard with quick create controls.
+            {text.dashboardSubtitle}
           </p>
         </section>
 
@@ -331,19 +410,19 @@ export async function DashboardPageContent({
       <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-4xl font-black">Seller Dashboard</h1>
+            <h1 className="text-4xl font-black">{text.sellerDashboard}</h1>
             <p className="mt-2 max-w-2xl text-muted-foreground">
-              Full category control with compact listing management.
+              {text.dashboardSubtitle}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/profile">
-              <Button variant="outline">Profile</Button>
+              <Button variant="outline">{text.profile}</Button>
             </Link>
             {categories.length > 0 && cities.length > 0 ? (
               <CreateListingPopout
                 mode="button"
-                buttonLabel="Create now"
+                buttonLabel={text.createNow}
                 action={createListingFromDashboard}
                 categories={categories}
                 cities={cities}
@@ -352,8 +431,12 @@ export async function DashboardPageContent({
                 showPlanSelector={hasPublishedListing}
                 publishLabel={
                   hasPublishedListing
-                    ? "Pay dummy Stripe & publish"
-                    : "Publish first 30-day listing (free)"
+                    ? isMk
+                      ? "Плати dummy Stripe и објави"
+                      : "Pay dummy Stripe & publish"
+                    : isMk
+                      ? "Објави прв 30-дневен оглас (бесплатно)"
+                      : "Publish first 30-day listing (free)"
                 }
                 paymentProvider={hasPublishedListing ? "stripe-dummy" : "none"}
                 openOnMount={createRequested}
@@ -364,9 +447,10 @@ export async function DashboardPageContent({
                   currency: Currency.MKD,
                   plan: selectedPlan,
                 }}
+                locale={locale}
               />
             ) : (
-              <Button disabled>Create now</Button>
+              <Button disabled>{text.createNow}</Button>
             )}
           </div>
         </div>
@@ -382,21 +466,21 @@ export async function DashboardPageContent({
       {draftSaved && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-4 text-sm text-success">
-            Draft saved. Continue from category controls.
+            {text.draftSaved}
           </CardContent>
         </Card>
       )}
       {freeActivated && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-4 text-sm text-success">
-            Listing published. Your first 30-day post is free.
+            {text.firstFree}
           </CardContent>
         </Card>
       )}
       {paidActivated && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-4 text-sm text-success">
-            Dummy Stripe payment approved. Listing is now active.
+            {text.paymentApproved}
           </CardContent>
         </Card>
       )}
@@ -404,30 +488,30 @@ export async function DashboardPageContent({
       {showAdminTools && (
         <Card className="border-blue-200/70 bg-blue-50/40 dark:border-blue-700/40 dark:bg-blue-950/10">
           <CardHeader className="pb-2">
-            <CardTitle>Admin tools</CardTitle>
+            <CardTitle>{text.adminTools}</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Moderation and marketplace control for STAFF, ADMIN, and CEO.
+              {text.adminToolsDesc}
             </p>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <Link href="/admin" className="block">
               <Button variant="outline" className="w-full justify-start">
-                Moderation
+                {text.moderation}
               </Button>
             </Link>
             <Link href="/admin/categories" className="block">
               <Button variant="outline" className="w-full justify-start">
-                Category approvals
+                {text.categoryApprovals}
               </Button>
             </Link>
             <Link href="/admin/subscriptions" className="block">
               <Button variant="outline" className="w-full justify-start">
-                Revenue analytics
+                {text.revenueAnalytics}
               </Button>
             </Link>
             <Link href="/admin" className="block">
               <Button variant="outline" className="w-full justify-start">
-                Users and actions
+                {text.usersActions}
               </Button>
             </Link>
           </CardContent>
@@ -436,16 +520,16 @@ export async function DashboardPageContent({
 
       <Card className="border-secondary/20">
         <CardHeader className="pb-2">
-          <CardTitle>My categories</CardTitle>
+          <CardTitle>{text.myCategories}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            One place to switch category, filter by status, edit, and view.
+            {text.myCategoriesDesc}
           </p>
         </CardHeader>
 
         <CardContent className="space-y-4">
           {userCategories.length === 0 ? (
             <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
-              No category activity yet.
+              {text.noCategoryActivity}
             </div>
           ) : (
             <>
@@ -473,25 +557,25 @@ export async function DashboardPageContent({
                   {[
                     {
                       key: "total",
-                      label: "Total",
+                      label: text.total,
                       value: allListings.length,
                       className: "border-border/70 text-foreground",
                     },
                     {
                       key: "active",
-                      label: "Active",
+                      label: text.active,
                       value: activeListings.length,
                       className: "border-success/35 text-success",
                     },
                     {
                       key: "drafts",
-                      label: "Drafts",
+                      label: text.drafts,
                       value: draftCount,
                       className: "border-border/70 text-foreground",
                     },
                     {
                       key: "soon",
-                      label: "Soon",
+                      label: text.soon,
                       value: expiringSoon,
                       className: "border-warning/35 text-warning",
                     },
@@ -516,7 +600,7 @@ export async function DashboardPageContent({
                 <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">
-                      {selectedCategory.name} listings
+                      {selectedCategory.name} {text.listings}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <Link href={`${categoryBaseHref}&view=all`}>
@@ -526,7 +610,7 @@ export async function DashboardPageContent({
                             selectedView === "all" ? "default" : "outline"
                           }
                         >
-                          All ({selectedCategory.posted})
+                          {text.all} ({selectedCategory.posted})
                         </Button>
                       </Link>
                       <Link href={`${categoryBaseHref}&view=active`}>
@@ -536,7 +620,7 @@ export async function DashboardPageContent({
                             selectedView === "active" ? "default" : "outline"
                           }
                         >
-                          Active ({selectedCategory.active})
+                          {text.active} ({selectedCategory.active})
                         </Button>
                       </Link>
                       <Link href={`${categoryBaseHref}&view=draft`}>
@@ -546,7 +630,7 @@ export async function DashboardPageContent({
                             selectedView === "draft" ? "default" : "outline"
                           }
                         >
-                          Draft ({Math.max(0, selectedCategory.posted - selectedCategory.active)})
+                          {text.draft} ({Math.max(0, selectedCategory.posted - selectedCategory.active)})
                         </Button>
                       </Link>
                     </div>
@@ -554,7 +638,7 @@ export async function DashboardPageContent({
 
                   {selectedCategoryListings.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      No listings in this category for this filter.
+                      {text.noListingsForFilter}
                     </p>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -590,7 +674,7 @@ export async function DashboardPageContent({
                                 className={`absolute right-3 top-3 flex h-14 w-14 flex-col items-center justify-center rounded-full border bg-background/90 ring-2 ${statusTone}`}
                               >
                                 <span className="text-[9px] font-semibold uppercase leading-none text-muted-foreground">
-                                  status
+                                  {text.status}
                                 </span>
                                 <span className="mt-1 text-[11px] font-black leading-none">
                                   {isActive ? "ACTIVE" : "DRAFT"}
@@ -602,10 +686,10 @@ export async function DashboardPageContent({
                                   {listing.title}
                                 </p>
                                 <p className="line-clamp-1 text-xs text-white/85">
-                                  Updated{" "}
+                                  {text.updated}{" "}
                                   {new Date(
                                     listing.updatedAt,
-                                  ).toLocaleDateString()}
+                                  ).toLocaleDateString(isMk ? "mk-MK" : "en-US")}
                                 </p>
                               </div>
                             </div>
@@ -623,10 +707,10 @@ export async function DashboardPageContent({
                                 </span>
                                 {listing.activeUntil && (
                                   <span className="rounded-full border border-warning/35 bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
-                                    Ends{" "}
+                                    {text.ends}{" "}
                                     {new Date(
                                       listing.activeUntil,
-                                    ).toLocaleDateString()}
+                                    ).toLocaleDateString(isMk ? "mk-MK" : "en-US")}
                                   </span>
                                 )}
                               </div>
@@ -639,7 +723,7 @@ export async function DashboardPageContent({
                                       variant="outline"
                                       className="w-full"
                                     >
-                                      Edit
+                                      {text.edit}
                                     </Button>
                                   </Link>
                                   <Link href={`/listing/${listing.id}`}>
@@ -648,7 +732,7 @@ export async function DashboardPageContent({
                                       variant="ghost"
                                       className="w-full"
                                     >
-                                      View
+                                      {text.view}
                                     </Button>
                                   </Link>
                                 </div>
@@ -663,7 +747,7 @@ export async function DashboardPageContent({
                                             variant="outline"
                                             className="w-full"
                                           >
-                                            Edit
+                                            {text.edit}
                                           </Button>
                                         </Link>
                                         <Link href={`/sell/${listing.id}/edit`}>
@@ -672,12 +756,12 @@ export async function DashboardPageContent({
                                             type="button"
                                             className="w-full"
                                           >
-                                            Pay & publish
+                                            {text.payAndPublish}
                                           </Button>
                                         </Link>
                                       </div>
                                       <p className="text-xs text-muted-foreground">
-                                        Open edit to complete payment popup and publish.
+                                        {text.openEditHint}
                                       </p>
                                     </>
                                   ) : (
@@ -689,7 +773,7 @@ export async function DashboardPageContent({
                                             variant="outline"
                                             className="w-full"
                                           >
-                                            Edit
+                                            {text.edit}
                                           </Button>
                                         </Link>
                                         <form action={publishDraftFromDashboard}>
@@ -703,12 +787,12 @@ export async function DashboardPageContent({
                                             type="submit"
                                             className="w-full"
                                           >
-                                            Publish free
+                                            {text.publishFree}
                                           </Button>
                                         </form>
                                       </div>
                                       <p className="text-xs text-muted-foreground">
-                                        First 30-day publish is free.
+                                        {text.firstPublishFreeHint}
                                       </p>
                                     </>
                                   )}

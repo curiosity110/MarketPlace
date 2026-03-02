@@ -38,7 +38,7 @@ export default async function RootLayout({
                 {children}
               </Container>
             </main>
-            <SiteAssistant />
+            <SiteAssistant locale={locale} />
           </div>
         </ThemeProvider>
       </body>

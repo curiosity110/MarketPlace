@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { getServerLocale } from "@/lib/i18n";
 
 async function toggleCategory(formData: FormData) {
   "use server";
@@ -90,6 +91,43 @@ async function deleteTemplate(formData: FormData) {
 }
 
 export default async function AdminCategoriesPage() {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        title: "Креатор на шаблони за категории",
+        subtitle:
+          "Контролирај достапност на категории и динамични полиња во продавање и пребарување.",
+        deactivate: "Деактивирај",
+        activate: "Активирај",
+        noTemplates: "Сè уште нема шаблони за оваа категорија.",
+        required: "Задолжително",
+        active: "Активно",
+        saveTemplate: "Зачувај шаблон",
+        delete: "Избриши",
+        keyPlaceholder: "key (пример: brand)",
+        labelPlaceholder: "Етикета",
+        orderPlaceholder: "Редослед",
+        optionsPlaceholder: "a,b,c за SELECT",
+        addTemplate: "Додај шаблон",
+      }
+    : {
+        title: "Category Template Builder",
+        subtitle:
+          "Control category availability and dynamic fields shown in sell and browse.",
+        deactivate: "Deactivate",
+        activate: "Activate",
+        noTemplates: "No templates yet for this category.",
+        required: "Required",
+        active: "Active",
+        saveTemplate: "Save template",
+        delete: "Delete",
+        keyPlaceholder: "key (example: brand)",
+        labelPlaceholder: "Label",
+        orderPlaceholder: "Order",
+        optionsPlaceholder: "a,b,c for SELECT",
+        addTemplate: "Add template",
+      };
   await requireControlAccess();
 
   const categories = await prisma.category.findMany({
@@ -102,9 +140,9 @@ export default async function AdminCategoriesPage() {
   return (
     <div className="space-y-6">
       <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
-        <h1 className="text-4xl font-black">Category Template Builder</h1>
+        <h1 className="text-4xl font-black">{text.title}</h1>
         <p className="mt-2 text-muted-foreground">
-          Control category availability and dynamic fields shown in sell and browse.
+          {text.subtitle}
         </p>
       </section>
 
@@ -127,7 +165,7 @@ export default async function AdminCategoriesPage() {
                   type="submit"
                   variant={category.isActive ? "outline" : "default"}
                 >
-                  {category.isActive ? "Deactivate" : "Activate"}
+                  {category.isActive ? text.deactivate : text.activate}
                 </Button>
               </form>
             </div>
@@ -137,7 +175,7 @@ export default async function AdminCategoriesPage() {
             <div className="grid gap-3">
               {category.fieldTemplates.length === 0 && (
                 <p className="text-sm text-muted-foreground">
-                  No templates yet for this category.
+                  {text.noTemplates}
                 </p>
               )}
 
@@ -162,7 +200,7 @@ export default async function AdminCategoriesPage() {
                         name="required"
                         defaultChecked={template.required}
                       />
-                      Required
+                      {text.required}
                     </label>
 
                     <label className="flex items-center gap-1 text-xs">
@@ -171,12 +209,12 @@ export default async function AdminCategoriesPage() {
                         name="isActive"
                         defaultChecked={template.isActive}
                       />
-                      Active
+                      {text.active}
                     </label>
 
                     <div className="md:col-span-6 flex flex-wrap gap-2">
                       <Button type="submit" variant="outline">
-                        Save template
+                        {text.saveTemplate}
                       </Button>
                     </div>
                   </form>
@@ -184,7 +222,7 @@ export default async function AdminCategoriesPage() {
                   <form action={deleteTemplate} className="mt-2">
                     <input type="hidden" name="id" value={template.id} />
                     <Button type="submit" variant="destructive">
-                      Delete
+                      {text.delete}
                     </Button>
                   </form>
                 </div>
@@ -196,8 +234,8 @@ export default async function AdminCategoriesPage() {
               className="grid gap-2 rounded-2xl border border-dashed border-border p-3 md:grid-cols-7"
             >
               <input type="hidden" name="categoryId" value={category.id} />
-              <Input name="key" placeholder="key (example: brand)" required />
-              <Input name="label" placeholder="Label" required />
+              <Input name="key" placeholder={text.keyPlaceholder} required />
+              <Input name="label" placeholder={text.labelPlaceholder} required />
               <Select name="type" defaultValue={CategoryFieldType.TEXT}>
                 {Object.values(CategoryFieldType).map((type) => (
                   <option key={type} value={type}>
@@ -209,15 +247,15 @@ export default async function AdminCategoriesPage() {
                 type="number"
                 name="order"
                 defaultValue={0}
-                placeholder="Order"
+                placeholder={text.orderPlaceholder}
               />
-              <Input name="options" placeholder="a,b,c for SELECT" />
+              <Input name="options" placeholder={text.optionsPlaceholder} />
               <label className="flex items-center gap-1 text-xs">
                 <input type="checkbox" name="required" />
-                Required
+                {text.required}
               </label>
               <Button className="md:col-span-7" type="submit">
-                Add template
+                {text.addTemplate}
               </Button>
             </form>
           </CardContent>

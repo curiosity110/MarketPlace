@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { requireAdmin, requireControlAccess } from "@/lib/auth";
+import { getServerLocale } from "@/lib/i18n";
 import { isMissingCategoryRequestTableError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +34,10 @@ function monthKey(date: Date) {
   return `${year}-${String(month + 1).padStart(2, "0")}`;
 }
 
-function monthLabel(date: Date) {
-  return date.toLocaleString("en-US", { month: "short" });
+function monthLabel(date: Date, locale: "en" | "mk") {
+  return date.toLocaleString(locale === "mk" ? "mk-MK" : "en-US", {
+    month: "short",
+  });
 }
 
 const ROLE_OPTIONS: Role[] = [
@@ -150,6 +153,97 @@ async function updateUserRole(formData: FormData) {
 }
 
 export default async function AdminPage() {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        title: "Админ контролен центар",
+        subtitle:
+          "Професионална табла за модерација, раст, продавачи и здравје на маркетплејсот.",
+        categoryTemplates: "Шаблони за категории",
+        revenueAnalytics: "Аналитика на приходи",
+        openReports: "Отворени пријави",
+        older72h: "постари од 72ч",
+        pendingCategories: "Категории на чекање",
+        activeListings: "Активни огласи",
+        usersActiveSellers: "Корисници / активни продавачи",
+        healthTrend: "Тренд на здравје на маркетплејс (6 месеци)",
+        newUsers: "Нови корисници",
+        newListings: "Нови огласи",
+        reports: "Пријави",
+        topSellers: "Топ продавачи (поврзана аналитика)",
+        noActiveSellers: "Сè уште нема активни продавачи.",
+        openReportsShort: "отворени пријави",
+        activeShort: "активни",
+        estShort: "проценето $",
+        perMonth: "/месечно",
+        openRevenueDashboard: "Отвори табла за приходи",
+        reportsQueue: "Ред за пријави",
+        noOpenReports: "Нема отворени пријави во моментов.",
+        open: "ОТВОРЕНО",
+        removeListing: "Избриши оглас",
+        banUser: "Блокирај корисник",
+        categoryRequests: "Барања за категории",
+        noPendingCategoryRequests: "Нема барања за категории на чекање.",
+        optionalAdminNotes: "Опционални админ белешки",
+        approve: "Одобри",
+        reject: "Одбиј",
+        adminAuditLog: "Админ лог",
+        noActionsLogged: "Сè уште нема евидентирани акции.",
+        userRolesPrivileges: "Кориснички улоги и привилегии",
+        userRolesDesc:
+          "`BUYER` и `SELLER` се стандардни профили. `STAFF` и `CEO` имаат целосен пристап. Само `ADMIN` може да менува улоги.",
+        noUsersYet: "Сè уште нема корисници.",
+        joined: "приклучен",
+        saveRole: "Зачувај улога",
+        connectedLive:
+          "Поврзано со реални корисници, огласи, пријави и перформанси на продавачи.",
+        revenueAndPlans: "Приходи и планови",
+      }
+    : {
+        title: "Admin Control Center",
+        subtitle:
+          "Professional dashboard for moderation, growth, sellers, and marketplace health.",
+        categoryTemplates: "Category templates",
+        revenueAnalytics: "Revenue analytics",
+        openReports: "Open reports",
+        older72h: "older than 72h",
+        pendingCategories: "Pending categories",
+        activeListings: "Active listings",
+        usersActiveSellers: "Users / active sellers",
+        healthTrend: "Marketplace health trend (6 months)",
+        newUsers: "New users",
+        newListings: "New listings",
+        reports: "Reports",
+        topSellers: "Top sellers (connected analytics)",
+        noActiveSellers: "No active sellers yet.",
+        openReportsShort: "open reports",
+        activeShort: "active",
+        estShort: "est. $",
+        perMonth: "/month",
+        openRevenueDashboard: "Open revenue dashboard",
+        reportsQueue: "Reports queue",
+        noOpenReports: "No open reports right now.",
+        open: "OPEN",
+        removeListing: "Remove listing",
+        banUser: "Ban user",
+        categoryRequests: "Category requests",
+        noPendingCategoryRequests: "No pending category requests.",
+        optionalAdminNotes: "Optional admin notes",
+        approve: "Approve",
+        reject: "Reject",
+        adminAuditLog: "Admin audit log",
+        noActionsLogged: "No actions logged yet.",
+        userRolesPrivileges: "User roles and privileges",
+        userRolesDesc:
+          "`BUYER` and `SELLER` are standard profiles. `STAFF` and `CEO` have full control access. Only `ADMIN` can assign or change roles.",
+        noUsersYet: "No users yet.",
+        joined: "joined",
+        saveRole: "Save role",
+        connectedLive:
+          "Connected to real users, listings, reports, and seller performance.",
+        revenueAndPlans: "Revenue and plans",
+      };
   const currentUser = await requireControlAccess();
   const canManageRoles = currentUser.role === Role.ADMIN;
 
@@ -256,7 +350,7 @@ export default async function AdminPage() {
     date.setUTCMonth(trendStartDate.getUTCMonth() + index);
     return {
       key: monthKey(date),
-      label: monthLabel(date),
+      label: monthLabel(date, locale),
       users: 0,
       listings: 0,
       reports: 0,
@@ -292,17 +386,17 @@ export default async function AdminPage() {
       <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-4xl font-black">Admin Control Center</h1>
+            <h1 className="text-4xl font-black">{text.title}</h1>
             <p className="mt-2 text-muted-foreground">
-              Professional dashboard for moderation, growth, sellers, and marketplace health.
+              {text.subtitle}
             </p>
           </div>
           <div className="flex gap-2">
             <Link href="/admin/categories">
-              <Button variant="outline">Category templates</Button>
+              <Button variant="outline">{text.categoryTemplates}</Button>
             </Link>
             <Link href="/admin/subscriptions">
-              <Button>Revenue analytics</Button>
+              <Button>{text.revenueAnalytics}</Button>
             </Link>
           </div>
         </div>
@@ -312,12 +406,12 @@ export default async function AdminPage() {
         <Card>
           <CardContent className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Open reports</p>
+              <p className="text-sm text-muted-foreground">{text.openReports}</p>
               <p className="text-3xl font-black text-destructive">
                 {openReports.length}
               </p>
               <p className="text-xs text-muted-foreground">
-                {openReportsOlderThan72h} older than 72h
+                {openReportsOlderThan72h} {text.older72h}
               </p>
             </div>
             <AlertTriangle className="text-destructive" size={22} />
@@ -326,7 +420,7 @@ export default async function AdminPage() {
         <Card>
           <CardContent className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Pending categories</p>
+              <p className="text-sm text-muted-foreground">{text.pendingCategories}</p>
               <p className="text-3xl font-black text-warning">
                 {pendingRequests.length}
               </p>
@@ -337,7 +431,7 @@ export default async function AdminPage() {
         <Card>
           <CardContent className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Active listings</p>
+              <p className="text-sm text-muted-foreground">{text.activeListings}</p>
               <p className="text-3xl font-black text-primary">{activeListingsCount}</p>
             </div>
             <DollarSign className="text-primary" size={22} />
@@ -346,7 +440,7 @@ export default async function AdminPage() {
         <Card>
           <CardContent className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Users / active sellers</p>
+              <p className="text-sm text-muted-foreground">{text.usersActiveSellers}</p>
               <p className="text-3xl font-black text-secondary">
                 {totalUsers}/{topSellers.length}
               </p>
@@ -359,7 +453,7 @@ export default async function AdminPage() {
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Marketplace health trend (6 months)</CardTitle>
+            <CardTitle>{text.healthTrend}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid h-56 grid-cols-6 items-end gap-2 rounded-2xl border border-border/70 bg-muted/20 p-3">
@@ -403,15 +497,15 @@ export default async function AdminPage() {
             <div className="flex flex-wrap gap-3 text-xs">
               <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <span className="h-2.5 w-2.5 rounded bg-secondary" />
-                New users
+                {text.newUsers}
               </span>
               <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <span className="h-2.5 w-2.5 rounded bg-primary" />
-                New listings
+                {text.newListings}
               </span>
               <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <span className="h-2.5 w-2.5 rounded bg-warning" />
-                Reports
+                {text.reports}
               </span>
             </div>
           </CardContent>
@@ -419,12 +513,12 @@ export default async function AdminPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top sellers (connected analytics)</CardTitle>
+            <CardTitle>{text.topSellers}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {topSellers.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No active sellers yet.
+                {text.noActiveSellers}
               </p>
             ) : (
               topSellers.map((seller) => (
@@ -439,19 +533,20 @@ export default async function AdminPage() {
                         seller.openReports > 0 ? "warning" : "success"
                       }
                     >
-                      {seller.openReports} open reports
+                      {seller.openReports} {text.openReportsShort}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {seller.activeListings} active | {seller.plan} | est. $
-                    {seller.estimatedMonthlyRevenue}/month
+                    {seller.activeListings} {text.activeShort} | {seller.plan} | {text.estShort}
+                    {seller.estimatedMonthlyRevenue}
+                    {text.perMonth}
                   </p>
                 </div>
               ))
             )}
             <Link href="/admin/subscriptions" className="block pt-1">
               <Button variant="outline" className="w-full justify-between">
-                Open revenue dashboard <ArrowRight size={14} />
+                {text.openRevenueDashboard} <ArrowRight size={14} />
               </Button>
             </Link>
           </CardContent>
@@ -460,12 +555,12 @@ export default async function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Reports queue</CardTitle>
+          <CardTitle>{text.reportsQueue}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {openReports.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No open reports right now.
+              {text.noOpenReports}
             </p>
           ) : (
             <div className="space-y-3">
@@ -478,7 +573,7 @@ export default async function AdminPage() {
                     <p className="font-semibold">
                       {report.targetType} | {report.targetId}
                     </p>
-                    <Badge variant="warning">OPEN</Badge>
+                    <Badge variant="warning">{text.open}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {report.reason}
@@ -489,7 +584,7 @@ export default async function AdminPage() {
                         <input type="hidden" name="listingId" value={report.targetId} />
                         <input type="hidden" name="reportId" value={report.id} />
                         <Button variant="outline" type="submit">
-                          Remove listing
+                          {text.removeListing}
                         </Button>
                       </form>
                     )}
@@ -497,7 +592,7 @@ export default async function AdminPage() {
                       <input type="hidden" name="userId" value={report.targetId} />
                       <input type="hidden" name="reportId" value={report.id} />
                       <Button variant="destructive" type="submit">
-                        Ban user
+                        {text.banUser}
                       </Button>
                     </form>
                   </div>
@@ -511,12 +606,12 @@ export default async function AdminPage() {
       <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Category requests</CardTitle>
+            <CardTitle>{text.categoryRequests}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {pendingRequests.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No pending category requests.
+                {text.noPendingCategoryRequests}
               </p>
             ) : (
               pendingRequests.map((request) => (
@@ -540,12 +635,12 @@ export default async function AdminPage() {
                   <textarea
                     name="adminNotes"
                     className="min-h-20 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
-                    placeholder="Optional admin notes"
+                    placeholder={text.optionalAdminNotes}
                   />
                   <div className="flex flex-wrap gap-2">
                     <Button name="decision" value="approve" type="submit">
                       <CheckCircle2 size={15} className="mr-1" />
-                      Approve
+                      {text.approve}
                     </Button>
                     <Button
                       name="decision"
@@ -554,7 +649,7 @@ export default async function AdminPage() {
                       type="submit"
                     >
                       <Shield size={15} className="mr-1" />
-                      Reject
+                      {text.reject}
                     </Button>
                   </div>
                 </form>
@@ -565,11 +660,11 @@ export default async function AdminPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Admin audit log</CardTitle>
+            <CardTitle>{text.adminAuditLog}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {actions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No actions logged yet.</p>
+              <p className="text-sm text-muted-foreground">{text.noActionsLogged}</p>
             ) : (
               actions.map((action) => (
                 <div
@@ -591,15 +686,14 @@ export default async function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>User roles and privileges</CardTitle>
+          <CardTitle>{text.userRolesPrivileges}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            `BUYER` and `SELLER` are standard profiles. `STAFF` and `CEO` have full control access.
-            Only `ADMIN` can assign or change roles.
+            {text.userRolesDesc}
           </p>
         </CardHeader>
         <CardContent className="space-y-2">
           {recentPlatformUsers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No users yet.</p>
+            <p className="text-sm text-muted-foreground">{text.noUsersYet}</p>
           ) : (
             recentPlatformUsers.map((platformUser) => (
               <div
@@ -613,7 +707,10 @@ export default async function AdminPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {platformUser.email} | joined{" "}
-                      {new Date(platformUser.createdAt).toLocaleDateString()}
+                      {text.joined}{" "}
+                      {new Date(platformUser.createdAt).toLocaleDateString(
+                        isMk ? "mk-MK" : "en-US",
+                      )}
                     </p>
                   </div>
 
@@ -632,7 +729,7 @@ export default async function AdminPage() {
                         ))}
                       </select>
                       <Button type="submit" size="sm">
-                        Save role
+                        {text.saveRole}
                       </Button>
                     </form>
                   ) : (
@@ -649,11 +746,11 @@ export default async function AdminPage() {
         <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
           <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <TrendingUp size={15} className="text-success" />
-            Connected to real users, listings, reports, and seller performance.
+            {text.connectedLive}
           </p>
           <Link href="/admin/subscriptions">
             <Button variant="outline" className="gap-2">
-              Revenue and plans
+              {text.revenueAndPlans}
               <ArrowRight size={14} />
             </Button>
           </Link>

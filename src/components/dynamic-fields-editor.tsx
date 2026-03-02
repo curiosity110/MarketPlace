@@ -23,6 +23,7 @@ type Props = {
   categorySlugById: Record<string, string>;
   templatesByCategory: Record<string, Template[]>;
   initialValues?: Record<string, string>;
+  locale?: "en" | "mk";
 };
 
 const demoValues: Record<string, Record<string, string>> = {
@@ -78,7 +79,30 @@ export function DynamicFieldsEditor({
   categorySlugById,
   templatesByCategory,
   initialValues = {},
+  locale = "en",
 }: Props) {
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        noAdditionalFields: "Нема дополнителни полиња за оваа категорија.",
+        smartAssist: "Паметен асистент",
+        autoFillDemo: "Авто-пополнување демо",
+        clear: "Исчисти",
+        quickPresets: "Брзи пресети:",
+        select: "Избери",
+        yes: "Да",
+        no: "Не",
+      }
+    : {
+        noAdditionalFields: "No additional fields for this category.",
+        smartAssist: "Smart assist",
+        autoFillDemo: "Auto-fill demo",
+        clear: "Clear",
+        quickPresets: "Quick presets:",
+        select: "Select",
+        yes: "Yes",
+        no: "No",
+      };
   const templates = useMemo(
     () => templatesByCategory[categoryId] ?? [],
     [templatesByCategory, categoryId],
@@ -133,7 +157,7 @@ export function DynamicFieldsEditor({
   if (templates.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-        No additional fields for this category.
+        {text.noAdditionalFields}
       </div>
     );
   }
@@ -143,17 +167,17 @@ export function DynamicFieldsEditor({
       <div className="flex flex-wrap items-center gap-2">
         <p className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground">
           <WandSparkles size={14} />
-          Smart assist
+          {text.smartAssist}
         </p>
         <Button type="button" size="sm" variant="outline" onClick={autofillDemo}>
-          Auto-fill demo
+          {text.autoFillDemo}
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={clearFields}>
-          Clear
+          {text.clear}
         </Button>
         {Object.keys(availablePresets).length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">Quick presets:</span>
+            <span className="text-xs text-muted-foreground">{text.quickPresets}</span>
             {Object.keys(availablePresets).map((presetName) => (
               <Button
                 key={presetName}
@@ -212,7 +236,9 @@ export function DynamicFieldsEditor({
                   value={value}
                   onChange={(event) => updateField(template.key, event.target.value)}
                 >
-                  <option value="">Select {template.label}</option>
+                  <option value="">
+                    {text.select} {template.label}
+                  </option>
                   {template.options.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -227,9 +253,9 @@ export function DynamicFieldsEditor({
                   value={value}
                   onChange={(event) => updateField(template.key, event.target.value)}
                 >
-                  <option value="">Select</option>
-                  <option value="true">Yes</option>
-                  <option value="false">No</option>
+                  <option value="">{text.select}</option>
+                  <option value="true">{text.yes}</option>
+                  <option value="false">{text.no}</option>
                 </Select>
               )}
             </label>

@@ -12,6 +12,7 @@ import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getServerLocale } from "@/lib/i18n";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import {
@@ -51,6 +52,43 @@ export default async function BrowsePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        smartBrowse: "Паметно пребарување",
+        allListings: "Сите огласи",
+        resultsLine: "резултати | прикажани",
+        onThisPage: "на оваа страница",
+        extraFilters: "дополнителни филтри",
+        showingAll: "Прикажани се сите активни огласи од сите продавачи.",
+        resetFilters: "Ресетирај филтри",
+        dbUnavailable:
+          "Пребарувањето е привремено недостапно затоа што базата е недостапна.",
+        noMatch: "Нема огласи што одговараат на твоите филтри.",
+        firstList: "Биди прв што ќе го објави овој производ",
+        page: "Страница",
+        of: "од",
+        previous: "Претходна",
+        next: "Следна",
+      }
+    : {
+        smartBrowse: "Smart browse",
+        allListings: "All listings",
+        resultsLine: "results | showing",
+        onThisPage: "on this page",
+        extraFilters: "extra filters",
+        showingAll: "Showing all active listings from all sellers.",
+        resetFilters: "Reset filters",
+        dbUnavailable:
+          "Browse data is temporarily unavailable because the database is unreachable.",
+        noMatch: "No listings match your filters.",
+        firstList: "Be the first to list this item",
+        page: "Page",
+        of: "of",
+        previous: "Previous",
+        next: "Next",
+      };
   const sp = await searchParams;
   const search = getParam(sp, "q")?.trim();
   const cat = getParam(sp, "cat");
@@ -299,28 +337,28 @@ export default async function BrowsePage({
         <div className="space-y-1">
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <SlidersHorizontal size={14} />
-            Smart browse
+            {text.smartBrowse}
           </p>
           <h1 className="text-3xl font-bold">
-            {selectedCategory ? selectedCategory.name : "All listings"}
+            {selectedCategory ? selectedCategory.name : text.allListings}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {totalCount} results | showing {listings.length} on this page
+            {totalCount} {text.resultsLine} {listings.length} {text.onThisPage}
             {dynamicFilters.length > 0 && (
               <span className="ml-2">
-                | <Badge variant="secondary">{dynamicFilters.length} extra filters</Badge>
+                | <Badge variant="secondary">{dynamicFilters.length} {text.extraFilters}</Badge>
               </span>
             )}
           </p>
           {!hasAppliedFilters && (
             <p className="text-xs text-muted-foreground">
-              Showing all active listings from all sellers.
+              {text.showingAll}
             </p>
           )}
         </div>
 
         <Link href="/browse" className="pt-1">
-          <Button variant="outline">Reset filters</Button>
+          <Button variant="outline">{text.resetFilters}</Button>
         </Link>
       </div>
 
@@ -337,6 +375,7 @@ export default async function BrowsePage({
             }))}
             cities={cities}
             templatesByCategory={templatesByCategory}
+            locale={locale}
           />
         </CardContent>
       </Card>
@@ -344,7 +383,7 @@ export default async function BrowsePage({
       {dbUnavailable && (
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="py-4 text-sm text-foreground">
-            Browse data is temporarily unavailable because the database is unreachable.
+            {text.dbUnavailable}
           </CardContent>
         </Card>
       )}
@@ -353,10 +392,10 @@ export default async function BrowsePage({
         <Card>
           <CardContent className="py-14 text-center">
             <p className="text-muted-foreground">
-              No listings match your filters.
+              {text.noMatch}
             </p>
             <Link href="/sell" className="mt-4 inline-block">
-              <Button>Be the first to list this item</Button>
+              <Button>{text.firstList}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -371,7 +410,7 @@ export default async function BrowsePage({
       <Card>
         <CardContent className="flex items-center justify-between gap-3 py-4">
           <p className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
+            {text.page} {page} {text.of} {totalPages}
           </p>
           <div className="flex gap-2">
             {prevPage ? (
@@ -382,12 +421,12 @@ export default async function BrowsePage({
                 }).toString()}`}
               >
                 <Button variant="outline" type="button">
-                  Previous
+                  {text.previous}
                 </Button>
               </Link>
             ) : (
               <Button variant="outline" type="button" disabled>
-                Previous
+                {text.previous}
               </Button>
             )}
 
@@ -398,11 +437,11 @@ export default async function BrowsePage({
                   page: String(nextPage),
                 }).toString()}`}
               >
-                <Button type="button">Next</Button>
+                <Button type="button">{text.next}</Button>
               </Link>
             ) : (
               <Button type="button" disabled>
-                Next
+                {text.next}
               </Button>
             )}
           </div>

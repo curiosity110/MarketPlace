@@ -23,6 +23,7 @@ type QueueImage = {
 type Props = {
   listingId: string;
   existingImages: ExistingImage[];
+  locale?: "en" | "mk";
 };
 
 function extractErrorFromResponseUrl(responseUrl: string | null) {
@@ -55,8 +56,36 @@ function extractErrorFromResponseText(responseText: string) {
   }
 }
 
-export function ListingImageUpload({ listingId, existingImages }: Props) {
+export function ListingImageUpload({
+  listingId,
+  existingImages,
+  locale = "en",
+}: Props) {
   const router = useRouter();
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        selectPhotos: "Избери фотографии",
+        clientCompression: `До ${LISTING_IMAGE_MAX_FILES} слики. Клиентска компресија: max ширина 1800px, квалитет 0.8, max 4MB по слика.`,
+        readyToUpload: "Спремни за прикачување",
+        uploading: "Прикачување...",
+        uploadSelected: "Прикачи избрани",
+        clear: "Исчисти",
+        uploaded: "прикачено",
+        currentImages: "Тековни слики",
+        noImages: "Сè уште нема прикачени слики.",
+      }
+    : {
+        selectPhotos: "Select photos",
+        clientCompression: `Up to ${LISTING_IMAGE_MAX_FILES} images. Client compression: max width 1800px, quality 0.8, max 4MB each.`,
+        readyToUpload: "Ready to upload",
+        uploading: "Uploading...",
+        uploadSelected: "Upload selected",
+        clear: "Clear",
+        uploaded: "uploaded",
+        currentImages: "Current images",
+        noImages: "No images uploaded yet.",
+      };
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [queue, setQueue] = useState<QueueImage[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -189,7 +218,7 @@ export function ListingImageUpload({ listingId, existingImages }: Props) {
     <div className="space-y-3">
       <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Select photos</span>
+          <span className="text-sm font-medium">{text.selectPhotos}</span>
           <input
             ref={inputRef}
             type="file"
@@ -201,13 +230,15 @@ export function ListingImageUpload({ listingId, existingImages }: Props) {
           />
         </label>
         <p className="mt-1 text-xs text-muted-foreground">
-          Up to {LISTING_IMAGE_MAX_FILES} images. Client compression: max width 1800px, quality 0.8, max 4MB each.
+          {text.clientCompression}
         </p>
       </div>
 
       {queue.length > 0 && (
         <div className="rounded-xl border border-border/70 bg-card p-3">
-          <p className="mb-2 text-sm font-semibold">Ready to upload ({queue.length})</p>
+          <p className="mb-2 text-sm font-semibold">
+            {text.readyToUpload} ({queue.length})
+          </p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
             {queue.map((item, index) => (
               <div
@@ -229,7 +260,7 @@ export function ListingImageUpload({ listingId, existingImages }: Props) {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button type="button" onClick={onUpload} disabled={uploading}>
-              {uploading ? "Uploading..." : "Upload selected"}
+              {uploading ? text.uploading : text.uploadSelected}
             </Button>
             <Button
               type="button"
@@ -240,7 +271,7 @@ export function ListingImageUpload({ listingId, existingImages }: Props) {
                 if (inputRef.current) inputRef.current.value = "";
               }}
             >
-              Clear
+              {text.clear}
             </Button>
           </div>
         </div>
@@ -254,7 +285,9 @@ export function ListingImageUpload({ listingId, existingImages }: Props) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-muted-foreground">{progress}% uploaded</p>
+          <p className="text-xs text-muted-foreground">
+            {progress}% {text.uploaded}
+          </p>
         </div>
       )}
 
@@ -270,7 +303,9 @@ export function ListingImageUpload({ listingId, existingImages }: Props) {
       )}
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold">Current images ({existingImages.length})</p>
+        <p className="text-sm font-semibold">
+          {text.currentImages} ({existingImages.length})
+        </p>
         {existingImages.length > 0 ? (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
             {existingImages.map((image) => (
@@ -295,7 +330,7 @@ export function ListingImageUpload({ listingId, existingImages }: Props) {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No images uploaded yet.</p>
+          <p className="text-sm text-muted-foreground">{text.noImages}</p>
         )}
       </div>
     </div>

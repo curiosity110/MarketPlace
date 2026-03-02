@@ -66,6 +66,7 @@ type Props = {
     dynamicValues?: Record<string, string>;
     plan?: ListingPlan;
   };
+  locale?: "en" | "mk";
 };
 
 export function ListingForm({
@@ -75,12 +76,125 @@ export function ListingForm({
   templatesByCategory,
   allowDraft = true,
   showPlanSelector = true,
-  publishLabel = "Publish listing",
+  publishLabel,
   paymentProvider = "none",
   existingImages = [],
   initial,
+  locale = "en",
 }: Props) {
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        subscriptionCharge: "Претплата (месечно)",
+        perPostCharge: "Наплата по оглас (30 дена)",
+        restoringDraft: "Се вчитува зачуваниот нацрт...",
+        listingDetails: "Детали за оглас",
+        title: "Наслов",
+        titlePlaceholder: "Пример: Volkswagen Golf 7 2017",
+        condition: "Состојба",
+        categoryFields: "Полиња на категорија",
+        categoryAndLocation: "Категорија и локација",
+        requestCategory: "Побарај категорија",
+        price: "Цена",
+        pricePlaceholder: "Цена",
+        currency: "Валута",
+        description: "Опис",
+        descriptionPlaceholder:
+          "Опиши состојба, карактеристики, испорака и услови за плаќање.",
+        category: "Категорија",
+        city: "Град",
+        noCityAvailable: "Нема достапен град",
+        sellerPhoneForPost: "Телефон за овој оглас",
+        useDifferentPhone: "Користи друг телефон за овој оглас",
+        useSavedPhone: "Користи зачуван телефон",
+        usingSavedPhone: "Се користи зачуван телефон",
+        country: "Држава",
+        phone: "Телефон",
+        phonePlaceholder: "Внеси телефонски број",
+        acceptedPhoneFormat:
+          "Прифатен формат: локален, +држава или 00држава.",
+        saveDraftForPhotos: "Зачувај нацрт за да прикачиш фотографии.",
+        sellerPackage: "Пакет за продавач",
+        gptIncluded: "GPT вклучен",
+        payPerListing: "Плаќање по оглас",
+        daysActive30: "30 дена активно",
+        subscription: "Претплата",
+        monthlyUnlimited: "месечно, неограничени огласи",
+        secureCheckout: "Безбедно плаќање",
+        paymentAfterPublish: "Плаќањето се појавува откако ќе кликнеш објави.",
+        saveDraft: "Зачувај нацрт",
+        payAndPublish: "Плати $",
+        publishSuffix: " / Објави",
+        stripeValidated:
+          "Dummy Stripe плаќањето се проверува пред активирање.",
+        closePaymentPopup: "Затвори прозорец за плаќање",
+        close: "Затвори",
+        cardNumber: "Број на картичка",
+        expiry: "Важи до",
+        cvc: "CVC",
+        cardholder: "Носител на картичка",
+        cardholderPlaceholder: "Тест корисник",
+        successFailCards:
+          "Успешна картичка: 4242424242424242. Неуспешна: 4000000000000002.",
+        cancel: "Откажи",
+      }
+    : {
+        subscriptionCharge: "Subscription charge (monthly)",
+        perPostCharge: "Per post charge (30 days)",
+        restoringDraft: "Restoring your saved listing draft...",
+        listingDetails: "Listing details",
+        title: "Title",
+        titlePlaceholder: "Example: Volkswagen Golf 7 2017",
+        condition: "Condition",
+        categoryFields: "Category fields",
+        categoryAndLocation: "Category and location",
+        requestCategory: "Request category",
+        price: "Price",
+        pricePlaceholder: "Price",
+        currency: "Currency",
+        description: "Description",
+        descriptionPlaceholder:
+          "Describe condition, features, delivery, and payment terms.",
+        category: "Category",
+        city: "City",
+        noCityAvailable: "No city available",
+        sellerPhoneForPost: "Seller phone for this post",
+        useDifferentPhone: "Use different phone for this post",
+        useSavedPhone: "Use saved phone",
+        usingSavedPhone: "Using saved phone",
+        country: "Country",
+        phone: "Phone",
+        phonePlaceholder: "Enter phone number",
+        acceptedPhoneFormat:
+          "Accepted format: local, +country, or 00country.",
+        saveDraftForPhotos: "Save draft to upload photos.",
+        sellerPackage: "Seller package",
+        gptIncluded: "GPT included",
+        payPerListing: "Pay per listing",
+        daysActive30: "30 days active",
+        subscription: "Subscription",
+        monthlyUnlimited: "monthly, unlimited listings",
+        secureCheckout: "Secure checkout",
+        paymentAfterPublish: "Payment appears only after you press publish.",
+        saveDraft: "Save draft",
+        payAndPublish: "Pay $",
+        publishSuffix: " / Publish",
+        stripeValidated:
+          "Stripe dummy payment is validated before activation.",
+        closePaymentPopup: "Close payment popup",
+        close: "Close",
+        cardNumber: "Card number",
+        expiry: "Expiry",
+        cvc: "CVC",
+        cardholder: "Cardholder",
+        cardholderPlaceholder: "Test User",
+        successFailCards:
+          "Success card: 4242424242424242. Fail card: 4000000000000002.",
+        cancel: "Cancel",
+      };
   const formId = useId();
+  const resolvedPublishLabel =
+    publishLabel ?? (locale === "mk" ? "Објави оглас" : "Publish listing");
   const isCreateMode = !initial?.id;
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -103,8 +217,8 @@ export function ListingForm({
   const paymentAmount = plan === "subscription" ? 30 : 4;
   const paymentLabel =
     plan === "subscription"
-      ? "Subscription charge (monthly)"
-      : "Per post charge (30 days)";
+      ? text.subscriptionCharge
+      : text.perPostCharge;
   const requiresDummyPayment = paymentProvider === "stripe-dummy";
 
   const categorySlugById = useMemo(
@@ -267,7 +381,7 @@ export function ListingForm({
   if (!isRestored) {
     return (
       <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
-        Restoring your saved listing draft...
+        {text.restoringDraft}
       </div>
     );
   }
@@ -293,14 +407,14 @@ export function ListingForm({
 
       <section className="grid items-start gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <h3 className="text-lg font-semibold">Listing details</h3>
+          <h3 className="text-lg font-semibold">{text.listingDetails}</h3>
           <div className="grid gap-3">
             <label className="space-y-1 sm:col-span-3">
-              <span className="text-sm font-medium">Title</span>
+              <span className="text-sm font-medium">{text.title}</span>
               <Input
                 name="title"
                 defaultValue={readValue("title", initial?.title ?? "")}
-                placeholder="Example: Volkswagen Golf 7 2017"
+                placeholder={text.titlePlaceholder}
                 required
                 minLength={5}
                 maxLength={120}
@@ -308,7 +422,7 @@ export function ListingForm({
             </label>
 
             <label className="space-y-1">
-              <span className="text-sm font-medium">Condition</span>
+              <span className="text-sm font-medium">{text.condition}</span>
               <Select name="condition" defaultValue={restoredCondition}>
                 {Object.values(ListingCondition).map((condition) => (
                   <option key={condition} value={condition}>
@@ -318,44 +432,45 @@ export function ListingForm({
               </Select>
             </label>
           </div>
-          <h3 className="text-base font-semibold">Category fields</h3>
+          <h3 className="text-base font-semibold">{text.categoryFields}</h3>
           <DynamicFieldsEditor
             key={categoryId}
             categoryId={categoryId}
             categorySlugById={categorySlugById}
             templatesByCategory={templatesByCategory}
             initialValues={dynamicInitialValues}
+            locale={locale}
           />
         </div>
 
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-semibold">Category and location</h3>
+            <h3 className="text-lg font-semibold">{text.categoryAndLocation}</h3>
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               <CirclePlus size={13} />
-              Request category
+              {text.requestCategory}
             </Link>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1">
-              <span className="text-sm font-medium">Price</span>
+              <span className="text-sm font-medium">{text.price}</span>
               <Input
                 type="number"
                 step="1"
                 min="1"
                 name="price"
                 defaultValue={readValue("price", String(initial?.price ?? 0))}
-                placeholder="Price"
+                placeholder={text.pricePlaceholder}
                 required
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-sm font-medium">Currency</span>
+              <span className="text-sm font-medium">{text.currency}</span>
               <Select name="currency" defaultValue={restoredCurrency}>
                 {MARKETPLACE_CURRENCIES.map((currency) => (
                   <option key={currency} value={currency}>
@@ -367,7 +482,7 @@ export function ListingForm({
           </div>
 
           <label className="space-y-1">
-            <span className="text-sm font-medium">Description</span>
+            <span className="text-sm font-medium">{text.description}</span>
             <textarea
               name="description"
               defaultValue={readValue(
@@ -375,7 +490,7 @@ export function ListingForm({
                 initial?.description ?? "",
               )}
               className="min-h-32 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
-              placeholder="Describe condition, features, delivery, and payment terms."
+              placeholder={text.descriptionPlaceholder}
               maxLength={2000}
             />
           </label>
@@ -383,7 +498,7 @@ export function ListingForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Category
+                {text.category}
               </span>
               <Select
                 name="categoryId"
@@ -401,12 +516,12 @@ export function ListingForm({
 
             <label className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                City
+                {text.city}
               </span>
               <Select name="cityId" defaultValue={restoredCityId} required>
                 {cities.length === 0 ? (
                   <option value="" disabled>
-                    No city available
+                    {text.noCityAvailable}
                   </option>
                 ) : (
                   cities.map((city) => (
@@ -421,9 +536,7 @@ export function ListingForm({
 
           <div className="space-y-2 rounded-xl border border-border/70 bg-card/90 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold">
-                Seller phone for this post
-              </p>
+              <p className="text-sm font-semibold">{text.sellerPhoneForPost}</p>
               {hasSavedProfilePhone && (
                 <button
                   type="button"
@@ -431,8 +544,8 @@ export function ListingForm({
                   onClick={() => setUseSavedPhone((prev) => !prev)}
                 >
                   {useSavedPhone
-                    ? "Use different phone for this post"
-                    : "Use saved phone"}
+                    ? text.useDifferentPhone
+                    : text.useSavedPhone}
                 </button>
               )}
             </div>
@@ -456,7 +569,7 @@ export function ListingForm({
                 />
                 <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
                   <p className="text-xs text-muted-foreground">
-                    Using saved phone
+                    {text.usingSavedPhone}
                   </p>
                   <p className="text-sm font-semibold leading-none">
                     {initial?.phoneCountry || "MK"} {initial?.phone}
@@ -467,7 +580,7 @@ export function ListingForm({
               <div className="grid gap-2 sm:grid-cols-[170px_minmax(0,1fr)]">
                 <label className="space-y-1">
                   <span className="text-xs font-medium text-muted-foreground">
-                    Country
+                    {text.country}
                   </span>
                   <Select
                     name="phoneCountry"
@@ -484,12 +597,12 @@ export function ListingForm({
 
                 <label className="space-y-1">
                   <span className="text-xs font-medium text-muted-foreground">
-                    Phone
+                    {text.phone}
                   </span>
                   <Input
                     name="phone"
                     defaultValue={readValue("phone", initial?.phone ?? "")}
-                    placeholder="Enter phone number"
+                    placeholder={text.phonePlaceholder}
                     required
                     minLength={6}
                     maxLength={20}
@@ -501,14 +614,14 @@ export function ListingForm({
               </div>
             )}
             <p className="text-[11px] text-muted-foreground">
-              Accepted format: local, +country, or 00country.
+              {text.acceptedPhoneFormat}
             </p>
           </div>
 
           {!initial?.id && (
             <div className="rounded-xl border border-border/70 bg-card/90 p-3">
               <p className="text-sm text-muted-foreground">
-                Save draft to upload photos.
+                {text.saveDraftForPhotos}
               </p>
             </div>
           )}
@@ -518,6 +631,7 @@ export function ListingForm({
               <ListingImageUpload
                 listingId={initial.id}
                 existingImages={existingImages}
+                locale={locale}
               />
             </div>
           )}
@@ -527,10 +641,10 @@ export function ListingForm({
       {showPlanSelector && (
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-lg font-semibold">Seller package</h3>
+            <h3 className="text-lg font-semibold">{text.sellerPackage}</h3>
             <span className="inline-flex items-center gap-1 rounded-full border border-secondary/25 bg-secondary/10 px-2 py-0.5 text-xs font-semibold text-secondary">
               <Sparkles size={13} />
-              GPT included
+              {text.gptIncluded}
             </span>
           </div>
 
@@ -544,9 +658,9 @@ export function ListingForm({
                   : "border-border bg-card hover:border-primary/30"
               }`}
             >
-              <p className="text-sm font-semibold">Pay per listing</p>
+              <p className="text-sm font-semibold">{text.payPerListing}</p>
               <p className="text-2xl font-black text-primary">$4</p>
-              <p className="text-xs text-muted-foreground">30 days active</p>
+              <p className="text-xs text-muted-foreground">{text.daysActive30}</p>
             </button>
 
             <button
@@ -558,10 +672,10 @@ export function ListingForm({
                   : "border-border bg-card hover:border-secondary/30"
               }`}
             >
-              <p className="text-sm font-semibold">Subscription</p>
+              <p className="text-sm font-semibold">{text.subscription}</p>
               <p className="text-2xl font-black text-secondary">$30</p>
               <p className="text-xs text-muted-foreground">
-                monthly, unlimited listings
+                {text.monthlyUnlimited}
               </p>
             </button>
           </div>
@@ -569,10 +683,10 @@ export function ListingForm({
           {requiresDummyPayment && (
             <div className="rounded-xl border border-border/70 bg-card p-2.5">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Secure checkout
+                {text.secureCheckout}
               </p>
               <p className="mt-1 text-sm">
-                Payment appears only after you press publish.{" "}
+                {text.paymentAfterPublish}{" "}
                 <span className="font-semibold">
                   ${paymentAmount} {paymentLabel.toLowerCase()}.
                 </span>
@@ -591,23 +705,25 @@ export function ListingForm({
             variant="outline"
             disabled={showPaymentPanel}
           >
-            Save draft
+            {text.saveDraft}
           </Button>
         )}
         {requiresDummyPayment ? (
           <Button type="button" onClick={() => setShowPaymentPanel(true)}>
-            Pay ${paymentAmount} / Publish
+            {text.payAndPublish}
+            {paymentAmount}
+            {text.publishSuffix}
           </Button>
         ) : (
           <Button name="intent" value="publish" type="submit">
-            {publishLabel}
+            {resolvedPublishLabel}
           </Button>
         )}
       </div>
 
       {isCreateMode && showPlanSelector && requiresDummyPayment && (
         <p className="text-xs text-muted-foreground">
-          Stripe dummy payment is validated before activation.
+          {text.stripeValidated}
         </p>
       )}
 
@@ -629,7 +745,7 @@ export function ListingForm({
         >
           <button
             type="button"
-            aria-label="Close payment popup"
+            aria-label={text.closePaymentPopup}
             onClick={() => setShowPaymentPanel(false)}
             className="absolute inset-0 bg-black/45"
           />
@@ -638,7 +754,7 @@ export function ListingForm({
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Secure checkout
+                  {text.secureCheckout}
                 </p>
                 <p className="text-2xl font-black">${paymentAmount}</p>
                 <p className="text-sm text-muted-foreground">{paymentLabel}</p>
@@ -649,14 +765,14 @@ export function ListingForm({
                 variant="outline"
                 onClick={() => setShowPaymentPanel(false)}
               >
-                Close
+                {text.close}
               </Button>
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               <label className="space-y-1 sm:col-span-3">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Card number
+                  {text.cardNumber}
                 </span>
                 <Input
                   name="dummyCardNumber"
@@ -671,7 +787,7 @@ export function ListingForm({
               </label>
               <label className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Expiry
+                  {text.expiry}
                 </span>
                 <Input
                   name="dummyCardExp"
@@ -685,7 +801,7 @@ export function ListingForm({
               </label>
               <label className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  CVC
+                  {text.cvc}
                 </span>
                 <Input
                   name="dummyCardCvc"
@@ -700,12 +816,12 @@ export function ListingForm({
               </label>
               <label className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Cardholder
+                  {text.cardholder}
                 </span>
                 <Input
                   name="dummyCardName"
                   defaultValue={readValue("dummyCardName", "")}
-                  placeholder="Test User"
+                  placeholder={text.cardholderPlaceholder}
                   autoComplete="cc-name"
                   minLength={2}
                   maxLength={80}
@@ -716,7 +832,7 @@ export function ListingForm({
             </div>
 
             <p className="mt-2 text-xs text-muted-foreground">
-              Success card: 4242424242424242. Fail card: 4000000000000002.
+              {text.successFailCards}
             </p>
 
             <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -725,10 +841,10 @@ export function ListingForm({
                 variant="outline"
                 onClick={() => setShowPaymentPanel(false)}
               >
-                Cancel
+                {text.cancel}
               </Button>
               <Button name="intent" value="publish" type="submit">
-                {publishLabel}
+                {resolvedPublishLabel}
               </Button>
             </div>
           </div>
