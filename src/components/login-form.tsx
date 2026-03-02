@@ -21,9 +21,18 @@ function getSafeNextPath(nextPath: string) {
   return nextPath;
 }
 
+function getSiteOrigin() {
+  const configuredSite = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configuredSite && /^https?:\/\//.test(configuredSite)) {
+    return configuredSite.replace(/\/+$/, "");
+  }
+  return window.location.origin;
+}
+
 function getRedirectUrl(nextPath: string) {
   const safeNext = getSafeNextPath(nextPath);
-  return `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(safeNext)}`;
+  const site = getSiteOrigin();
+  return `${site}/api/auth/callback?next=${encodeURIComponent(safeNext)}`;
 }
 
 export function LoginForm({
@@ -42,12 +51,16 @@ export function LoginForm({
   const isRegister = mode === "register";
   const canSubmit = useMemo(() => {
     if (!email.trim()) return false;
-    if (!password.trim()) return false;
     if (isRegister && password.trim().length < 8) return false;
     return true;
   }, [email, password, isRegister]);
 
   async function loginWithPassword() {
+    if (!password.trim()) {
+      setMessage("Please enter your password to log in.");
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
     try {
@@ -74,7 +87,7 @@ export function LoginForm({
     setMessage(null);
     try {
       const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -85,14 +98,26 @@ export function LoginForm({
         },
       });
 
+      if (process.env.NODE_ENV !== "production") {
+        console.log("signUp result", {
+          hasSession: !!data.session,
+          hasUser: !!data.user,
+          error: error?.message,
+        });
+      }
+
       if (error) {
         setMessage(error.message);
         return;
       }
-      setMessage(
-        "Account created. Check your email and confirm your address before login.",
-      );
-      setMode("login");
+
+      if (!data.session) {
+        setMessage("Check your email to confirm your account, then log in.");
+        setMode("login");
+        return;
+      }
+
+      window.location.href = safeNextPath;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Registration failed.");
     } finally {

@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { en } from "@/messages/en";
+
+type Props = {
+  registerLabel: string;
+  loginLabel: string;
+};
 
 function isSafePath(path: string) {
   return path.startsWith("/") && !path.startsWith("//");
@@ -23,7 +27,7 @@ function resolveNextPath(pathname: string) {
   return candidate;
 }
 
-export function AuthCtaLinks() {
+export function AuthCtaLinks({ registerLabel, loginLabel }: Props) {
   const pathname = usePathname() || "/";
   const nextPath = resolveNextPath(pathname);
   const encodedNext = encodeURIComponent(nextPath);
@@ -32,11 +36,11 @@ export function AuthCtaLinks() {
     <div className="hidden items-center gap-2 sm:flex">
       <Link href={`/register?next=${encodedNext}`}>
         <Button variant="outline" size="sm">
-          {en.nav.register}
+          {registerLabel}
         </Button>
       </Link>
       <Link href={`/login?next=${encodedNext}`}>
-        <Button size="sm">{en.nav.login}</Button>
+        <Button size="sm">{loginLabel}</Button>
       </Link>
     </div>
   );

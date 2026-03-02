@@ -12,7 +12,7 @@ export default async function RegisterPage({
   const next =
     sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
       ? sp.next
-      : "/browse";
+      : "/dashboard";
   const encodedNext = encodeURIComponent(next);
 
   return (

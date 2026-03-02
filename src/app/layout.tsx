@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
 import { Container } from "@/components/ui/container";
 import { SiteAssistant } from "@/components/site-assistant";
+import { getServerLocale } from "@/lib/i18n";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
@@ -14,11 +15,13 @@ export const metadata: Metadata = {
     "Business marketplace for Macedonia and worldwide trading. Buy and sell securely.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getServerLocale();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} min-h-screen bg-background text-foreground antialiased`}
       >

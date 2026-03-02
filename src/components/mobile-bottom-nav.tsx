@@ -15,6 +15,14 @@ import { cn } from "@/lib/utils";
 type Props = {
   isLoggedIn: boolean;
   isAdmin: boolean;
+  labels: {
+    home: string;
+    browse: string;
+    categories: string;
+    admin: string;
+    dashboard: string;
+    login: string;
+  };
 };
 
 type NavItem = {
@@ -24,7 +32,7 @@ type NavItem = {
   show?: boolean;
 };
 
-export function MobileBottomNav({ isLoggedIn, isAdmin }: Props) {
+export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
   const pathname = usePathname();
   const currentPath = pathname;
   const safeNextPath =
@@ -38,12 +46,12 @@ export function MobileBottomNav({ isLoggedIn, isAdmin }: Props) {
   const loginHref = `/login?next=${encodeURIComponent(safeNextPath)}`;
 
   const items: NavItem[] = [
-    { href: "/", label: "Home", icon: Home, show: true },
-    { href: "/browse", label: "Browse", icon: Compass, show: true },
-    { href: "/categories", label: "Categories", icon: FolderKanban, show: true },
+    { href: "/", label: labels.home, icon: Home, show: true },
+    { href: "/browse", label: labels.browse, icon: Compass, show: true },
+    { href: "/categories", label: labels.categories, icon: FolderKanban, show: true },
     {
       href: isAdmin ? "/admin" : isLoggedIn ? "/dashboard" : loginHref,
-      label: isAdmin ? "Admin" : isLoggedIn ? "Dashboard" : "Login",
+      label: isAdmin ? labels.admin : isLoggedIn ? labels.dashboard : labels.login,
       icon: isAdmin ? Settings : isLoggedIn ? Compass : LogIn,
       show: true,
     },

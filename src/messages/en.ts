@@ -1,5 +1,10 @@
 export const en = {
   appName: "MarketPlace MKD",
+  language: {
+    label: "Language",
+    english: "English",
+    macedonian: "Macedonian",
+  },
   nav: {
     home: "Home",
     browse: "Browse",
