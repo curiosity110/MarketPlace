@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const DEFAULT_LOCALE = "mk";
+const LOCALE_COOKIE = "locale";
+const LEGACY_LOCALE_COOKIE = "mp_locale";
+
 function hasSupabaseAuthCookie(req: NextRequest) {
   const cookieNames = req.cookies.getAll().map((cookie) => cookie.name);
 
@@ -29,26 +33,49 @@ export function middleware(req: NextRequest) {
     path.startsWith("/admin") ||
     path.startsWith("/profile");
 
-  if (!isProtected) return NextResponse.next();
+  const response = NextResponse.next();
+  const hasLocaleCookie =
+    Boolean(req.cookies.get(LOCALE_COOKIE)?.value) ||
+    Boolean(req.cookies.get(LEGACY_LOCALE_COOKIE)?.value);
+  if (!hasLocaleCookie) {
+    response.cookies.set(LOCALE_COOKIE, DEFAULT_LOCALE, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+    });
+    response.cookies.set(LEGACY_LOCALE_COOKIE, DEFAULT_LOCALE, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+    });
+  }
+
+  if (!isProtected) return response;
 
   if (!hasSupabaseAuthCookie(req)) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("next", `${req.nextUrl.pathname}${req.nextUrl.search}`);
-    return NextResponse.redirect(loginUrl);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    if (!hasLocaleCookie) {
+      redirectResponse.cookies.set(LOCALE_COOKIE, DEFAULT_LOCALE, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365,
+        sameSite: "lax",
+      });
+      redirectResponse.cookies.set(LEGACY_LOCALE_COOKIE, DEFAULT_LOCALE, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365,
+        sameSite: "lax",
+      });
+    }
+    return redirectResponse;
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
   matcher: [
-    "/dashboard",
-    "/dashboard/:path*",
-    "/sell",
-    "/sell/:path*",
-    "/admin",
-    "/admin/:path*",
-    "/profile",
-    "/profile/:path*",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };

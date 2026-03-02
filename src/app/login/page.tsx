@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { LoginForm } from "@/components/login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getServerLocale } from "@/lib/i18n";
+import { getServerLocale, t } from "@/lib/i18n";
 
 export default async function LoginPage({
   searchParams,
@@ -31,7 +31,11 @@ export default async function LoginPage({
         openRegister: "Open register page",
       };
   const sp = await searchParams;
-  const error = sp.error ? decodeURIComponent(sp.error) : null;
+  const errorRaw = sp.error ? decodeURIComponent(sp.error) : null;
+  const error =
+    errorRaw && errorRaw.startsWith("auth.")
+      ? t(locale, errorRaw)
+      : errorRaw;
   const next =
     sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
       ? sp.next

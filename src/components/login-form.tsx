@@ -17,6 +17,10 @@ type Props = {
   locale?: Locale;
 };
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 function getSafeNextPath(nextPath: string) {
   if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
     return "/dashboard";
@@ -84,12 +88,16 @@ export function LoginForm({
 
   const isRegister = mode === "register";
   const canSubmit = useMemo(() => {
-    if (!email.trim()) return false;
+    if (!email.trim() || !isValidEmail(email)) return false;
     if (isRegister && password.trim().length < 8) return false;
     return true;
   }, [email, password, isRegister]);
 
   async function onLogin() {
+    if (!email.trim() || !isValidEmail(email)) {
+      setMessage(t(locale, "auth.error.emailRequired"));
+      return;
+    }
     if (!password.trim()) {
       setMessage(t(locale, "auth.error.passwordRequired"));
       return;
@@ -111,6 +119,15 @@ export function LoginForm({
   }
 
   async function onRegister() {
+    if (!email.trim() || !isValidEmail(email)) {
+      setMessage(t(locale, "auth.error.emailRequired"));
+      return;
+    }
+    if (!password || password.trim().length < 8) {
+      setMessage(t(locale, "auth.error.passwordTooShort"));
+      return;
+    }
+
     setLoadingAction("register");
     setMessage(null);
     try {
@@ -130,6 +147,11 @@ export function LoginForm({
   }
 
   async function onSendMagicLink() {
+    if (!email.trim() || !isValidEmail(email)) {
+      setMessage(t(locale, "auth.error.emailRequired"));
+      return;
+    }
+
     setLoadingAction("magic");
     setMessage(null);
     try {

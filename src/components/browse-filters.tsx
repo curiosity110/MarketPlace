@@ -118,7 +118,7 @@ export function BrowseFilters({
     ? {
         NEW: "Ново",
         USED: "Користено",
-        REFURBISHED: "Рефурбиширано",
+        REFURBISHED: "Refurbished",
       }
     : {
         NEW: "New",
@@ -134,9 +134,9 @@ export function BrowseFilters({
   const [min, setMin] = React.useState(sp.get("min") ?? "");
   const [max, setMax] = React.useState(sp.get("max") ?? "");
   const [sort, setSort] = React.useState(sp.get("sort") ?? "newest");
-  const [dynamicValues, setDynamicValues] = React.useState<Record<string, string>>(
-    getInitialDynamicValues(sp),
-  );
+  const [dynamicValues, setDynamicValues] = React.useState<
+    Record<string, string>
+  >(getInitialDynamicValues(sp));
 
   const searchParamKey = sp.toString();
 
@@ -163,7 +163,9 @@ export function BrowseFilters({
 
   React.useEffect(() => {
     setDynamicValues((prev) => {
-      const allowedKeys = new Set(dynamicTemplates.map((template) => template.key));
+      const allowedKeys = new Set(
+        dynamicTemplates.map((template) => template.key),
+      );
       return Object.fromEntries(
         Object.entries(prev).filter(([key]) => allowedKeys.has(key)),
       );

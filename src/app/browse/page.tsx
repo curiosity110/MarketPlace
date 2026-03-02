@@ -122,15 +122,17 @@ export default async function BrowsePage({
     maxRaw !== undefined && maxRaw >= 0 ? Math.round(maxRaw * 100) : undefined;
 
   const [safeMinCents, safeMaxCents] =
-    minCents !== undefined &&
-    maxCents !== undefined &&
-    minCents > maxCents
+    minCents !== undefined && maxCents !== undefined && minCents > maxCents
       ? [maxCents, minCents]
       : [minCents, maxCents];
 
   const dynamicFilters = Object.entries(sp)
-    .map(([key, value]) => [key, Array.isArray(value) ? value[0] : value] as const)
-    .filter(([key, value]) => key.startsWith("df_") && typeof value === "string")
+    .map(
+      ([key, value]) => [key, Array.isArray(value) ? value[0] : value] as const,
+    )
+    .filter(
+      ([key, value]) => key.startsWith("df_") && typeof value === "string",
+    )
     .map(([key, value]) => ({
       key: key.slice(3),
       value: String(value).trim(),
@@ -257,7 +259,8 @@ export default async function BrowsePage({
 
   try {
     if (!shouldSkipPrismaCalls()) {
-      [listings, totalCount, parentCategories, cities] = await fetchBrowseData();
+      [listings, totalCount, parentCategories, cities] =
+        await fetchBrowseData();
       markPrismaHealthy();
     } else {
       dbUnavailable = true;
@@ -369,14 +372,15 @@ export default async function BrowsePage({
             {totalCount} {text.resultsLine} {listings.length} {text.onThisPage}
             {dynamicFilters.length > 0 && (
               <span className="ml-2">
-                | <Badge variant="secondary">{dynamicFilters.length} {text.extraFilters}</Badge>
+                |{" "}
+                <Badge variant="secondary">
+                  {dynamicFilters.length} {text.extraFilters}
+                </Badge>
               </span>
             )}
           </p>
           {!hasAppliedFilters && (
-            <p className="text-xs text-muted-foreground">
-              {text.showingAll}
-            </p>
+            <p className="text-xs text-muted-foreground">{text.showingAll}</p>
           )}
         </div>
 
@@ -391,7 +395,10 @@ export default async function BrowsePage({
               sortParams.set("page", "1");
 
               return (
-                <Link key={option.value} href={`/browse?${sortParams.toString()}`}>
+                <Link
+                  key={option.value}
+                  href={`/browse?${sortParams.toString()}`}
+                >
                   <Button
                     size="sm"
                     variant={sort === option.value ? "default" : "outline"}
@@ -440,9 +447,7 @@ export default async function BrowsePage({
       {listings.length === 0 ? (
         <Card>
           <CardContent className="py-14 text-center">
-            <p className="text-muted-foreground">
-              {text.noMatch}
-            </p>
+            <p className="text-muted-foreground">{text.noMatch}</p>
             <Link href="/dashboard?create=1" className="mt-4 inline-block">
               <Button>{text.firstList}</Button>
             </Link>

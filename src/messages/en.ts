@@ -1,4 +1,4 @@
-export const en = {
+﻿export const en = {
   appName: "MarketPlace MKD",
   auth: {
     signup: {
@@ -15,6 +15,10 @@ export const en = {
       invalidCredentials: "Invalid email or password.",
       generic: "Authentication failed. Please try again.",
       passwordRequired: "Please enter your password to log in.",
+      passwordTooShort: "Password must be at least 8 characters.",
+      emailRequired: "Please enter a valid email address.",
+      callbackFailed: "Login link expired or invalid. Request a new one.",
+      invalidLink: "Invalid authentication link. Please request a new one.",
     },
   },
   language: {

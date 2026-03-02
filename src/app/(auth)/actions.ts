@@ -19,6 +19,10 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 function isInvalidCredentialsError(message: string) {
   const lower = message.toLowerCase();
   return (
@@ -55,14 +59,22 @@ export async function signUpWithPassword(
   password: string,
   name?: string,
 ): Promise<AuthActionResult> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+    return { ok: false, messageKey: "auth.error.emailRequired" };
+  }
+  if (!password || password.trim().length < 8) {
+    return { ok: false, messageKey: "auth.error.passwordTooShort" };
+  }
+
   try {
     const supabase = await createSupabaseServerClient();
     const site = await resolveSiteUrl();
     const result = await supabase.auth.signUp({
-      email: normalizeEmail(email),
+      email: normalizedEmail,
       password,
       options: {
-        emailRedirectTo: `${site}/api/auth/callback`,
+        emailRedirectTo: `${site}/auth/callback`,
         data: {
           name: name?.trim() || undefined,
         },
@@ -75,6 +87,21 @@ export async function signUpWithPassword(
     if (result.data.session) {
       return { ok: true, messageKey: "auth.signup.successSignedIn" };
     }
+
+    // If confirm-email is disabled, this fallback signs in immediately.
+    const signInFallback = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
+    authLog(
+      "signUpWithPassword.fallbackSignIn",
+      signInFallback.data,
+      signInFallback.error,
+    );
+    if (!signInFallback.error && signInFallback.data.session) {
+      return { ok: true, messageKey: "auth.signup.successSignedIn" };
+    }
+
     return { ok: true, messageKey: "auth.signup.checkEmail" };
   } catch (error) {
     authLog("signUpWithPassword", null, {
@@ -88,10 +115,18 @@ export async function signInWithPassword(
   email: string,
   password: string,
 ): Promise<AuthActionResult> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+    return { ok: false, messageKey: "auth.error.emailRequired" };
+  }
+  if (!password || !password.trim()) {
+    return { ok: false, messageKey: "auth.error.passwordRequired" };
+  }
+
   try {
     const supabase = await createSupabaseServerClient();
     const result = await supabase.auth.signInWithPassword({
-      email: normalizeEmail(email),
+      email: normalizedEmail,
       password,
     });
 
@@ -116,13 +151,18 @@ export async function signInWithPassword(
 export async function signInWithMagicLink(
   email: string,
 ): Promise<AuthActionResult> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+    return { ok: false, messageKey: "auth.error.emailRequired" };
+  }
+
   try {
     const supabase = await createSupabaseServerClient();
     const site = await resolveSiteUrl();
     const result = await supabase.auth.signInWithOtp({
-      email: normalizeEmail(email),
+      email: normalizedEmail,
       options: {
-        emailRedirectTo: `${site}/api/auth/callback`,
+        emailRedirectTo: `${site}/auth/callback`,
       },
     });
 

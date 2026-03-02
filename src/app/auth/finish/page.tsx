@@ -6,9 +6,12 @@ export default async function FinishAuth({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
-  const next =
-    sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
-      ? sp.next
-      : "/browse";
-  redirect(`/register?next=${encodeURIComponent(next)}`);
+  const params = new URLSearchParams();
+  Object.entries(sp).forEach(([key, value]) => {
+    if (!value) return;
+    params.set(key, value);
+  });
+
+  const query = params.toString();
+  redirect(query ? `/auth/callback?${query}` : "/auth/callback");
 }

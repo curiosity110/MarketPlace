@@ -1,4 +1,4 @@
-export const mk = {
+﻿export const mk = {
   appName: "MarketPlace MKD",
   auth: {
     signup: {
@@ -16,6 +16,10 @@ export const mk = {
       invalidCredentials: "Невалидни е-пошта или лозинка.",
       generic: "Најавата не успеа. Обиди се повторно.",
       passwordRequired: "Внеси лозинка за да се најавиш.",
+      passwordTooShort: "Лозинката мора да има најмалку 8 карактери.",
+      emailRequired: "Внеси валидна е-пошта.",
+      callbackFailed: "Линкот за најава е истечен или невалиден. Побарај нов.",
+      invalidLink: "Невалиден линк за автентикација. Побарај нов.",
     },
   },
   language: {
