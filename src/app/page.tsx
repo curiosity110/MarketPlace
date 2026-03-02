@@ -18,6 +18,7 @@ import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
 
 export default async function Home() {
@@ -275,7 +276,9 @@ export default async function Home() {
                   href={`/browse?cat=${category.id}`}
                   className="flex items-center justify-between rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm transition-colors hover:border-primary/35 hover:bg-orange-50/50 dark:hover:bg-orange-500/10"
                 >
-                  <span className="font-medium">{category.name}</span>
+                  <span className="font-medium">
+                    {localizeCategoryName(category, locale)}
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     {category._count.listings} {text.listings}
                   </span>

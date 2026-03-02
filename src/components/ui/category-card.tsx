@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
 
 interface CategoryCardProps {
   id: string;
@@ -9,6 +10,7 @@ interface CategoryCardProps {
   color?: "orange" | "blue" | "purple" | "green";
   href?: string;
   count?: number;
+  locale?: Locale;
 }
 
 const colorStyles = {
@@ -49,7 +51,9 @@ export function CategoryCard({
   color = "blue",
   href,
   count,
+  locale = "en",
 }: CategoryCardProps) {
+  const text = locale === "mk" ? { items: "производи" } : { items: "items" };
   const styles = colorStyles[color];
   const content = (
     <div
@@ -79,7 +83,7 @@ export function CategoryCard({
             styles.badge,
           )}
         >
-          {count} items
+          {count} {text.items}
         </span>
       )}
     </div>
@@ -94,13 +98,17 @@ export function CategoryCard({
 
 export function CategoryGrid({
   categories,
+  locale = "en",
 }: {
   categories: Array<CategoryCardProps>;
+  locale?: Locale;
 }) {
   if (categories.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">No categories found</p>
+        <p className="text-muted-foreground">
+          {locale === "mk" ? "Не се пронајдени категории" : "No categories found"}
+        </p>
       </div>
     );
   }
@@ -108,7 +116,7 @@ export function CategoryGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {categories.map((cat) => (
-        <CategoryCard key={cat.id} {...cat} />
+        <CategoryCard key={cat.id} {...cat} locale={locale} />
       ))}
     </div>
   );

@@ -12,6 +12,7 @@ import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
@@ -319,6 +320,9 @@ export default async function BrowsePage({
   const selectedCategory = flattenedCategories.find(
     (category) => category.id === categoryId,
   );
+  const selectedCategoryLabel = selectedCategory
+    ? localizeCategoryName(selectedCategory, locale)
+    : null;
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const prevPage = page > 1 ? page - 1 : null;
@@ -340,7 +344,7 @@ export default async function BrowsePage({
             {text.smartBrowse}
           </p>
           <h1 className="text-3xl font-bold">
-            {selectedCategory ? selectedCategory.name : text.allListings}
+            {selectedCategoryLabel || text.allListings}
           </h1>
           <p className="text-sm text-muted-foreground">
             {totalCount} {text.resultsLine} {listings.length} {text.onThisPage}
@@ -367,10 +371,10 @@ export default async function BrowsePage({
           <BrowseFilters
             categories={parentCategories.map((category) => ({
               id: category.id,
-              name: category.name,
+              name: localizeCategoryName(category, locale),
               children: category.children.map((child) => ({
                 id: child.id,
-                name: child.name,
+                name: localizeCategoryName(child, locale),
               })),
             }))}
             cities={cities}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { localizeCategoryName } from "@/lib/category-label";
 
 type Category = {
   id: string;
@@ -137,7 +138,7 @@ export function CategoryRequestForm({
             <option value="">{text.noParent}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {localizeCategoryName({ name: category.name }, locale)}
               </option>
             ))}
           </select>

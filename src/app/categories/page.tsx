@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
@@ -118,7 +119,11 @@ export default async function CategoriesPage({
   }
 
   const visibleCategories = categories.filter((category) =>
-    query ? category.name.toLowerCase().includes(query) : true,
+    query
+      ? `${category.name} ${localizeCategoryName(category, locale)}`
+          .toLowerCase()
+          .includes(query)
+      : true,
   );
   const totalActiveListings = categories.reduce(
     (sum, category) =>
@@ -207,7 +212,9 @@ export default async function CategoriesPage({
                     <div className="inline-flex rounded-xl border border-border/70 bg-muted/20 p-2">
                       <Icon size={20} className="text-primary" />
                     </div>
-                    <h2 className="mt-2 text-xl font-bold">{category.name}</h2>
+                    <h2 className="mt-2 text-xl font-bold">
+                      {localizeCategoryName(category, locale)}
+                    </h2>
                   </div>
                   <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
                     {activeCount}/{totalCount}
@@ -222,7 +229,7 @@ export default async function CategoriesPage({
                         href={`/browse?sub=${child.id}`}
                         className="rounded-full border border-secondary/20 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 transition-colors hover:border-secondary/35 dark:bg-blue-500/10 dark:text-blue-300"
                       >
-                        {child.name}
+                        {localizeCategoryName(child, locale)}
                       </Link>
                     ))}
                   </div>

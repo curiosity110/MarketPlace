@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateListingPopout } from "@/components/create-listing-popout";
 import { createListingFromDashboard } from "@/lib/actions/create-listing";
 import { canAccessControl, requireSeller } from "@/lib/auth";
+import { localizeCategoryName } from "@/lib/category-label";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import {
   groupTemplatesByCategory,
@@ -236,7 +237,7 @@ export async function DashboardPageContent({
       const key = listing.category.id;
       const current = acc.get(key) || {
         id: listing.category.id,
-        name: listing.category.name,
+        name: localizeCategoryName(listing.category, locale),
         posted: 0,
         active: 0,
       };

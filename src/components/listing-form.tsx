@@ -16,6 +16,7 @@ import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ListingImageUpload } from "@/components/listing-image-upload";
+import { localizeCategoryName } from "@/lib/category-label";
 import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
 import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
 import { PHONE_COUNTRIES } from "@/lib/phone";
@@ -508,7 +509,7 @@ export function ListingForm({
               >
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
-                    {category.name}
+                    {localizeCategoryName(category, locale)}
                   </option>
                 ))}
               </Select>

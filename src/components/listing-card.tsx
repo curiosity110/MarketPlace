@@ -11,6 +11,7 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { localizeCategoryPath } from "@/lib/category-label";
 
 type ListingCardProps = {
   listing: Listing & {
@@ -59,9 +60,7 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
     .filter((item) => item.value)
     .slice(0, 2);
 
-  const categoryLabel = listing.category.parent
-    ? `${listing.category.parent.name} / ${listing.category.name}`
-    : listing.category.name;
+  const categoryLabel = localizeCategoryPath(listing.category, locale);
   const sellerLabel =
     listing.seller?.name || listing.seller?.email?.split("@")[0] || text.seller;
 

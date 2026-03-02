@@ -13,6 +13,7 @@ import {
 import { ListingGallery } from "@/components/listing-gallery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { localizeCategoryPath } from "@/lib/category-label";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { getServerLocale } from "@/lib/i18n";
 
@@ -160,9 +161,7 @@ export default async function ListingDetails({
       Boolean(item),
     );
 
-  const categoryLabel = listing.category.parent
-    ? `${listing.category.parent.name} / ${listing.category.name}`
-    : listing.category.name;
+  const categoryLabel = localizeCategoryPath(listing.category, locale);
 
   return (
     <div className="space-y-6">
