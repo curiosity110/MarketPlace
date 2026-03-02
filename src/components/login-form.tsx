@@ -33,24 +33,24 @@ export function LoginForm({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        login: "Najava",
-        register: "Registracija",
-        nameOptional: "Ime (opcionalno)",
-        namePlaceholder: "Tvoeto ime",
-        email: "E-posta",
+        login: "Најава",
+        register: "Регистрација",
+        nameOptional: "Име (опционално)",
+        namePlaceholder: "Твоето име",
+        email: "Е-пошта",
         emailPlaceholder: "you@example.com",
-        password: "Lozinka",
-        min8: "(min 8 karakteri)",
-        registerPasswordPlaceholder: "Kreiraj bezbedna lozinka",
-        loginPasswordPlaceholder: "Tvojata lozinka",
-        wait: "Pocekaj...",
-        createAccount: "Kreiraj profil",
-        sendMagicLink: "Isprati magic link",
+        password: "Лозинка",
+        min8: "(мин 8 карактери)",
+        registerPasswordPlaceholder: "Креирај безбедна лозинка",
+        loginPasswordPlaceholder: "Твојата лозинка",
+        wait: "Почекај...",
+        createAccount: "Креирај профил",
+        sendMagicLink: "Испрати magic линк",
         policies:
-          "So prodolzuvanje se soglasuvas so pravilata i moderacijata na marketplace-ot.",
+          "Со продолжување се согласуваш со правилата и модерацијата на маркетплејсот.",
         adminAccess:
-          "Admin pristapot se kontrolira preku uloga vo bazata.",
-        continueBrowsing: "Prodolzi so prebaruvanje",
+          "Админ пристапот се контролира преку улога во базата.",
+        continueBrowsing: "Продолжи со пребарување",
       }
     : {
         login: "Login",

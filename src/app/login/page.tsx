@@ -13,13 +13,13 @@ export default async function LoginPage({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        welcomeBack: "Dobredojde nazad",
-        subtitle: "Najavi se ili registriraj se i zapocni vednas.",
-        accountAccess: "Pristap do profil",
-        secureSession: "Bezbedna sesija preku Supabase",
-        passwordOrMagic: "Poddrzana e najava so lozinka ili magic link",
-        newHere: "Nov/a si tuka?",
-        openRegister: "Otvori registracija",
+        welcomeBack: "Добредојде назад",
+        subtitle: "Најави се или регистрирај се и започни веднаш.",
+        accountAccess: "Пристап до профил",
+        secureSession: "Безбедна сесија преку Supabase",
+        passwordOrMagic: "Поддржана е најава со лозинка или magic линк",
+        newHere: "Нов/а си тука?",
+        openRegister: "Отвори регистрација",
       }
     : {
         welcomeBack: "Welcome Back",

@@ -84,14 +84,14 @@ export function DynamicFieldsEditor({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        noAdditionalFields: "Nema dopolnitelni polinja za ovaa kategorija.",
-        smartAssist: "Pameten asistent",
-        autoFillDemo: "Avto-popolnuvanje demo",
-        clear: "Iscisti",
-        quickPresets: "Brzi preset-i:",
-        select: "Izberi",
-        yes: "Da",
-        no: "Ne",
+        noAdditionalFields: "Нема дополнителни полиња за оваа категорија.",
+        smartAssist: "Паметен асистент",
+        autoFillDemo: "Авто-пополнување демо",
+        clear: "Исчисти",
+        quickPresets: "Брзи пресети:",
+        select: "Избери",
+        yes: "Да",
+        no: "Не",
       }
     : {
         noAdditionalFields: "No additional fields for this category.",

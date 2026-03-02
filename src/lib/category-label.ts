@@ -1,25 +1,25 @@
 import type { Locale } from "@/lib/i18n";
 
 const MK_BY_SLUG: Record<string, string> = {
-  cars: "Avtomobili",
-  "real-estate": "Nedviznosti",
-  electronics: "Elektronika",
-  jobs: "Rabota",
-  services: "Uslugi",
-  furniture: "Mebel",
-  phones: "Telefoni",
-  fashion: "Moda",
+  cars: "Автомобили",
+  "real-estate": "Недвижности",
+  electronics: "Електроника",
+  jobs: "Работа",
+  services: "Услуги",
+  furniture: "Мебел",
+  phones: "Телефони",
+  fashion: "Мода",
 };
 
 const MK_BY_NAME: Record<string, string> = {
-  Cars: "Avtomobili",
-  "Real Estate": "Nedviznosti",
-  Electronics: "Elektronika",
-  Jobs: "Rabota",
-  Services: "Uslugi",
-  Furniture: "Mebel",
-  Phones: "Telefoni",
-  Fashion: "Moda",
+  Cars: "Автомобили",
+  "Real Estate": "Недвижности",
+  Electronics: "Електроника",
+  Jobs: "Работа",
+  Services: "Услуги",
+  Furniture: "Мебел",
+  Phones: "Телефони",
+  Fashion: "Мода",
 };
 
 type CategoryLike = {
