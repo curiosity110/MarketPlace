@@ -11,7 +11,6 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrencyFromCents } from "@/lib/currency";
-import { getServerLocale } from "@/lib/i18n";
 
 type ListingCardProps = {
   listing: Listing & {
@@ -27,10 +26,10 @@ type ListingCardProps = {
     images: ListingImage[];
     fieldValues: ListingFieldValue[];
   };
+  locale?: "en" | "mk";
 };
 
-export async function ListingCard({ listing }: ListingCardProps) {
-  const locale = await getServerLocale();
+export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
   const isMk = locale === "mk";
   const text = isMk
     ? {

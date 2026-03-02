@@ -65,7 +65,7 @@ export async function Nav() {
               englishLabel={messages.language.english}
               macedonianLabel={messages.language.macedonian}
             />
-            <ThemeToggle />
+            <ThemeToggle label={messages.theme.toggle} />
             {user ? (
               <form action="/api/auth/logout" method="post" className="contents">
                 <Button variant="outline" size="sm" type="submit">

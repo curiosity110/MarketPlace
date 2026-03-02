@@ -402,7 +402,7 @@ export default async function BrowsePage({
       ) : (
         <div className="responsive-grid gap-4">
           {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+            <ListingCard key={listing.id} listing={listing} locale={locale} />
           ))}
         </div>
       )}

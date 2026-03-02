@@ -5,6 +5,9 @@ export const en = {
     english: "English",
     macedonian: "Macedonian",
   },
+  theme: {
+    toggle: "Toggle theme",
+  },
   nav: {
     home: "Home",
     browse: "Browse",

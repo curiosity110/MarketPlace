@@ -20,11 +20,41 @@ type Props = {
   action: (formData: FormData) => void | Promise<void>;
   categories: Category[];
   recentRequests: CategoryRequestItem[];
+  locale?: "en" | "mk";
 };
 
 const STORAGE_KEY = "mkd:category-request-form:v1";
 
-export function CategoryRequestForm({ action, categories, recentRequests }: Props) {
+export function CategoryRequestForm({
+  action,
+  categories,
+  recentRequests,
+  locale = "en",
+}: Props) {
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        categoryName: "Име на категорија",
+        categoryNamePlaceholder: "Пример: Индустриска опрема",
+        closestParent: "Најблиска родителска категорија",
+        noParent: "Без родител (горно ниво)",
+        reasonDetails: "Причина / детали",
+        reasonPlaceholder: "Што треба да може да се пребарува во оваа категорија?",
+        submitRequest: "Поднеси барање за категорија",
+        autosaveHint: "Оваа форма се зачувува локално додека не ја поднесеш.",
+        latestRequests: "Твои последни барања",
+      }
+    : {
+        categoryName: "Category name",
+        categoryNamePlaceholder: "Example: Industrial Equipment",
+        closestParent: "Closest parent category",
+        noParent: "No parent (top-level)",
+        reasonDetails: "Reason / details",
+        reasonPlaceholder: "What should be searchable in this category?",
+        submitRequest: "Submit category request",
+        autosaveHint: "This form auto-saves locally until you submit.",
+        latestRequests: "Your latest requests",
+      };
   const [desiredName, setDesiredName] = useState("");
   const [parentId, setParentId] = useState("");
   const [description, setDescription] = useState("");
@@ -84,7 +114,7 @@ export function CategoryRequestForm({ action, categories, recentRequests }: Prop
         }}
       >
         <label className="space-y-1 md:col-span-1">
-          <span className="text-sm font-medium">Category name</span>
+          <span className="text-sm font-medium">{text.categoryName}</span>
           <input
             name="desiredName"
             required
@@ -92,19 +122,19 @@ export function CategoryRequestForm({ action, categories, recentRequests }: Prop
             value={desiredName}
             onChange={(event) => setDesiredName(event.target.value)}
             className="h-10 w-full rounded-xl border border-border bg-input px-3 text-sm"
-            placeholder="Example: Industrial Equipment"
+            placeholder={text.categoryNamePlaceholder}
           />
         </label>
 
         <label className="space-y-1 md:col-span-1">
-          <span className="text-sm font-medium">Closest parent category</span>
+          <span className="text-sm font-medium">{text.closestParent}</span>
           <select
             name="parentId"
             value={parentId}
             onChange={(event) => setParentId(event.target.value)}
             className="h-10 w-full rounded-xl border border-border bg-input px-3 text-sm"
           >
-            <option value="">No parent (top-level)</option>
+            <option value="">{text.noParent}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -114,28 +144,28 @@ export function CategoryRequestForm({ action, categories, recentRequests }: Prop
         </label>
 
         <label className="space-y-1 md:col-span-2">
-          <span className="text-sm font-medium">Reason / details</span>
+          <span className="text-sm font-medium">{text.reasonDetails}</span>
           <textarea
             name="description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
-            placeholder="What should be searchable in this category?"
+            placeholder={text.reasonPlaceholder}
           />
         </label>
 
         <Button className="md:col-span-2" type="submit" disabled={!canSubmit}>
-          Submit category request
+          {text.submitRequest}
         </Button>
       </form>
 
       <p className="text-xs text-muted-foreground">
-        This form auto-saves locally until you submit.
+        {text.autosaveHint}
       </p>
 
       {recentRequests.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-semibold">Your latest requests</p>
+          <p className="text-sm font-semibold">{text.latestRequests}</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {recentRequests.map((request) => (
               <div

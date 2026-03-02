@@ -385,7 +385,7 @@ export default async function Home() {
           <>
             <div className="responsive-grid gap-4">
               {latestListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
+                <ListingCard key={listing.id} listing={listing} locale={locale} />
               ))}
             </div>
             <div className="text-center">

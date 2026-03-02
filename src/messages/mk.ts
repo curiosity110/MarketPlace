@@ -5,6 +5,9 @@
     english: "English",
     macedonian: "Македонски",
   },
+  theme: {
+    toggle: "Промени тема",
+  },
   nav: {
     home: "Почетна",
     browse: "Пребарувај",

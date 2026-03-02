@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function ThemeToggle() {
+export function ThemeToggle({ label = "Toggle theme" }: { label?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
 
   const [mounted, setMounted] = React.useState(false);
@@ -17,7 +17,7 @@ export function ThemeToggle() {
       <Button
         variant="outline"
         type="button"
-        aria-label="Toggle theme"
+        aria-label={label}
         disabled
       >
         <Moon size={16} />
@@ -31,7 +31,7 @@ export function ThemeToggle() {
     <Button
       variant="outline"
       type="button"
-      aria-label="Toggle theme"
+      aria-label={label}
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
       {isDark ? <Sun size={16} /> : <Moon size={16} />}
