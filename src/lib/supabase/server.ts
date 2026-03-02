@@ -24,14 +24,23 @@ export async function createSupabaseServerClient(response?: NextResponse) {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          // Cookies can only be written when a response object exists.
-          if (!response) return;
-
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, {
+            const cookieOptions = {
               ...options,
               secure: process.env.NODE_ENV === "production",
-            });
+            };
+
+            if (response) {
+              response.cookies.set(name, value, cookieOptions);
+              return;
+            }
+
+            // Server actions can write directly to cookieStore; server components cannot.
+            try {
+              cookieStore.set(name, value, cookieOptions);
+            } catch {
+              // Ignore when invoked from a read-only context.
+            }
           });
         },
       },

@@ -21,7 +21,12 @@ import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
 import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
 import { PHONE_COUNTRIES } from "@/lib/phone";
 
-type Category = { id: string; name: string; slug: string };
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string | null;
+};
 type City = { id: string; name: string };
 type Template = {
   id: string;
@@ -86,58 +91,65 @@ export function ListingForm({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        subscriptionCharge: "Претплата (месечно)",
-        perPostCharge: "Наплата по оглас (30 дена)",
-        restoringDraft: "Се вчитува зачуваниот нацрт...",
-        listingDetails: "Детали за оглас",
-        title: "Наслов",
-        titlePlaceholder: "Пример: Volkswagen Golf 7 2017",
-        condition: "Состојба",
-        categoryFields: "Полиња на категорија",
-        categoryAndLocation: "Категорија и локација",
-        requestCategory: "Побарај категорија",
-        price: "Цена",
-        pricePlaceholder: "Цена",
-        currency: "Валута",
-        description: "Опис",
+        subscriptionCharge: "Pretplata (mesecno)",
+        perPostCharge: "Naplata po oglas (30 dena)",
+        restoringDraft: "Se vcituva zacuvaniot nacrt...",
+        listingDetails: "Detali za oglas",
+        title: "Naslov",
+        titlePlaceholder: "Primer: Volkswagen Golf 7 2017",
+        condition: "Sostojba",
+        categoryFields: "Polinja na kategorija",
+        categoryAndLocation: "Kategorija i lokacija",
+        requestCategory: "Pobaraj kategorija",
+        price: "Cena",
+        pricePlaceholder: "Cena",
+        currency: "Valuta",
+        description: "Opis",
         descriptionPlaceholder:
-          "Опиши состојба, карактеристики, испорака и услови за плаќање.",
-        category: "Категорија",
-        city: "Град",
-        noCityAvailable: "Нема достапен град",
-        sellerPhoneForPost: "Телефон за овој оглас",
-        useDifferentPhone: "Користи друг телефон за овој оглас",
-        useSavedPhone: "Користи зачуван телефон",
-        usingSavedPhone: "Се користи зачуван телефон",
-        country: "Држава",
-        phone: "Телефон",
-        phonePlaceholder: "Внеси телефонски број",
+          "Opisi sostojba, karakteristiki, isporaka i uslovi za plakanje.",
+        category: "Kategorija",
+        mainCategory: "Glavna kategorija",
+        subcategory: "Potkategorija",
+        allSubcategories: "Site potkategorii",
+        useParentCategory: "Bez potkategorija (koristi glavna)",
+        city: "Grad",
+        noCityAvailable: "Nema dostapen grad",
+        conditionNew: "Novo",
+        conditionUsed: "Koristeno",
+        conditionRefurbished: "Refurbished",
+        sellerPhoneForPost: "Telefon za ovoj oglas",
+        useDifferentPhone: "Koristi drug telefon za ovoj oglas",
+        useSavedPhone: "Koristi zacuvan telefon",
+        usingSavedPhone: "Se koristi zacuvan telefon",
+        country: "Drzava",
+        phone: "Telefon",
+        phonePlaceholder: "Vnesi telefonski broj",
         acceptedPhoneFormat:
-          "Прифатен формат: локален, +држава или 00држава.",
-        saveDraftForPhotos: "Зачувај нацрт за да прикачиш фотографии.",
-        sellerPackage: "Пакет за продавач",
-        gptIncluded: "GPT вклучен",
-        payPerListing: "Плаќање по оглас",
-        daysActive30: "30 дена активно",
-        subscription: "Претплата",
-        monthlyUnlimited: "месечно, неограничени огласи",
-        secureCheckout: "Безбедно плаќање",
-        paymentAfterPublish: "Плаќањето се појавува откако ќе кликнеш објави.",
-        saveDraft: "Зачувај нацрт",
-        payAndPublish: "Плати $",
-        publishSuffix: " / Објави",
+          "Prifaten format: lokalen, +drzava ili 00drzava.",
+        saveDraftForPhotos: "Zacuvaj nacrt za da prikacis fotografii.",
+        sellerPackage: "Paket za prodavac",
+        gptIncluded: "GPT vklucen",
+        payPerListing: "Plakanje po oglas",
+        daysActive30: "30 dena aktivno",
+        subscription: "Pretplata",
+        monthlyUnlimited: "mesecno, neograniceni oglasi",
+        secureCheckout: "Bezbedno plakanje",
+        paymentAfterPublish: "Plakanjeto se pojavuva otkako ke kliknes objavi.",
+        saveDraft: "Zacuvaj nacrt",
+        payAndPublish: "Plati $",
+        publishSuffix: " / Objavi",
         stripeValidated:
-          "Dummy Stripe плаќањето се проверува пред активирање.",
-        closePaymentPopup: "Затвори прозорец за плаќање",
-        close: "Затвори",
-        cardNumber: "Број на картичка",
-        expiry: "Важи до",
+          "Dummy Stripe plakanjeto se proveruva pred aktiviranje.",
+        closePaymentPopup: "Zatvori prozorec za plakanje",
+        close: "Zatvori",
+        cardNumber: "Broj na karticka",
+        expiry: "Vazi do",
         cvc: "CVC",
-        cardholder: "Носител на картичка",
-        cardholderPlaceholder: "Тест корисник",
+        cardholder: "Nositel na karticka",
+        cardholderPlaceholder: "Test korisnik",
         successFailCards:
-          "Успешна картичка: 4242424242424242. Неуспешна: 4000000000000002.",
-        cancel: "Откажи",
+          "Uspesna karticka: 4242424242424242. Neuspesna: 4000000000000002.",
+        cancel: "Otkazi",
       }
     : {
         subscriptionCharge: "Subscription charge (monthly)",
@@ -157,8 +169,15 @@ export function ListingForm({
         descriptionPlaceholder:
           "Describe condition, features, delivery, and payment terms.",
         category: "Category",
+        mainCategory: "Main category",
+        subcategory: "Subcategory",
+        allSubcategories: "All subcategories",
+        useParentCategory: "No subcategory (use main)",
         city: "City",
         noCityAvailable: "No city available",
+        conditionNew: "New",
+        conditionUsed: "Used",
+        conditionRefurbished: "Refurbished",
         sellerPhoneForPost: "Seller phone for this post",
         useDifferentPhone: "Use different phone for this post",
         useSavedPhone: "Use saved phone",
@@ -195,13 +214,44 @@ export function ListingForm({
       };
   const formId = useId();
   const resolvedPublishLabel =
-    publishLabel ?? (locale === "mk" ? "Објави оглас" : "Publish listing");
+    publishLabel ?? (locale === "mk" ? "Objavi oglas" : "Publish listing");
   const isCreateMode = !initial?.id;
   const formRef = useRef<HTMLFormElement | null>(null);
 
+  const categoryById = useMemo(
+    () =>
+      Object.fromEntries(
+        categories.map((category) => [category.id, category]),
+      ) as Record<string, Category>,
+    [categories],
+  );
+  const parentCategories = useMemo(() => {
+    const parentOnly = categories.filter((category) => !category.parentId);
+    return parentOnly.length > 0 ? parentOnly : categories;
+  }, [categories]);
+  const subcategoriesByParentId = useMemo(() => {
+    const grouped: Record<string, Category[]> = {};
+    categories.forEach((category) => {
+      if (!category.parentId) return;
+      if (!grouped[category.parentId]) grouped[category.parentId] = [];
+      grouped[category.parentId].push(category);
+    });
+    return grouped;
+  }, [categories]);
+
   const initialCategory = initial?.categoryId ?? categories[0]?.id ?? "";
+  const initialCategoryRecord = categoryById[initialCategory];
+  const defaultParentCategoryId = initialCategoryRecord?.parentId
+    ? initialCategoryRecord.parentId
+    : initialCategoryRecord?.id || parentCategories[0]?.id || "";
+  const defaultSubcategoryId = initialCategoryRecord?.parentId
+    ? initialCategoryRecord.id
+    : "";
   const hasSavedProfilePhone = Boolean((initial?.phone ?? "").trim());
-  const [categoryId, setCategoryId] = useState(initialCategory);
+  const [parentCategoryId, setParentCategoryId] = useState(
+    defaultParentCategoryId,
+  );
+  const [subcategoryId, setSubcategoryId] = useState(defaultSubcategoryId);
   const [phoneCountry, setPhoneCountry] = useState(
     initial?.phoneCountry ?? "MK",
   );
@@ -222,6 +272,17 @@ export function ListingForm({
       : text.perPostCharge;
   const requiresDummyPayment = paymentProvider === "stripe-dummy";
 
+  const selectedCategoryId = subcategoryId || parentCategoryId;
+  const subcategoriesForSelectedParent = useMemo(
+    () => subcategoriesByParentId[parentCategoryId] ?? [],
+    [parentCategoryId, subcategoriesByParentId],
+  );
+  const conditionLabelByValue: Record<ListingCondition, string> = {
+    NEW: text.conditionNew,
+    USED: text.conditionUsed,
+    REFURBISHED: text.conditionRefurbished,
+  };
+
   const categorySlugById = useMemo(
     () =>
       Object.fromEntries(
@@ -229,6 +290,13 @@ export function ListingForm({
       ),
     [categories],
   );
+
+  useEffect(() => {
+    if (!subcategoryId) return;
+    if (!subcategoriesForSelectedParent.some((item) => item.id === subcategoryId)) {
+      setSubcategoryId("");
+    }
+  }, [subcategoryId, subcategoriesForSelectedParent]);
 
   const dynamicInitialValues = useMemo(() => {
     const base = { ...(initial?.dynamicValues ?? {}) };
@@ -291,11 +359,11 @@ export function ListingForm({
       if (typeof value === "string") values[key] = value;
     }
 
-    values.categoryId = categoryId;
+    values.categoryId = selectedCategoryId;
     values.plan = plan;
 
     const payload: PersistedCreateDraft = {
-      categoryId,
+      categoryId: selectedCategoryId,
       plan,
       values,
     };
@@ -304,7 +372,7 @@ export function ListingForm({
       CREATE_FORM_STORAGE_KEY,
       JSON.stringify(payload),
     );
-  }, [categoryId, isCreateMode, plan]);
+  }, [isCreateMode, plan, selectedCategoryId]);
 
   useEffect(() => {
     if (!isCreateMode || typeof window === "undefined") return;
@@ -326,7 +394,14 @@ export function ListingForm({
         nextCategory &&
         categories.some((category) => category.id === nextCategory)
       ) {
-        setCategoryId(nextCategory);
+        const selected = categoryById[nextCategory];
+        if (selected?.parentId) {
+          setParentCategoryId(selected.parentId);
+          setSubcategoryId(selected.id);
+        } else {
+          setParentCategoryId(nextCategory);
+          setSubcategoryId("");
+        }
       }
 
       if (parsed.plan === "subscription" || parsed.plan === "pay-per-listing") {
@@ -357,12 +432,27 @@ export function ListingForm({
     } finally {
       setIsRestored(true);
     }
-  }, [categories, hasSavedProfilePhone, initial?.categoryId, isCreateMode]);
+  }, [
+    categories,
+    categoryById,
+    hasSavedProfilePhone,
+    initial?.categoryId,
+    isCreateMode,
+  ]);
 
   useEffect(() => {
     if (!isCreateMode || !isRestored) return;
     persistDraft();
-  }, [categoryId, isCreateMode, isRestored, persistDraft, phoneCountry, plan]);
+  }, [
+    isCreateMode,
+    isRestored,
+    parentCategoryId,
+    persistDraft,
+    phoneCountry,
+    plan,
+    selectedCategoryId,
+    subcategoryId,
+  ]);
 
   useEffect(() => {
     if (!showPaymentPanel) return;
@@ -427,7 +517,7 @@ export function ListingForm({
               <Select name="condition" defaultValue={restoredCondition}>
                 {Object.values(ListingCondition).map((condition) => (
                   <option key={condition} value={condition}>
-                    {condition}
+                    {conditionLabelByValue[condition]}
                   </option>
                 ))}
               </Select>
@@ -435,8 +525,8 @@ export function ListingForm({
           </div>
           <h3 className="text-base font-semibold">{text.categoryFields}</h3>
           <DynamicFieldsEditor
-            key={categoryId}
-            categoryId={categoryId}
+            key={selectedCategoryId}
+            categoryId={selectedCategoryId}
             categorySlugById={categorySlugById}
             templatesByCategory={templatesByCategory}
             initialValues={dynamicInitialValues}
@@ -497,23 +587,46 @@ export function ListingForm({
           </label>
 
           <div className="grid gap-3 sm:grid-cols-2">
+            <input type="hidden" name="categoryId" value={selectedCategoryId} />
+
             <label className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.category}
+                {text.mainCategory}
               </span>
               <Select
-                name="categoryId"
-                value={categoryId}
-                onChange={(event) => setCategoryId(event.target.value)}
+                value={parentCategoryId}
+                onChange={(event) => {
+                  setParentCategoryId(event.target.value);
+                  setSubcategoryId("");
+                }}
                 required
               >
-                {categories.map((category) => (
+                {parentCategories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {localizeCategoryName(category, locale)}
                   </option>
                 ))}
               </Select>
             </label>
+
+            {subcategoriesForSelectedParent.length > 0 && (
+              <label className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.subcategory}
+                </span>
+                <Select
+                  value={subcategoryId}
+                  onChange={(event) => setSubcategoryId(event.target.value)}
+                >
+                  <option value="">{text.useParentCategory}</option>
+                  {subcategoriesForSelectedParent.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {localizeCategoryName(category, locale)}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
 
             <label className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

@@ -3,8 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSafeErrorMessage } from "@/lib/supabase/errors";
 
 function getSafeNextPath(next: string | null) {
-  if (!next) return "/browse";
-  if (!next.startsWith("/") || next.startsWith("//")) return "/browse";
+  if (!next) return "/dashboard";
+  if (!next.startsWith("/") || next.startsWith("//")) return "/dashboard";
   return next;
 }
 

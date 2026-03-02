@@ -19,7 +19,7 @@ type Props = {
 
 function getSafeNextPath(nextPath: string) {
   if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
-    return "/browse";
+    return "/dashboard";
   }
   return nextPath;
 }
@@ -27,30 +27,30 @@ function getSafeNextPath(nextPath: string) {
 export function LoginForm({
   defaultMode = "login",
   initialError = null,
-  nextPath = "/browse",
+  nextPath = "/dashboard",
   locale = "mk",
 }: Props) {
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        login: "Најава",
-        register: "Регистрација",
-        nameOptional: "Име (опционално)",
-        namePlaceholder: "Твоето име",
-        email: "Е-пошта",
+        login: "Najava",
+        register: "Registracija",
+        nameOptional: "Ime (opcionalno)",
+        namePlaceholder: "Tvoeto ime",
+        email: "E-posta",
         emailPlaceholder: "you@example.com",
-        password: "Лозинка",
-        min8: "(мин 8 карактери)",
-        registerPasswordPlaceholder: "Креирај безбедна лозинка",
-        loginPasswordPlaceholder: "Твојата лозинка",
-        wait: "Почекај...",
-        createAccount: "Креирај профил",
-        sendMagicLink: "Испрати magic линк",
+        password: "Lozinka",
+        min8: "(min 8 karakteri)",
+        registerPasswordPlaceholder: "Kreiraj bezbedna lozinka",
+        loginPasswordPlaceholder: "Tvojata lozinka",
+        wait: "Pocekaj...",
+        createAccount: "Kreiraj profil",
+        sendMagicLink: "Isprati magic link",
         policies:
-          "Со продолжување се согласуваш со правилата и модерацијата на маркетплејсот.",
+          "So prodolzuvanje se soglasuvas so pravilata i moderacijata na marketplace-ot.",
         adminAccess:
-          "Админ пристапот се контролира преку улога во базата.",
-        continueBrowsing: "Продолжи со пребарување",
+          "Admin pristapot se kontrolira preku uloga vo bazata.",
+        continueBrowsing: "Prodolzi so prebaruvanje",
       }
     : {
         login: "Login",

@@ -13,11 +13,11 @@ export default async function RegisterPage({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        createAccount: "Креирај профил",
-        subtitle: "Приклучи се и почни да продаваш или купуваш денес.",
-        register: "Регистрација",
-        haveAccount: "Веќе имаш профил?",
-        goToLogin: "Оди на најава",
+        createAccount: "Kreiraj profil",
+        subtitle: "Prikluci se i pocni da prodavas ili kupuvas denes.",
+        register: "Registracija",
+        haveAccount: "Vekje imas profil?",
+        goToLogin: "Odi na najava",
       }
     : {
         createAccount: "Create Account",

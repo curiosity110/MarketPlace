@@ -65,29 +65,29 @@ export function BrowseFilters({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        search: "Пребарување",
-        searchPlaceholder: "Наслов, модел, клучен збор...",
-        category: "Категорија",
-        allCategories: "Сите категории",
-        subcategory: "Поткатегорија",
-        allSubcategories: "Сите поткатегории",
-        selectCategoryFirst: "Прво избери категорија",
-        city: "Град",
-        allCities: "Сите градови",
-        condition: "Состојба",
-        anyCondition: "Секоја состојба",
-        priceRange: "Опсег на цена",
-        minPrice: "Мин цена",
-        maxPrice: "Макс цена",
-        sort: "Подреди",
-        newest: "Најнови прво",
-        priceAsc: "Цена од ниска кон висока",
-        priceDesc: "Цена од висока кон ниска",
-        categoryFilters: "Филтри за категорија",
-        extraFilters: "Дополнителни филтри",
-        any: "Секој",
-        apply: "Примени филтри",
-        clear: "Исчисти сè",
+        search: "Prebaruvanje",
+        searchPlaceholder: "Naslov, model, klucen zbor...",
+        category: "Kategorija",
+        allCategories: "Site kategorii",
+        subcategory: "Potkategorija",
+        allSubcategories: "Site potkategorii",
+        selectCategoryFirst: "Prvo izberi kategorija",
+        city: "Grad",
+        allCities: "Site gradovi",
+        condition: "Sostojba",
+        anyCondition: "Sekoja sostojba",
+        priceRange: "Opseg na cena",
+        minPrice: "Min cena",
+        maxPrice: "Maks cena",
+        sort: "Podredi",
+        newest: "Najnovi prvo",
+        priceAsc: "Cena od niska kon visoka",
+        priceDesc: "Cena od visoka kon niska",
+        categoryFilters: "Filtri za kategorija",
+        extraFilters: "Dopolnitelni filtri",
+        any: "Sekoj",
+        apply: "Primeni filtri",
+        clear: "Iscisti se",
       }
     : {
         search: "Search",
@@ -113,6 +113,17 @@ export function BrowseFilters({
         any: "Any",
         apply: "Apply filters",
         clear: "Clear all",
+      };
+  const conditionLabelByValue: Record<ListingCondition, string> = isMk
+    ? {
+        NEW: "Novo",
+        USED: "Koristeno",
+        REFURBISHED: "Refurbished",
+      }
+    : {
+        NEW: "New",
+        USED: "Used",
+        REFURBISHED: "Refurbished",
       };
 
   const [q, setQ] = React.useState(sp.get("q") ?? "");
@@ -352,7 +363,7 @@ export function BrowseFilters({
             <option value="">{text.anyCondition}</option>
             {Object.values(ListingCondition).map((item) => (
               <option key={item} value={item}>
-                {item}
+                {conditionLabelByValue[item]}
               </option>
             ))}
           </Select>

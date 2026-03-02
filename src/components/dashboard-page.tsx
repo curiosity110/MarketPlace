@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateListingPopout } from "@/components/create-listing-popout";
 import { createListingFromDashboard } from "@/lib/actions/create-listing";
-import { canAccessControl, requireSeller } from "@/lib/auth";
+import { canAccessControl, canSell, requireSeller, requireUser } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import {
@@ -123,7 +123,8 @@ export async function DashboardPageContent({
         publishFree: "Publish free",
         firstPublishFreeHint: "First 30-day publish is free.",
       };
-  const user = await requireSeller();
+  const user = await requireUser();
+  const canCreateListings = canSell(user.role);
   const showAdminTools = canAccessControl(user.role);
 
   const now = new Date();
@@ -420,7 +421,7 @@ export async function DashboardPageContent({
             <Link href="/profile">
               <Button variant="outline">{text.profile}</Button>
             </Link>
-            {categories.length > 0 && cities.length > 0 ? (
+            {canCreateListings && categories.length > 0 && cities.length > 0 ? (
               <CreateListingPopout
                 mode="button"
                 buttonLabel={text.createNow}

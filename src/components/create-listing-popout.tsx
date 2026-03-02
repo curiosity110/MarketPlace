@@ -7,7 +7,7 @@ import { Currency, ListingCondition } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { ListingForm } from "@/components/listing-form";
 
-type Category = { id: string; name: string; slug: string };
+type Category = { id: string; name: string; slug: string; parentId?: string | null };
 type City = { id: string; name: string };
 type Template = {
   id: string;
@@ -74,12 +74,12 @@ export function CreateListingPopout({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        createListing: "Креирај оглас",
-        openWhenNeeded: "Отвори ја формата кога ти треба.",
-        closeCreateListingForm: "Затвори форма за креирање оглас",
-        createNewListing: "Креирај нов оглас",
-        fillAndPublish: "Пополни детали и објави кога ќе бидеш спремен.",
-        close: "Затвори",
+        createListing: "Kreiraj oglas",
+        openWhenNeeded: "Otvori ja formata koga ti treba.",
+        closeCreateListingForm: "Zatvori forma za kreiranje oglas",
+        createNewListing: "Kreiraj nov oglas",
+        fillAndPublish: "Popolni detali i objavi koga ke bides spremen.",
+        close: "Zatvori",
       }
     : {
         createListing: "Create listing",
@@ -89,9 +89,9 @@ export function CreateListingPopout({
         fillAndPublish: "Fill details and publish when ready.",
         close: "Close",
       };
-  const resolvedButtonLabel = buttonLabel ?? (isMk ? "Нов оглас" : "New listing");
+  const resolvedButtonLabel = buttonLabel ?? (isMk ? "Nov oglas" : "New listing");
   const resolvedPublishLabel =
-    publishLabel ?? (isMk ? "Објави оглас" : "Publish listing");
+    publishLabel ?? (isMk ? "Objavi oglas" : "Publish listing");
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const closeTimerRef = useRef<number | null>(null);

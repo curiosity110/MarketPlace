@@ -24,6 +24,7 @@ import {
 import { parseTemplateOptions } from "@/lib/listing-fields";
 
 const PAGE_SIZE = 60;
+type BrowseSort = "newest" | "price-asc" | "price-desc";
 type BrowseTemplate = {
   key: string;
   label: string;
@@ -48,6 +49,11 @@ function parseOptionalNumberParam(value: string | undefined) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function parseSort(value: string | undefined): BrowseSort {
+  if (value === "price-asc" || value === "price-desc") return value;
+  return "newest";
+}
+
 export default async function BrowsePage({
   searchParams,
 }: {
@@ -57,21 +63,25 @@ export default async function BrowsePage({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        smartBrowse: "Паметно пребарување",
-        allListings: "Сите огласи",
-        resultsLine: "резултати | прикажани",
-        onThisPage: "на оваа страница",
-        extraFilters: "дополнителни филтри",
-        showingAll: "Прикажани се сите активни огласи од сите продавачи.",
-        resetFilters: "Ресетирај филтри",
+        smartBrowse: "Pametno prebaruvanje",
+        allListings: "Site oglasi",
+        resultsLine: "rezultati | prikazani",
+        onThisPage: "na ovaa stranica",
+        extraFilters: "dopolnitelni filtri",
+        showingAll: "Prikazani se site aktivni oglasi od site prodavaci.",
+        resetFilters: "Resetiraj filtri",
+        orderBy: "Podredi",
+        newest: "Najnovi",
+        priceAsc: "Cena: niska kon visoka",
+        priceDesc: "Cena: visoka kon niska",
         dbUnavailable:
-          "Пребарувањето е привремено недостапно затоа што базата е недостапна.",
-        noMatch: "Нема огласи што одговараат на твоите филтри.",
-        firstList: "Биди прв што ќе го објави овој производ",
-        page: "Страница",
-        of: "од",
-        previous: "Претходна",
-        next: "Следна",
+          "Prebaruvanjeto e privremeno nedostapno poradi problem so bazata.",
+        noMatch: "Nema oglasi sto odgovaraat na tvoite filtri.",
+        firstList: "Bidi prv sto ke go objavi ovoj proizvod",
+        page: "Stranica",
+        of: "od",
+        previous: "Prethodna",
+        next: "Sledna",
       }
     : {
         smartBrowse: "Smart browse",
@@ -81,6 +91,10 @@ export default async function BrowsePage({
         extraFilters: "extra filters",
         showingAll: "Showing all active listings from all sellers.",
         resetFilters: "Reset filters",
+        orderBy: "Order by",
+        newest: "Newest",
+        priceAsc: "Price: low to high",
+        priceDesc: "Price: high to low",
         dbUnavailable:
           "Browse data is temporarily unavailable because the database is unreachable.",
         noMatch: "No listings match your filters.",
@@ -96,7 +110,7 @@ export default async function BrowsePage({
   const sub = getParam(sp, "sub");
   const city = getParam(sp, "city");
   const condition = getParam(sp, "condition");
-  const sort = getParam(sp, "sort") || "newest";
+  const sort = parseSort(getParam(sp, "sort"));
   const page = Math.max(1, Number(getParam(sp, "page") || 1));
   const minRaw = parseOptionalNumberParam(getParam(sp, "min"));
   const maxRaw = parseOptionalNumberParam(getParam(sp, "max"));
@@ -334,6 +348,11 @@ export default async function BrowsePage({
     if (!single || key === "page") return;
     params.set(key, single);
   });
+  const sortOptions: { value: BrowseSort; label: string }[] = [
+    { value: "newest", label: text.newest },
+    { value: "price-asc", label: text.priceAsc },
+    { value: "price-desc", label: text.priceDesc },
+  ];
 
   return (
     <div className="space-y-5">
@@ -361,9 +380,35 @@ export default async function BrowsePage({
           )}
         </div>
 
-        <Link href="/browse" className="pt-1">
-          <Button variant="outline">{text.resetFilters}</Button>
-        </Link>
+        <div className="space-y-2 pt-1">
+          <p className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.orderBy}
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            {sortOptions.map((option) => {
+              const sortParams = new URLSearchParams(params.toString());
+              sortParams.set("sort", option.value);
+              sortParams.set("page", "1");
+
+              return (
+                <Link key={option.value} href={`/browse?${sortParams.toString()}`}>
+                  <Button
+                    size="sm"
+                    variant={sort === option.value ? "default" : "outline"}
+                  >
+                    {option.label}
+                  </Button>
+                </Link>
+              );
+            })}
+
+            <Link href="/browse">
+              <Button size="sm" variant="outline">
+                {text.resetFilters}
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
 
       <Card>
@@ -398,7 +443,7 @@ export default async function BrowsePage({
             <p className="text-muted-foreground">
               {text.noMatch}
             </p>
-            <Link href="/sell" className="mt-4 inline-block">
+            <Link href="/dashboard?create=1" className="mt-4 inline-block">
               <Button>{text.firstList}</Button>
             </Link>
           </CardContent>
