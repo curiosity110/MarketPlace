@@ -417,8 +417,8 @@ async function main() {
   for (const [name, slug] of categories) {
     const category = await prisma.category.upsert({
       where: { slug },
-      update: { name, isActive: true, ownerId: tester.id },
-      create: { name, slug, isActive: true, ownerId: tester.id },
+      update: { name, isActive: true, ownerId: tester.supabaseAuthId || tester.id },
+      create: { name, slug, isActive: true, ownerId: tester.supabaseAuthId || tester.id },
     });
     upsertedCategories.push(category);
   }
@@ -521,7 +521,7 @@ async function main() {
       const seller = listingSellers[(categoryIndex + listingIndex) % listingSellers.length];
       const listing = await prisma.listing.create({
         data: {
-          ownerId: seller.id,
+          ownerId: seller.supabaseAuthId || seller.id,
           sellerId: seller.id,
           title: seed.title,
           description: seed.description,

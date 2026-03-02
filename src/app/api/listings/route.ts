@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
   const listing = await prisma.listing.create({
     data: {
-      ownerId: user.id,
+      ownerId: user.authUserId,
       sellerId: user.id,
       title: payload.title,
       description: payload.description,

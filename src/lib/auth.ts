@@ -18,6 +18,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type SessionUser = {
   id: string; // prisma user id
+  authUserId: string; // supabase auth uid
   email: string;
   role: Role;
 };
@@ -42,7 +43,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return null;
   }
 
-  let userData: { email?: string | null } | null = null;
+  let userData: { email?: string | null; id: string } | null = null;
   try {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.getUser();
@@ -66,14 +67,51 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     email: string;
     role: Role;
     bannedAt: Date | null;
+    supabaseAuthId: string | null;
   };
   try {
-    userRecord = await prisma.user.upsert({
-      where: { email },
-      update: {},
-      create: { email, role: Role.SELLER },
-      select: { id: true, email: true, role: true, bannedAt: true },
+    const existingByAuthId = await prisma.user.findUnique({
+      where: { supabaseAuthId: userData.id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        bannedAt: true,
+        supabaseAuthId: true,
+      },
     });
+
+    if (existingByAuthId) {
+      if (existingByAuthId.email !== email) {
+        userRecord = await prisma.user.update({
+          where: { id: existingByAuthId.id },
+          data: { email },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            bannedAt: true,
+            supabaseAuthId: true,
+          },
+        });
+      } else {
+        userRecord = existingByAuthId;
+      }
+    } else {
+      userRecord = await prisma.user.upsert({
+        where: { email },
+        update: { supabaseAuthId: userData.id },
+        create: { email, role: Role.SELLER, supabaseAuthId: userData.id },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          bannedAt: true,
+          supabaseAuthId: true,
+        },
+      });
+    }
+
     markPrismaHealthy();
   } catch (error) {
     if (isPrismaConnectionError(error)) {
@@ -86,7 +124,12 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   // If your schema uses bannedAt instead of isBanned, keep this:
   if (userRecord.bannedAt) return null;
 
-  return { id: userRecord.id, email: userRecord.email, role: userRecord.role };
+  return {
+    id: userRecord.id,
+    authUserId: userRecord.supabaseAuthId ?? userData.id,
+    email: userRecord.email,
+    role: userRecord.role,
+  };
 }
 
 export async function requireUser(): Promise<SessionUser> {

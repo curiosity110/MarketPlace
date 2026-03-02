@@ -144,7 +144,7 @@ export async function DashboardPageContent({
         select: { id: true, phone: true },
       }),
       prisma.listing.findMany({
-        where: { ownerId: user.id },
+        where: { ownerId: user.authUserId },
         include: { category: true, city: true, images: true },
         orderBy: { updatedAt: "desc" },
       }),
@@ -161,7 +161,7 @@ export async function DashboardPageContent({
       }),
       prisma.listing.count({
         where: {
-          ownerId: user.id,
+          ownerId: user.authUserId,
           status: { not: ListingStatus.DRAFT },
         },
       }),
@@ -294,7 +294,7 @@ export async function DashboardPageContent({
     try {
       const [draftListing, profile] = await Promise.all([
         prisma.listing.findFirst({
-          where: { id: listingId, ownerId: sessionUser.id },
+          where: { id: listingId, ownerId: sessionUser.authUserId },
           select: {
             id: true,
             ownerId: true,
@@ -313,7 +313,7 @@ export async function DashboardPageContent({
 
       if (
         !draftListing ||
-        draftListing.ownerId !== sessionUser.id ||
+        draftListing.ownerId !== sessionUser.authUserId ||
         draftListing.status !== ListingStatus.DRAFT
       ) {
         redirect("/dashboard?error=Draft%20listing%20not%20found.");
@@ -350,7 +350,7 @@ export async function DashboardPageContent({
         await Promise.all([
           prisma.listing.count({
             where: {
-              ownerId: sessionUser.id,
+              ownerId: sessionUser.authUserId,
               id: { not: listingId },
               status: { not: ListingStatus.DRAFT },
             },
@@ -381,7 +381,7 @@ export async function DashboardPageContent({
       }
 
       await prisma.listing.updateMany({
-        where: { id: listingId, ownerId: sessionUser.id },
+        where: { id: listingId, ownerId: sessionUser.authUserId },
         data: {
           status: ListingStatus.ACTIVE,
           activeUntil: new Date(Date.now() + THIRTY_DAYS_MS),

@@ -79,7 +79,7 @@ async function reviewCategoryRequest(formData: FormData) {
       await prisma.$transaction([
         prisma.category.create({
           data: {
-            ownerId: actor.id,
+            ownerId: actor.authUserId,
             name: request.desiredName,
             slug: nextSlug,
             parentId: request.parentId || null,

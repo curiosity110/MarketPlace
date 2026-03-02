@@ -51,7 +51,7 @@ async function updateListing(formData: FormData) {
   let listing: Awaited<ReturnType<typeof prisma.listing.findFirst>> = null;
   try {
     listing = await prisma.listing.findFirst({
-      where: { id, ownerId: user.id },
+      where: { id, ownerId: user.authUserId },
     });
     markPrismaHealthy();
   } catch (error) {
@@ -97,7 +97,7 @@ async function updateListing(formData: FormData) {
     try {
       const priorPublishedPosts = await prisma.listing.count({
         where: {
-          ownerId: user.id,
+          ownerId: user.authUserId,
           id: { not: listing.id },
           status: { not: ListingStatus.DRAFT },
         },
@@ -171,7 +171,7 @@ async function updateListing(formData: FormData) {
   try {
     await prisma.$transaction(async (tx) => {
       await tx.listing.updateMany({
-        where: { id, ownerId: user.id },
+        where: { id, ownerId: user.authUserId },
         data: {
           title,
           description,
@@ -247,7 +247,7 @@ async function deleteListing(formData: FormData) {
   const id = String(formData.get("id") || "");
   try {
     await prisma.listing.deleteMany({
-      where: { id, ownerId: user.id, status: ListingStatus.DRAFT },
+      where: { id, ownerId: user.authUserId, status: ListingStatus.DRAFT },
     });
     markPrismaHealthy();
   } catch (error) {
@@ -301,7 +301,7 @@ export default async function EditListing({
         select: { phone: true },
       }),
       prisma.listing.findFirst({
-        where: { id, ownerId: user.id },
+        where: { id, ownerId: user.authUserId },
         include: { images: true },
       }),
       prisma.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),

@@ -64,6 +64,7 @@ enum ContactRequestStatus {
 
 model User {
   id                      String             @id @default(cuid())
+  supabaseAuthId          String?            @unique
   email                   String             @unique
   name                    String?
   phone                   String?
@@ -77,8 +78,6 @@ model User {
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
   listings                Listing[]
-  ownedListings           Listing[]          @relation("ListingOwner")
-  ownedCategories         Category[]         @relation("CategoryOwner")
   sales                   Sale[]
   reports                 Report[]           @relation("ReporterReports")
   adminActions            AdminAction[]      @relation("AdminActions")
@@ -90,7 +89,6 @@ model User {
 model Category {
   id             String                  @id @default(cuid())
   ownerId        String?
-  owner          User?                   @relation("CategoryOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   name           String
   slug           String                  @unique
   isActive       Boolean                 @default(true)
@@ -115,7 +113,6 @@ model City {
 model Listing {
   id          String           @id @default(cuid())
   ownerId     String
-  owner       User             @relation("ListingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   sellerId    String
   seller      User             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   title       String

@@ -87,6 +87,7 @@ What it does:
 - Callback route: `/auth/callback` (`src/app/auth/callback/route.ts`)
 - Backward-compatible redirect from `/api/auth/callback` to `/auth/callback`
 - Server auth actions: `src/app/(auth)/actions.ts`
+- Magic link + signup redirects now use `/api/auth/callback` for broad Supabase allow-list compatibility.
 
 Required env values:
 
@@ -95,6 +96,21 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
+
+Supabase dashboard settings required for "email/password without verification":
+- `Authentication -> Providers -> Email`
+- Turn OFF `Confirm email`
+
+For deployed domain, also add exact site URLs in Supabase:
+- `Authentication -> URL Configuration`
+- Site URL: `https://market-place-u829.vercel.app`
+- Redirect URLs:
+  - `https://market-place-u829.vercel.app/api/auth/callback`
+  - `https://market-place-u829.vercel.app/auth/callback`
+  - `http://localhost:3000/api/auth/callback`
+  - `http://localhost:3000/auth/callback`
+
+If using Vercel, make sure `NEXT_PUBLIC_SITE_URL` is set in Project Environment Variables and redeploy.
 
 ## RLS SQL (Owner Policies)
 
@@ -135,6 +151,10 @@ If you change Supabase project keys/URL and uploads or auth start failing with `
 5. Locale switch:
    - Toggle MK/EN in navbar
    - Verify auth status/error messages switch language.
+6. Isolation debug:
+   - Open `/debug/isolation`
+   - Confirm session local id + supabase uid
+   - Confirm loaded profile row and owner-scoped listing/category counts.
 
 ## Information Needed From You
 

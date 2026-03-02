@@ -296,7 +296,7 @@ export default async function ProfilePage({
         },
       }),
       prisma.listing.findMany({
-        where: { ownerId: user.id },
+        where: { ownerId: user.authUserId },
         select: {
           id: true,
           status: true,

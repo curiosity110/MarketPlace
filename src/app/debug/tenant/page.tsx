@@ -42,13 +42,13 @@ export default async function DebugTenantPage() {
   try {
     [listingCount, categoryCount, listings, categories] = await Promise.all([
       prisma.listing.count({
-        where: { ownerId: user.id },
+        where: { ownerId: user.authUserId },
       }),
       prisma.category.count({
-        where: { ownerId: user.id },
+        where: { ownerId: user.authUserId },
       }),
       prisma.listing.findMany({
-        where: { ownerId: user.id },
+        where: { ownerId: user.authUserId },
         select: {
           id: true,
           title: true,
@@ -61,7 +61,7 @@ export default async function DebugTenantPage() {
         take: 5,
       }),
       prisma.category.findMany({
-        where: { ownerId: user.id },
+        where: { ownerId: user.authUserId },
         select: {
           id: true,
           name: true,
@@ -99,7 +99,10 @@ export default async function DebugTenantPage() {
       <h1 className="text-2xl font-bold">Tenant debug</h1>
       <div className="rounded-xl border border-border/70 bg-card p-4 text-sm">
         <p>
-          <strong>User ID:</strong> {user.id}
+          <strong>User ID (local):</strong> {user.id}
+        </p>
+        <p>
+          <strong>User ID (supabase):</strong> {user.authUserId}
         </p>
         <p>
           <strong>Email:</strong> {user.email}

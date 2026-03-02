@@ -62,7 +62,7 @@ export async function signUpWithPassword(
       email: normalizeEmail(email),
       password,
       options: {
-        emailRedirectTo: `${site}/auth/callback`,
+        emailRedirectTo: `${site}/api/auth/callback`,
         data: {
           name: name?.trim() || undefined,
         },
@@ -122,7 +122,7 @@ export async function signInWithMagicLink(
     const result = await supabase.auth.signInWithOtp({
       email: normalizeEmail(email),
       options: {
-        emailRedirectTo: `${site}/auth/callback`,
+        emailRedirectTo: `${site}/api/auth/callback`,
       },
     });
 

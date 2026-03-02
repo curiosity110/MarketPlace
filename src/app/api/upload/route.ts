@@ -7,7 +7,7 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { getSupabaseAdminStorageContext } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSafeErrorMessage, isLikelySupabaseConnectionError } from "@/lib/supabase/errors";
 
 const MAX_FILE_SIZE = 6 * 1024 * 1024; // 6MB
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   let listing: { id: string } | null = null;
   try {
     listing = await prisma.listing.findFirst({
-      where: { id: listingId, ownerId: user.id },
+      where: { id: listingId, ownerId: user.authUserId },
       select: { id: true },
     });
     markPrismaHealthy();
@@ -80,18 +80,22 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  const { context: storageContext, error: storageError } =
-    getSupabaseAdminStorageContext();
-  if (!storageContext) {
-    return jsonError(storageError || "Storage is not configured yet", 500);
+  let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  try {
+    supabase = await createSupabaseServerClient();
+  } catch {
+    return jsonError("Storage auth client is not configured", 500);
   }
 
   const safeName = sanitizeFileName(file.name);
   const path = `${listingId}/${Date.now()}-${safeName}`;
-  const bucket = storageContext.bucket;
+  const bucket = (process.env.SUPABASE_STORAGE_BUCKET || "listing-images").trim();
+  if (!bucket) {
+    return jsonError("Storage bucket is not configured", 500);
+  }
 
   try {
-    const { error } = await storageContext.client.storage.from(bucket).upload(path, file, {
+    const { error } = await supabase.storage.from(bucket).upload(path, file, {
       cacheControl: "3600",
       upsert: false,
       contentType: file.type,
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
       return jsonError(error.message, 502);
     }
 
-    const { data } = storageContext.client.storage.from(bucket).getPublicUrl(path);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     try {
       await prisma.listingImage.create({ data: { listingId, url: data.publicUrl } });
       markPrismaHealthy();
