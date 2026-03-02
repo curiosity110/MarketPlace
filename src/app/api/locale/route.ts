@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_LOCALE, LOCALE_COOKIE, normalizeLocale } from "@/lib/i18n";
+import {
+  DEFAULT_LOCALE,
+  LEGACY_LOCALE_COOKIE,
+  LOCALE_COOKIE,
+  normalizeLocale,
+} from "@/lib/i18n";
 
 export async function POST(request: Request) {
   let locale = DEFAULT_LOCALE;
@@ -16,6 +21,10 @@ export async function POST(request: Request) {
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
   });
+  response.cookies.set(LEGACY_LOCALE_COOKIE, locale, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
   return response;
 }
-

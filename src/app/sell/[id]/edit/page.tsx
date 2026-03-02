@@ -48,9 +48,11 @@ async function updateListing(formData: FormData) {
   const paymentProvider = String(formData.get("paymentProvider") || "none");
   let isFirstPublishedPost = false;
 
-  let listing: Awaited<ReturnType<typeof prisma.listing.findUnique>> = null;
+  let listing: Awaited<ReturnType<typeof prisma.listing.findFirst>> = null;
   try {
-    listing = await prisma.listing.findUnique({ where: { id } });
+    listing = await prisma.listing.findFirst({
+      where: { id, ownerId: user.id },
+    });
     markPrismaHealthy();
   } catch (error) {
     if (isPrismaConnectionError(error)) {
@@ -60,7 +62,7 @@ async function updateListing(formData: FormData) {
     throw error;
   }
 
-  if (!listing || listing.sellerId !== user.id) return;
+  if (!listing) return;
 
   const title = String(formData.get("title") || "").trim();
   const description = String(formData.get("description") || "").trim();
@@ -95,7 +97,7 @@ async function updateListing(formData: FormData) {
     try {
       const priorPublishedPosts = await prisma.listing.count({
         where: {
-          sellerId: user.id,
+          ownerId: user.id,
           id: { not: listing.id },
           status: { not: ListingStatus.DRAFT },
         },
@@ -168,8 +170,8 @@ async function updateListing(formData: FormData) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.listing.update({
-        where: { id },
+      await tx.listing.updateMany({
+        where: { id, ownerId: user.id },
         data: {
           title,
           description,
@@ -245,7 +247,7 @@ async function deleteListing(formData: FormData) {
   const id = String(formData.get("id") || "");
   try {
     await prisma.listing.deleteMany({
-      where: { id, sellerId: user.id, status: ListingStatus.DRAFT },
+      where: { id, ownerId: user.id, status: ListingStatus.DRAFT },
     });
     markPrismaHealthy();
   } catch (error) {
@@ -298,7 +300,10 @@ export default async function EditListing({
         where: { id: user.id },
         select: { phone: true },
       }),
-      prisma.listing.findUnique({ where: { id }, include: { images: true } }),
+      prisma.listing.findFirst({
+        where: { id, ownerId: user.id },
+        include: { images: true },
+      }),
       prisma.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
       prisma.city.findMany({ orderBy: { name: "asc" } }),
       prisma.categoryFieldTemplate.findMany({
@@ -341,7 +346,7 @@ export default async function EditListing({
 
   const [sellerProfile, listing, categories, cities, templates, fieldValues] = editData;
 
-  if (!listing || listing.sellerId !== user.id) notFound();
+  if (!listing) notFound();
   const initialPhone = parseStoredPhone(sellerProfile?.phone);
 
   const templatesByCategory = groupTemplatesByCategory(normalizeTemplates(templates));

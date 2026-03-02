@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { signInWithMagicLink, signInWithPassword, signUpWithPassword } from "@/app/(auth)/actions";
+import type { Locale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -12,7 +14,7 @@ type Props = {
   defaultMode?: Mode;
   initialError?: string | null;
   nextPath?: string;
-  locale?: "en" | "mk";
+  locale?: Locale;
 };
 
 function getSafeNextPath(nextPath: string) {
@@ -22,36 +24,15 @@ function getSafeNextPath(nextPath: string) {
   return nextPath;
 }
 
-function getSiteOrigin() {
-  const configuredSite = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configuredSite && /^https?:\/\//.test(configuredSite)) {
-    return configuredSite.replace(/\/+$/, "");
-  }
-  return window.location.origin;
-}
-
-function getRedirectUrl(nextPath: string) {
-  const safeNext = getSafeNextPath(nextPath);
-  const site = getSiteOrigin();
-  return `${site}/api/auth/callback?next=${encodeURIComponent(safeNext)}`;
-}
-
 export function LoginForm({
   defaultMode = "login",
   initialError = null,
   nextPath = "/browse",
-  locale = "en",
+  locale = "mk",
 }: Props) {
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        missingPassword: "Внеси лозинка за да се најавиш.",
-        loginFailed: "Најавата не успеа.",
-        confirmEmail:
-          "Провери ја е-поштата за потврда на профилот, па потоа најави се.",
-        registrationFailed: "Регистрацијата не успеа.",
-        magicLinkSent: "Magic линк е испратен. Провери го inbox.",
-        magicLinkFailed: "Не може да се испрати magic линк.",
         login: "Најава",
         register: "Регистрација",
         nameOptional: "Име (опционално)",
@@ -72,13 +53,6 @@ export function LoginForm({
         continueBrowsing: "Продолжи со пребарување",
       }
     : {
-        missingPassword: "Please enter your password to log in.",
-        loginFailed: "Login failed.",
-        confirmEmail:
-          "Check your email to confirm your account, then log in.",
-        registrationFailed: "Registration failed.",
-        magicLinkSent: "Magic link sent. Check your inbox.",
-        magicLinkFailed: "Unable to send magic link.",
         login: "Login",
         register: "Register",
         nameOptional: "Name (optional)",
@@ -97,12 +71,15 @@ export function LoginForm({
         adminAccess: "Admin access is controlled by role in database.",
         continueBrowsing: "Continue browsing",
       };
+
   const safeNextPath = getSafeNextPath(nextPath);
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<
+    "login" | "register" | "magic" | null
+  >(null);
   const [message, setMessage] = useState<string | null>(initialError);
 
   const isRegister = mode === "register";
@@ -112,97 +89,56 @@ export function LoginForm({
     return true;
   }, [email, password, isRegister]);
 
-  async function loginWithPassword() {
+  async function onLogin() {
     if (!password.trim()) {
-      setMessage(text.missingPassword);
+      setMessage(t(locale, "auth.error.passwordRequired"));
       return;
     }
 
-    setLoading(true);
+    setLoadingAction("login");
     setMessage(null);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-
-      if (error) {
-        setMessage(error.message);
-        return;
+      const result = await signInWithPassword(email.trim(), password);
+      setMessage(t(locale, result.messageKey));
+      if (result.ok) {
+        window.location.href = safeNextPath;
       }
-      window.location.href = safeNextPath;
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : text.loginFailed);
+    } catch {
+      setMessage(t(locale, "auth.error.generic"));
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   }
 
-  async function registerWithPassword() {
-    setLoading(true);
+  async function onRegister() {
+    setLoadingAction("register");
     setMessage(null);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          emailRedirectTo: getRedirectUrl(safeNextPath),
-          data: {
-            name: name.trim() || undefined,
-          },
-        },
-      });
-
-      if (process.env.NODE_ENV !== "production") {
-        console.log("signUp result", {
-          hasSession: !!data.session,
-          hasUser: !!data.user,
-          error: error?.message,
-        });
+      const result = await signUpWithPassword(email.trim(), password, name);
+      setMessage(t(locale, result.messageKey));
+      if (result.ok && result.messageKey === "auth.signup.successSignedIn") {
+        window.location.href = safeNextPath;
       }
-
-      if (error) {
-        setMessage(error.message);
-        return;
-      }
-
-      if (!data.session) {
-        setMessage(text.confirmEmail);
+      if (result.ok && result.messageKey === "auth.signup.checkEmail") {
         setMode("login");
-        return;
       }
-
-      window.location.href = safeNextPath;
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : text.registrationFailed);
+    } catch {
+      setMessage(t(locale, "auth.error.generic"));
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   }
 
-  async function sendMagicLink() {
-    setLoading(true);
+  async function onSendMagicLink() {
+    setLoadingAction("magic");
     setMessage(null);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo: getRedirectUrl(safeNextPath),
-        },
-      });
-
-      if (error) {
-        setMessage(error.message);
-        return;
-      }
-      setMessage(text.magicLinkSent);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : text.magicLinkFailed);
+      const result = await signInWithMagicLink(email.trim());
+      setMessage(t(locale, result.messageKey));
+    } catch {
+      setMessage(t(locale, "auth.error.generic"));
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   }
 
@@ -269,7 +205,6 @@ export function LoginForm({
                 ? text.registerPasswordPlaceholder
                 : text.loginPasswordPlaceholder
             }
-            required
           />
         </label>
       </div>
@@ -277,27 +212,29 @@ export function LoginForm({
       <div className="grid gap-2 sm:grid-cols-2">
         <Button
           type="button"
-          disabled={!canSubmit || loading}
-          onClick={isRegister ? registerWithPassword : loginWithPassword}
+          disabled={!canSubmit || loadingAction !== null}
+          onClick={isRegister ? onRegister : onLogin}
           className="w-full"
         >
-          {loading ? text.wait : isRegister ? text.createAccount : text.login}
+          {loadingAction === "login" || loadingAction === "register"
+            ? text.wait
+            : isRegister
+              ? text.createAccount
+              : text.login}
         </Button>
 
         <Button
           type="button"
           variant="outline"
-          disabled={!email.trim() || loading}
-          onClick={sendMagicLink}
+          disabled={!email.trim() || loadingAction !== null}
+          onClick={onSendMagicLink}
           className="w-full"
         >
-          {text.sendMagicLink}
+          {loadingAction === "magic" ? text.wait : text.sendMagicLink}
         </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {text.policies}
-      </p>
+      <p className="text-xs text-muted-foreground">{text.policies}</p>
 
       {message && (
         <p className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm">

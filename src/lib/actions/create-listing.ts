@@ -111,7 +111,7 @@ async function createListingWithBase(
     try {
       const priorPublishedPosts = await prisma.listing.count({
         where: {
-          sellerId: user.id,
+          ownerId: user.id,
           status: { not: ListingStatus.DRAFT },
         },
       });
@@ -159,6 +159,7 @@ async function createListingWithBase(
     await prisma.$transaction(async (tx) => {
       const listing = await tx.listing.create({
         data: {
+          ownerId: user.id,
           sellerId: user.id,
           title,
           description,
@@ -204,7 +205,7 @@ async function createListingWithBase(
     throw error;
   }
 
-  revalidatePath("/browse");
+      revalidatePath("/browse");
   revalidatePath("/sell");
   revalidatePath("/sell/analytics");
   revalidatePath("/dashboard");

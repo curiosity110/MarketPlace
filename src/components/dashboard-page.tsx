@@ -144,7 +144,7 @@ export async function DashboardPageContent({
         select: { id: true, phone: true },
       }),
       prisma.listing.findMany({
-        where: { sellerId: user.id },
+        where: { ownerId: user.id },
         include: { category: true, city: true, images: true },
         orderBy: { updatedAt: "desc" },
       }),
@@ -161,7 +161,7 @@ export async function DashboardPageContent({
       }),
       prisma.listing.count({
         where: {
-          sellerId: user.id,
+          ownerId: user.id,
           status: { not: ListingStatus.DRAFT },
         },
       }),
@@ -293,11 +293,11 @@ export async function DashboardPageContent({
 
     try {
       const [draftListing, profile] = await Promise.all([
-        prisma.listing.findUnique({
-          where: { id: listingId },
+        prisma.listing.findFirst({
+          where: { id: listingId, ownerId: sessionUser.id },
           select: {
             id: true,
-            sellerId: true,
+            ownerId: true,
             status: true,
             title: true,
             priceCents: true,
@@ -313,7 +313,7 @@ export async function DashboardPageContent({
 
       if (
         !draftListing ||
-        draftListing.sellerId !== sessionUser.id ||
+        draftListing.ownerId !== sessionUser.id ||
         draftListing.status !== ListingStatus.DRAFT
       ) {
         redirect("/dashboard?error=Draft%20listing%20not%20found.");
@@ -350,7 +350,7 @@ export async function DashboardPageContent({
         await Promise.all([
           prisma.listing.count({
             where: {
-              sellerId: sessionUser.id,
+              ownerId: sessionUser.id,
               id: { not: listingId },
               status: { not: ListingStatus.DRAFT },
             },
@@ -380,8 +380,8 @@ export async function DashboardPageContent({
         );
       }
 
-      await prisma.listing.update({
-        where: { id: listingId },
+      await prisma.listing.updateMany({
+        where: { id: listingId, ownerId: sessionUser.id },
         data: {
           status: ListingStatus.ACTIVE,
           activeUntil: new Date(Date.now() + THIRTY_DAYS_MS),

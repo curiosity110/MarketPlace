@@ -296,7 +296,7 @@ export default async function ProfilePage({
         },
       }),
       prisma.listing.findMany({
-        where: { sellerId: user.id },
+        where: { ownerId: user.id },
         select: {
           id: true,
           status: true,

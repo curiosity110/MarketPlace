@@ -44,9 +44,12 @@ export async function POST(request: Request) {
     return jsonError("Image must be 6MB or smaller", 400);
   }
 
-  let listing: Awaited<ReturnType<typeof prisma.listing.findUnique>>;
+  let listing: { id: string } | null = null;
   try {
-    listing = await prisma.listing.findUnique({ where: { id: listingId } });
+    listing = await prisma.listing.findFirst({
+      where: { id: listingId, ownerId: user.id },
+      select: { id: true },
+    });
     markPrismaHealthy();
   } catch (error) {
     if (isPrismaConnectionError(error)) {
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  if (!listing || listing.sellerId !== user.id) {
+  if (!listing) {
     return jsonError("You do not have permission to upload for this listing", 403);
   }
 

@@ -68,6 +68,44 @@ PowerShell equivalent:
 $env:ALLOW_MAKE_ADMIN="true"; $env:ADMIN_EMAIL="admin@example.com"; pnpm make:admin
 ```
 
+## Owner Isolation Backfill
+
+Run after applying migrations if older rows exist:
+
+```bash
+pnpm backfill:owner
+```
+
+What it does:
+- Sets `Listing.ownerId = Listing.sellerId` when missing.
+- Sets missing `Category.ownerId` to the first `ADMIN/CEO` user (or first user fallback).
+
+## Supabase Auth + Callback
+
+- Browser client: `src/lib/supabase/browser.ts`
+- Server client: `src/lib/supabase/server.ts`
+- Callback route: `/auth/callback` (`src/app/auth/callback/route.ts`)
+- Backward-compatible redirect from `/api/auth/callback` to `/auth/callback`
+- Server auth actions: `src/app/(auth)/actions.ts`
+
+Required env values:
+
+```env
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+## RLS SQL (Owner Policies)
+
+SQL file:
+
+`sql/rls_owner_policies.sql`
+
+Apply after schema migration and owner backfill.
+
+Note: this project maps Supabase JWT email to internal `"User".id` for policy checks.
+
 ## Supabase Cookie Reset (If You See "Invalid Compact JWS")
 
 If you change Supabase project keys/URL and uploads or auth start failing with `Invalid Compact JWS`:
@@ -75,6 +113,28 @@ If you change Supabase project keys/URL and uploads or auth start failing with `
 1. Clear browser cookies for `localhost` (or your dev host).
 2. Restart `pnpm dev`.
 3. Login again to refresh Supabase session cookies.
+
+## Manual Verification Checklist
+
+1. Password signup:
+   - Open `/register`
+   - Submit email + password
+   - If confirm-email is ON and no session is returned, UI must show check-email message.
+2. Password login:
+   - Confirm user in email
+   - Login with password from `/login`
+   - Expect redirect to `next` path or browse/dashboard path.
+3. Magic link:
+   - From `/login`, click `Send magic link`
+   - Open mail and complete `/auth/callback`
+   - Expect redirect to `/browse` (or safe `next`).
+4. Tenant isolation:
+   - Login as user A, create listing(s)
+   - Login as user B, verify dashboard/profile show only B-owned listings
+   - Check `/debug/tenant` for owner-scoped counts and sample records.
+5. Locale switch:
+   - Toggle MK/EN in navbar
+   - Verify auth status/error messages switch language.
 
 ## Information Needed From You
 

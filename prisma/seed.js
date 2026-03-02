@@ -407,13 +407,18 @@ async function main() {
   console.log("Seed start");
 
   await resetListingData();
+  const tester = await ensureTesterUser();
+  console.log(`Tester ensured: ${tester.email}`);
+  const fakeSellers = await ensureFakeSellers();
+  console.log(`Fake sellers ensured: ${fakeSellers.length}`);
+  const listingSellers = [tester, ...fakeSellers];
 
   const upsertedCategories = [];
   for (const [name, slug] of categories) {
     const category = await prisma.category.upsert({
       where: { slug },
-      update: { name, isActive: true },
-      create: { name, slug, isActive: true },
+      update: { name, isActive: true, ownerId: tester.id },
+      create: { name, slug, isActive: true, ownerId: tester.id },
     });
     upsertedCategories.push(category);
   }
@@ -470,12 +475,6 @@ async function main() {
     console.log(`Admin ensured: ${adminEmail.toLowerCase()}`);
   }
 
-  const tester = await ensureTesterUser();
-  console.log(`Tester ensured: ${tester.email}`);
-  const fakeSellers = await ensureFakeSellers();
-  console.log(`Fake sellers ensured: ${fakeSellers.length}`);
-  const listingSellers = [tester, ...fakeSellers];
-
   const templatesByCategoryId = await prisma.categoryFieldTemplate.findMany({
     where: { isActive: true },
     orderBy: [{ categoryId: "asc" }, { order: "asc" }],
@@ -522,6 +521,7 @@ async function main() {
       const seller = listingSellers[(categoryIndex + listingIndex) % listingSellers.length];
       const listing = await prisma.listing.create({
         data: {
+          ownerId: seller.id,
           sellerId: seller.id,
           title: seed.title,
           description: seed.description,

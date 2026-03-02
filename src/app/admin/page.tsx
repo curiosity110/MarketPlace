@@ -51,7 +51,7 @@ const ROLE_OPTIONS: Role[] = [
 async function reviewCategoryRequest(formData: FormData) {
   "use server";
 
-  await requireControlAccess();
+  const actor = await requireControlAccess();
   const requestId = String(formData.get("requestId") || "");
   const decision = String(formData.get("decision") || "");
   const adminNotes = String(formData.get("adminNotes") || "").trim();
@@ -79,6 +79,7 @@ async function reviewCategoryRequest(formData: FormData) {
       await prisma.$transaction([
         prisma.category.create({
           data: {
+            ownerId: actor.id,
             name: request.desiredName,
             slug: nextSlug,
             parentId: request.parentId || null,

@@ -1,5 +1,22 @@
 export const en = {
   appName: "MarketPlace MKD",
+  auth: {
+    signup: {
+      checkEmail: "Check your email to confirm your account, then log in.",
+      successSignedIn: "Account created and signed in successfully.",
+    },
+    magic: {
+      sent: "Magic link sent. Check your inbox.",
+    },
+    login: {
+      success: "Login successful.",
+    },
+    error: {
+      invalidCredentials: "Invalid email or password.",
+      generic: "Authentication failed. Please try again.",
+      passwordRequired: "Please enter your password to log in.",
+    },
+  },
   language: {
     label: "Language",
     english: "English",
