@@ -17,8 +17,12 @@ import {
 import { isMarketplaceCurrency } from "@/lib/currency";
 import { normalizePhoneInput } from "@/lib/phone";
 import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
+import { getSupabaseAdminStorageContext } from "@/lib/supabase/admin";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_FILE_SIZE = 6 * 1024 * 1024; // 6MB
+const MAX_IMAGES_PER_LISTING = 10;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 type CreateRedirectBase = "/sell" | "/sell/analytics" | "/dashboard";
 
@@ -32,6 +36,93 @@ function redirectWithError(basePath: CreateRedirectBase, message: string): never
   redirect(`${basePath}?error=${encodeURIComponent(message)}`);
 }
 
+function sanitizeFileName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+}
+
+function getImageFiles(formData: FormData) {
+  return formData
+    .getAll("photos")
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+}
+
+async function uploadListingImages({
+  listingId,
+  files,
+}: {
+  listingId: string;
+  files: File[];
+}) {
+  if (files.length === 0) {
+    return { ok: true as const };
+  }
+
+  if (files.length > MAX_IMAGES_PER_LISTING) {
+    return {
+      ok: false as const,
+      error: `You can upload up to ${MAX_IMAGES_PER_LISTING} images per listing`,
+    };
+  }
+
+  for (const file of files) {
+    if (!ALLOWED_IMAGE_TYPES.has(file.type.toLowerCase())) {
+      return { ok: false as const, error: "Only JPG, PNG, or WEBP images are allowed" };
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return { ok: false as const, error: "Each image must be 6MB or smaller" };
+    }
+  }
+
+  const {
+    context: storageContext,
+    error: storageConfigError,
+  } = getSupabaseAdminStorageContext();
+  if (!storageContext) {
+    return {
+      ok: false as const,
+      error: storageConfigError || "Storage auth client is not configured",
+    };
+  }
+
+  const uploadedUrls: string[] = [];
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    const safeName = sanitizeFileName(file.name);
+    const path = `${listingId}/${Date.now()}-${index}-${safeName}`;
+    const { error: uploadError } = await storageContext.client.storage
+      .from(storageContext.bucket)
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      return { ok: false as const, error: uploadError.message };
+    }
+
+    const { data } = storageContext.client.storage
+      .from(storageContext.bucket)
+      .getPublicUrl(path);
+    uploadedUrls.push(data.publicUrl);
+  }
+
+  try {
+    await prisma.listingImage.createMany({
+      data: uploadedUrls.map((url) => ({ listingId, url })),
+    });
+    markPrismaHealthy();
+  } catch (error) {
+    if (isPrismaConnectionError(error)) {
+      markPrismaUnavailable();
+      return { ok: false as const, error: "Database is temporarily unreachable" };
+    }
+    throw error;
+  }
+
+  return { ok: true as const };
+}
+
 async function createListingWithBase(
   formData: FormData,
   basePath: CreateRedirectBase,
@@ -42,10 +133,11 @@ async function createListingWithBase(
   }
 
   const intent = String(formData.get("intent") || "draft");
-  const status = statusFromIntent(intent);
+  let status = statusFromIntent(intent);
   const plan = String(formData.get("plan") || "pay-per-listing");
   const paymentProvider = String(formData.get("paymentProvider") || "none");
   let isFirstPublishedPost = false;
+  let paymentDeferredReason: string | null = null;
 
   const title = String(formData.get("title") || "").trim();
   const description = String(formData.get("description") || "").trim();
@@ -75,6 +167,7 @@ async function createListingWithBase(
   const priceCents = Number.isFinite(price) ? Math.round(price * 100) : 0;
 
   const dynamicValues = getDynamicFieldEntries(formData);
+  const imageFiles = getImageFiles(formData);
 
   if (status === ListingStatus.ACTIVE) {
     if (!categoryId) {
@@ -128,29 +221,29 @@ async function createListingWithBase(
 
   if (status === ListingStatus.ACTIVE) {
     if (!isFirstPublishedPost && paymentProvider !== "stripe-dummy") {
-      redirectWithError(
-        basePath,
-        "Dummy Stripe payment is required before activation.",
-      );
-    }
-
-    if (!isFirstPublishedPost && paymentProvider === "stripe-dummy") {
+      status = ListingStatus.DRAFT;
+      paymentDeferredReason =
+        "Payment is required before activation. Draft saved so you can pay and publish from edit.";
+    } else if (!isFirstPublishedPost && paymentProvider === "stripe-dummy") {
       const paymentResult = validateDummyStripePayment({
         cardNumberRaw: String(formData.get("dummyCardNumber") || ""),
         cardExpRaw: String(formData.get("dummyCardExp") || ""),
         cardCvcRaw: String(formData.get("dummyCardCvc") || ""),
       });
       if (!paymentResult.ok) {
-        redirectWithError(basePath, paymentResult.error);
+        status = ListingStatus.DRAFT;
+        paymentDeferredReason = paymentResult.error;
       }
     }
 
-    const validation = validatePublishInputs({
-      title,
-      priceCents,
-    });
-    if (!validation.isValid) {
-      redirectWithError(basePath, validation.errors[0]);
+    if (status === ListingStatus.ACTIVE) {
+      const validation = validatePublishInputs({
+        title,
+        priceCents,
+      });
+      if (!validation.isValid) {
+        redirectWithError(basePath, validation.errors[0]);
+      }
     }
   }
 
@@ -205,7 +298,15 @@ async function createListingWithBase(
     throw error;
   }
 
-      revalidatePath("/browse");
+  const uploadResult = await uploadListingImages({
+    listingId,
+    files: imageFiles,
+  });
+  if (!uploadResult.ok) {
+    redirect(`/sell/${listingId}/edit?error=${encodeURIComponent(uploadResult.error)}`);
+  }
+
+  revalidatePath("/browse");
   revalidatePath("/sell");
   revalidatePath("/sell/analytics");
   revalidatePath("/dashboard");
@@ -219,6 +320,9 @@ async function createListingWithBase(
   }
   if (status === ListingStatus.DRAFT) {
     if (listingId) {
+      if (paymentDeferredReason) {
+        redirect(`/sell/${listingId}/edit?error=${encodeURIComponent(paymentDeferredReason)}`);
+      }
       redirect(`/sell/${listingId}/edit`);
     }
     redirect(`${basePath}?error=Draft%20save%20failed`);

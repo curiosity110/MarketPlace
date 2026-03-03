@@ -126,7 +126,8 @@ export function ListingForm({
         phonePlaceholder: "Внеси телефонски број",
         acceptedPhoneFormat:
           "Прифатен формат: локален, +држава или 00држава.",
-        saveDraftForPhotos: "Зачувај нацрт за да прикачиш фотографии.",
+        photos: "Фотографии",
+        photosHint: "Можеш да прикачиш до 10 слики веднаш при креирање.",
         sellerPackage: "Пакет за продавач",
         gptIncluded: "GPT вклучен",
         payPerListing: "Плаќање по оглас",
@@ -187,7 +188,8 @@ export function ListingForm({
         phonePlaceholder: "Enter phone number",
         acceptedPhoneFormat:
           "Accepted format: local, +country, or 00country.",
-        saveDraftForPhotos: "Save draft to upload photos.",
+        photos: "Photos",
+        photosHint: "You can upload up to 10 images directly while creating.",
         sellerPackage: "Seller package",
         gptIncluded: "GPT included",
         payPerListing: "Pay per listing",
@@ -482,6 +484,7 @@ export function ListingForm({
       id={formId}
       ref={formRef}
       action={action}
+      encType="multipart/form-data"
       className="space-y-4"
       onChange={() => {
         if (isCreateMode) persistDraft();
@@ -734,8 +737,18 @@ export function ListingForm({
 
           {!initial?.id && (
             <div className="rounded-xl border border-border/70 bg-card/90 p-3">
-              <p className="text-sm text-muted-foreground">
-                {text.saveDraftForPhotos}
+              <label className="space-y-1">
+                <span className="text-sm font-medium">{text.photos}</span>
+                <input
+                  type="file"
+                  name="photos"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  multiple
+                  className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                />
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {text.photosHint}
               </p>
             </div>
           )}
