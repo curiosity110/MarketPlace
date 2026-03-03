@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ListingCondition, ListingStatus } from "@prisma/client";
 import { MapPin, ShieldAlert, UserRound } from "lucide-react";
-import { getSessionUser } from "@/lib/auth";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import {
@@ -16,7 +15,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { localizeCategoryPath } from "@/lib/category-label";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { getServerLocale } from "@/lib/i18n";
-import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 export default async function ListingDetails({
   params,
@@ -78,9 +76,6 @@ export default async function ListingDetails({
   const sp = await searchParams;
   const reportSaved = sp.reported === "1";
   const reportError = sp.error;
-  const sessionUser = await getSessionUser();
-
-  await runListingLifecycleMaintenance();
 
   async function fetchListingDetails() {
     return prisma.listing.findFirst({
@@ -146,7 +141,6 @@ export default async function ListingDetails({
 
   if (!listing) notFound();
 
-  const isOwner = sessionUser?.id === listing.seller.id;
   const valuesByKey = Object.fromEntries(
     listing.fieldValues.map((field) => [field.key, field.value]),
   );
@@ -268,10 +262,10 @@ export default async function ListingDetails({
                 <h2 className="text-lg font-semibold">{text.seller}</h2>
                 <details className="relative">
                   <summary className="list-none">
-                    <Button type="button" variant="outline" size="sm">
+                    <span className="inline-flex h-9 cursor-pointer items-center rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs hover:bg-accent hover:text-accent-foreground">
                       <ShieldAlert size={14} className="mr-1" />
                       {text.report}
-                    </Button>
+                    </span>
                   </summary>
                   <div className="absolute right-0 top-11 z-20 w-[min(92vw,360px)] rounded-xl border border-border/80 bg-background p-3 shadow-xl">
                     <p className="text-sm font-semibold">{text.reportListing}</p>
@@ -318,13 +312,9 @@ export default async function ListingDetails({
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
                 <details>
                   <summary className="list-none">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-center"
-                    >
+                    <span className="inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs hover:bg-accent hover:text-accent-foreground">
                       {text.sellerProfile}
-                    </Button>
+                    </span>
                   </summary>
                   <div className="mt-3 space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -347,13 +337,11 @@ export default async function ListingDetails({
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {isOwner && (
-                  <Link href="/profile" className="flex-1 min-w-[160px]">
-                    <Button variant="outline" className="w-full">
-                      {text.viewProfile}
-                    </Button>
-                  </Link>
-                )}
+                <Link href={`/seller/${listing.seller.id}`} className="flex-1 min-w-[160px]">
+                  <Button variant="outline" className="w-full">
+                    {text.viewProfile}
+                  </Button>
+                </Link>
                 <Link href="/browse" className="flex-1 min-w-[160px]">
                   <Button variant="ghost" className="w-full">
                     {text.backToBrowse}

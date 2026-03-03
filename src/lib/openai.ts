@@ -23,12 +23,12 @@ export const openai = new Proxy({} as OpenAI, {
 });
 
 /**
- * Send a message to GPT-4 and get a response
+ * Send a message to the assistant model and get a response
  * @param prompt The user's question or prompt
  * @param systemContext Optional system message to set the AI's behavior
  * @returns The AI's response text
  */
-export async function askGPT(
+export async function askAssistant(
   prompt: string,
   systemContext = "You are a helpful marketplace assistant.",
 ) {
@@ -47,10 +47,10 @@ export async function askGPT(
 }
 
 /**
- * Stream a response from GPT-4
+ * Stream a response from the assistant model
  * Useful for long-form content or when you want to show real-time output
  */
-export async function streamGPT(
+export async function streamAssistant(
   prompt: string,
   systemContext = "You are a helpful marketplace assistant.",
 ) {

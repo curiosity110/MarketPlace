@@ -22,7 +22,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionUser } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
-import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 export default async function Home() {
   const sessionUser = await getSessionUser();
@@ -38,11 +37,11 @@ export default async function Home() {
         heroTitleA: "Купувај и продавај брзо",
         heroTitleB: "во јасен маркетплејс",
         heroDesc:
-          "Удобно на телефон и десктоп, со фокус на читливост и GPT помош низ целиот сајт.",
+          "Удобно на телефон и десктоп, со фокус на читливост и паметна помош низ целиот сајт.",
         explore: "Пребарај огласи",
         startSelling: "Започни со продавање",
-        gptAssistance: "GPT помош",
-        gptAssistanceDesc: "Пиши подобри огласи и добиј брз совет.",
+        smartAssistance: "Паметна помош",
+        smartAssistanceDesc: "Пиши подобри огласи и добиј брз совет.",
         saferTrading: "Побезбедно тргување",
         saferTradingDesc: "Модерација и пријавување за поголема доверба.",
         localGlobal: "Локално + глобално",
@@ -68,11 +67,11 @@ export default async function Home() {
         heroTitleA: "Buy and Sell Fast",
         heroTitleB: "in a Clear Marketplace",
         heroDesc:
-          "Comfortable on phone and desktop, focused on readability, and powered by GPT help across the full site.",
+          "Comfortable on phone and desktop, focused on readability, and powered by smart help across the full site.",
         explore: "Explore Listings",
         startSelling: "Start Selling",
-        gptAssistance: "GPT Assistance",
-        gptAssistanceDesc: "Write stronger listings and get instant advice.",
+        smartAssistance: "Smart assistant",
+        smartAssistanceDesc: "Write stronger listings and get instant advice.",
         saferTrading: "Safer Trading",
         saferTradingDesc: "Moderation tools and reporting flow for trust.",
         localGlobal: "Local + Global",
@@ -102,7 +101,7 @@ export default async function Home() {
           description: "Одлично за повремени продавачи",
           bullets: [
             "Еден активен оглас за 30 дена",
-            "GPT асистент за пишување",
+            "Паметен асистент за пишување",
             "Фотографии и динамични полиња",
             "Основни увиди за продавач",
           ],
@@ -134,7 +133,7 @@ export default async function Home() {
           description: "Great for occasional sellers",
           bullets: [
             "One active listing for 30 days",
-            "GPT writing assistant",
+            "Smart writing assistant",
             "Photos and dynamic category fields",
             "Basic seller insights",
           ],
@@ -158,8 +157,6 @@ export default async function Home() {
           featured: true,
         },
       ];
-
-  await runListingLifecycleMaintenance();
 
   async function fetchHomeData() {
     return Promise.all([
@@ -250,9 +247,9 @@ export default async function Home() {
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-border/70 bg-card p-3">
                 <Sparkles className="mb-2 text-primary" size={18} />
-                <p className="text-sm font-semibold">{text.gptAssistance}</p>
+                <p className="text-sm font-semibold">{text.smartAssistance}</p>
                 <p className="text-xs text-muted-foreground">
-                  {text.gptAssistanceDesc}
+                  {text.smartAssistanceDesc}
                 </p>
               </div>
               <div className="rounded-2xl border border-border/70 bg-card p-3">
@@ -412,3 +409,5 @@ export default async function Home() {
     </div>
   );
 }
+
+

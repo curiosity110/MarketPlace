@@ -19,7 +19,6 @@ import {
 } from "@/lib/prisma-circuit-breaker";
 import { normalizePhoneInput, parseStoredPhone, PHONE_COUNTRIES } from "@/lib/phone";
 import { getServerLocale } from "@/lib/i18n";
-import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 function sanitizeUsername(value: string) {
   return value
@@ -264,8 +263,6 @@ export default async function ProfilePage({
   const dbUnavailableError = text.dbUnavailable;
   const dashboardHref = canSell(user.role) ? "/dashboard" : "/browse";
 
-  await runListingLifecycleMaintenance();
-
   async function fetchProfileData() {
     return Promise.all([
       prisma.user.findUnique({
@@ -428,12 +425,18 @@ export default async function ProfilePage({
                   defaultValue={userRecord?.name || ""}
                   placeholder={text.fullNamePlaceholder}
                   maxLength={80}
+                  autoComplete="name"
                 />
               </label>
 
               <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs font-medium text-muted-foreground">{text.email}</span>
-                <Input value={userRecord?.email || user.email} readOnly />
+                <Input
+                  name="email"
+                  value={userRecord?.email || user.email}
+                  readOnly
+                  autoComplete="email"
+                />
               </label>
 
               <div className="grid gap-3 sm:col-span-2 sm:grid-cols-[220px_minmax(0,1fr)]">
@@ -477,6 +480,7 @@ export default async function ProfilePage({
                   defaultValue={userRecord?.company || ""}
                   placeholder={text.companyPlaceholder}
                   maxLength={80}
+                  autoComplete="organization"
                 />
               </label>
 
@@ -489,6 +493,7 @@ export default async function ProfilePage({
                   type="url"
                   inputMode="url"
                   maxLength={180}
+                  autoComplete="url"
                 />
               </label>
 
@@ -499,6 +504,7 @@ export default async function ProfilePage({
                   defaultValue={userRecord?.address || ""}
                   placeholder={text.addressPlaceholder}
                   maxLength={180}
+                  autoComplete="street-address"
                 />
               </label>
 

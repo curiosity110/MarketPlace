@@ -183,6 +183,8 @@ async function createListingWithBase(
   const plan = String(formData.get("plan") || "pay-per-listing");
   const paymentProvider = String(formData.get("paymentProvider") || "none");
   let isFirstPublishedPost = false;
+  let hasActiveSubscription = false;
+  let chargedWithDummyPayment = false;
   let paymentDeferredReason: string | null = null;
 
   const title = String(formData.get("title") || "").trim();
@@ -248,13 +250,24 @@ async function createListingWithBase(
     }
 
     try {
-      const priorPublishedPosts = await prisma.listing.count({
-        where: {
-          ownerId: user.authUserId,
-          status: { not: ListingStatus.DRAFT },
-        },
-      });
+      const [priorPublishedPosts, activeSubscriptionCount] = await Promise.all([
+        prisma.listing.count({
+          where: {
+            ownerId: user.authUserId,
+            status: { not: ListingStatus.DRAFT },
+          },
+        }),
+        prisma.listing.count({
+          where: {
+            ownerId: user.authUserId,
+            status: ListingStatus.ACTIVE,
+            activeUntil: null,
+            sale: null,
+          },
+        }),
+      ]);
       isFirstPublishedPost = priorPublishedPosts === 0;
+      hasActiveSubscription = activeSubscriptionCount > 0;
       markPrismaHealthy();
     } catch (error) {
       if (isPrismaConnectionError(error)) {
@@ -266,10 +279,10 @@ async function createListingWithBase(
   }
 
   if (status === ListingStatus.ACTIVE) {
-    if (!isFirstPublishedPost && paymentProvider !== "stripe-dummy") {
+    if (!isFirstPublishedPost && !hasActiveSubscription && paymentProvider !== "stripe-dummy") {
       status = ListingStatus.DRAFT;
       paymentDeferredReason = msg.paymentRequired;
-    } else if (!isFirstPublishedPost && paymentProvider === "stripe-dummy") {
+    } else if (!isFirstPublishedPost && !hasActiveSubscription && paymentProvider === "stripe-dummy") {
       const paymentResult = validateDummyStripePayment({
         cardNumberRaw: String(formData.get("dummyCardNumber") || ""),
         cardExpRaw: String(formData.get("dummyCardExp") || ""),
@@ -278,6 +291,8 @@ async function createListingWithBase(
       if (!paymentResult.ok) {
         status = ListingStatus.DRAFT;
         paymentDeferredReason = paymentResult.error;
+      } else {
+        chargedWithDummyPayment = true;
       }
     }
 
@@ -310,7 +325,11 @@ async function createListingWithBase(
           status,
           activeUntil: resolveActiveUntil(
             status,
-            isFirstPublishedPost ? "pay-per-listing" : plan,
+            hasActiveSubscription
+              ? "subscription"
+              : isFirstPublishedPost
+                ? "pay-per-listing"
+                : plan,
           ),
         },
       });
@@ -361,7 +380,12 @@ async function createListingWithBase(
   if (status === ListingStatus.ACTIVE && isFirstPublishedPost) {
     redirect(`${basePath}?free=1`);
   }
-  if (status === ListingStatus.ACTIVE && paymentProvider === "stripe-dummy") {
+  if (
+    status === ListingStatus.ACTIVE &&
+    !isFirstPublishedPost &&
+    !hasActiveSubscription &&
+    chargedWithDummyPayment
+  ) {
     redirect(`${basePath}?paid=1`);
   }
   if (status === ListingStatus.DRAFT) {

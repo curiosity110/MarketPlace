@@ -9,6 +9,7 @@
     "lint": "eslint",
     "make:admin": "tsx scripts/make-admin.ts",
     "backfill:owner": "tsx scripts/backfill-owner-ids.ts",
+    "bootstrap:subcategories": "tsx scripts/bootstrap-subcategories.ts",
     "prisma:generate": "prisma generate",
     "prisma:seed": "node prisma/seed.js",
     "db:migrate": "prisma migrate deploy"

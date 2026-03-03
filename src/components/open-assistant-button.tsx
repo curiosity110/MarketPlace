@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export function OpenAssistantButton({
   className = "",
   locale = "en",
 }: Props) {
-  const label = locale === "mk" ? "Прашај GPT" : "Ask GPT";
+  const label = locale === "mk" ? "Прашај асистент" : "Ask assistant";
   return (
     <Button
       type="button"

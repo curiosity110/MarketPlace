@@ -237,9 +237,12 @@ export function ListingImageUpload({
           <span className="text-sm font-medium">{text.selectPhotos}</span>
           <input
             ref={inputRef}
+            id="listing-images-upload"
+            name="listingImages"
             type="file"
             accept="image/*"
             multiple
+            autoComplete="off"
             onChange={onSelectFiles}
             disabled={uploading}
             className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"

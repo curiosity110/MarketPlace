@@ -126,7 +126,6 @@ export function ListingForm({
         categoryAndLocation: "Категорија и локација",
         pricingAndLocation: "Цена и локација",
         categoryPriority: "Прво избери категорија за попрецизни филтри.",
-        selectedCategory: "Избрана категорија",
         requestCategory: "Побарај категорија",
         price: "Цена",
         pricePlaceholder: "Цена",
@@ -159,7 +158,7 @@ export function ListingForm({
         photosSingleSizeError: "Секоја слика мора да е 4MB или помалку.",
         photosTotalSizeError: "Вкупната големина на слики треба да биде до 4MB.",
         sellerPackage: "Пакет за продавач",
-        gptIncluded: "GPT вклучен",
+        assistantIncluded: "Assistant included",
         payPerListing: "Плаќање по оглас",
         daysActive30: "30 дена активно",
         subscription: "Претплата",
@@ -197,7 +196,6 @@ export function ListingForm({
         categoryAndLocation: "Category and location",
         pricingAndLocation: "Pricing and location",
         categoryPriority: "Pick category first for smarter field suggestions.",
-        selectedCategory: "Selected category",
         requestCategory: "Request category",
         price: "Price",
         pricePlaceholder: "Price",
@@ -230,7 +228,7 @@ export function ListingForm({
         photosSingleSizeError: "Each image must be 4MB or smaller.",
         photosTotalSizeError: "Total image size must be 4MB or less.",
         sellerPackage: "Seller package",
-        gptIncluded: "GPT included",
+        assistantIncluded: "Assistant included",
         payPerListing: "Pay per listing",
         daysActive30: "30 days active",
         subscription: "Subscription",
@@ -253,6 +251,8 @@ export function ListingForm({
           "Success card: 4242424242424242. Fail card: 4000000000000002.",
         cancel: "Cancel",
       };
+  const resetDraftAndFormLabel = isMk ? "Ресетирај форма" : "Reset form";
+  const assistantIncludedLabel = isMk ? "Паметен асистент" : "Smart assistant";
   const formId = useId();
   const resolvedPublishLabel =
     publishLabel ?? (locale === "mk" ? "Објави оглас" : "Publish listing");
@@ -327,28 +327,11 @@ export function ListingForm({
     Boolean(subcategoryId) &&
     subcategoriesForSelectedParent.some((item) => item.id === subcategoryId);
   const selectedCategoryId = (hasValidSubcategory ? subcategoryId : "") || parentCategoryId;
-  const selectedCategoryPath = useMemo(() => {
-    const parent = categoryById[parentCategoryId];
-    const selected = categoryById[selectedCategoryId];
-    if (!selected) return "";
-    if (selected.parentId && parent) {
-      return `${localizeCategoryName(parent, locale)} / ${localizeCategoryName(selected, locale)}`;
-    }
-    return localizeCategoryName(selected, locale);
-  }, [categoryById, locale, parentCategoryId, selectedCategoryId]);
   const conditionLabelByValue: Record<ListingCondition, string> = {
     NEW: text.conditionNew,
     USED: text.conditionUsed,
     REFURBISHED: text.conditionRefurbished,
   };
-
-  const categorySlugById = useMemo(
-    () =>
-      Object.fromEntries(
-        categories.map((category) => [category.id, category.slug]),
-      ),
-    [categories],
-  );
 
   function validateCreatePhotos(files: FileList | null) {
     if (!isCreateMode || !files || files.length === 0) return null;
@@ -497,6 +480,23 @@ export function ListingForm({
     setSavedDraft(null);
   }
 
+  function resetCreateDraftAndForm() {
+    if (!isCreateMode) return;
+    clearPersistedDraft();
+    setRestoredValues({});
+    setParentCategoryId(defaultParentCategoryId);
+    setSubcategoryId(defaultSubcategoryId);
+    setPhoneCountry(initial?.phoneCountry ?? "MK");
+    setUseSavedPhone(hasSavedProfilePhone);
+    setPlan(initial?.plan ?? "pay-per-listing");
+    setPhotoValidationError(null);
+    setShowPaymentPanel(false);
+    if (photosInputRef.current) {
+      photosInputRef.current.value = "";
+    }
+    formRef.current?.reset();
+  }
+
   useEffect(() => {
     if (!showPaymentPanel) return;
 
@@ -584,6 +584,7 @@ export function ListingForm({
               required
               minLength={5}
               maxLength={120}
+              autoComplete="off"
             />
           </label>
 
@@ -595,6 +596,7 @@ export function ListingForm({
               className="min-h-36 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
               placeholder={text.descriptionPlaceholder}
               maxLength={2000}
+              autoComplete="off"
             />
           </label>
 
@@ -653,7 +655,9 @@ export function ListingForm({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
               <Link
-                href="/dashboard"
+                href="/categories#request-category"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
                 <CirclePlus size={13} />
@@ -670,6 +674,7 @@ export function ListingForm({
                   {text.mainCategory}
                 </span>
                 <Select
+                  name="parentCategoryId"
                   value={parentCategoryId}
                   onChange={(event) => {
                     setParentCategoryId(event.target.value);
@@ -685,12 +690,13 @@ export function ListingForm({
                 </Select>
               </label>
 
-              {subcategoriesForSelectedParent.length > 0 && (
+              {subcategoriesForSelectedParent.length > 0 ? (
                 <label className="space-y-1">
                   <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {text.subcategory}
                   </span>
                   <Select
+                    name="subcategoryId"
                     value={hasValidSubcategory ? subcategoryId : ""}
                     onChange={(event) => setSubcategoryId(event.target.value)}
                   >
@@ -702,15 +708,13 @@ export function ListingForm({
                     ))}
                   </Select>
                 </label>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  {text.subcategory}: 0
+                </p>
               )}
             </div>
 
-            <div className="rounded-lg border border-primary/20 bg-card/70 px-3 py-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.selectedCategory}
-              </p>
-              <p className="text-sm font-semibold">{selectedCategoryPath}</p>
-            </div>
           </div>
 
           <div className="space-y-3 rounded-xl border border-border/70 bg-card/90 p-3">
@@ -726,6 +730,7 @@ export function ListingForm({
                   defaultValue={readValue("price", String(initial?.price ?? 0))}
                   placeholder={text.pricePlaceholder}
                   required
+                  autoComplete="off"
                 />
               </label>
 
@@ -851,7 +856,6 @@ export function ListingForm({
               <DynamicFieldsEditor
                 key={selectedCategoryId}
                 categoryId={selectedCategoryId}
-                categorySlugById={categorySlugById}
                 templatesByCategory={templatesByCategory}
                 initialValues={dynamicInitialValues}
                 locale={locale}
@@ -867,7 +871,7 @@ export function ListingForm({
             <h3 className="text-lg font-semibold">{text.sellerPackage}</h3>
             <span className="inline-flex items-center gap-1 rounded-full border border-secondary/25 bg-secondary/10 px-2 py-0.5 text-xs font-semibold text-secondary">
               <Sparkles size={13} />
-              {text.gptIncluded}
+              {assistantIncludedLabel}
             </span>
           </div>
 
@@ -920,6 +924,16 @@ export function ListingForm({
       )}
 
       <div className="flex flex-wrap gap-2 pt-1">
+        {isCreateMode && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={resetCreateDraftAndForm}
+            disabled={showPaymentPanel}
+          >
+            {resetDraftAndFormLabel}
+          </Button>
+        )}
         {allowDraft && (
           <Button
             name="intent"
@@ -1093,4 +1107,5 @@ export function ListingForm({
     </form>
   );
 }
+
 

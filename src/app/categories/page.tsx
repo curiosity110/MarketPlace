@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -14,18 +16,22 @@ import {
   Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CategoryRequestForm } from "@/components/category-request-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getSessionUser, requireSeller } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { isPrismaConnectionError } from "@/lib/prisma-errors";
+import {
+  isMissingCategoryRequestTableError,
+  isPrismaConnectionError,
+} from "@/lib/prisma-errors";
 import {
   markPrismaHealthy,
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 const iconBySlug = {
   cars: Car,
@@ -60,9 +66,17 @@ export default async function CategoriesPage({
         createHere: "Креирај тука",
         missingCategory: "Недостига категорија?",
         missingCategoryText:
-          "Отвори ја контролната табла и побарај нова категорија. Тимот може брзо да ја одобри.",
-        openDashboardCategories: "Отвори категории во табла",
+          "Поднеси барање за нова категорија директно овде. Админ тимот може брзо да ја одобри.",
+        openDashboardCategories: "Поднеси барање за категорија",
         continueBrowsing: "Продолжи со пребарување",
+        requestCategoryTitle: "Побарај нова категорија",
+        requestCategoryDesc:
+          "Ако некоја категорија недостига, испрати барање и ќе се прегледа.",
+        requestSaved: "Барањето е испратено. Ќе добиеш одговор по преглед.",
+        requestErrorGeneric: "Барањето не може да се испрати моментално.",
+        loginToRequest: "Најави се за да побараш нова категорија.",
+        login: "Најава",
+        invalidCategoryName: "Името на категоријата мора да има најмалку 3 карактери.",
       }
     : {
         title: "Categories",
@@ -78,14 +92,90 @@ export default async function CategoriesPage({
         createHere: "Create here",
         missingCategory: "Missing a category?",
         missingCategoryText:
-          "Open your dashboard and request a new category. The team can approve it quickly.",
-        openDashboardCategories: "Open dashboard categories",
+          "Submit a new category request directly here. The admin team can approve it quickly.",
+        openDashboardCategories: "Submit category request",
         continueBrowsing: "Continue browsing",
+        requestCategoryTitle: "Request a new category",
+        requestCategoryDesc:
+          "If a category is missing, submit a request and we will review it.",
+        requestSaved: "Category request sent. You will get an update after review.",
+        requestErrorGeneric: "Category request cannot be submitted right now.",
+        loginToRequest: "Sign in to request a new category.",
+        login: "Login",
+        invalidCategoryName: "Category name must have at least 3 characters.",
       };
   const sp = await searchParams;
   const query = (sp.q || "").trim().toLowerCase();
+  const requestSaved = sp.requested === "1";
+  const requestError = sp.requestError;
+  const sessionUser = await getSessionUser();
 
-  await runListingLifecycleMaintenance();
+  async function submitCategoryRequest(formData: FormData) {
+    "use server";
+
+    const actionLocale =
+      String(formData.get("locale") || "en") === "mk" ? "mk" : "en";
+    const errors =
+      actionLocale === "mk"
+        ? {
+            dbUnavailable: "Барањето не може да се испрати моментално.",
+            invalidName:
+              "Името на категоријата мора да има најмалку 3 карактери.",
+          }
+        : {
+            dbUnavailable: "Category request cannot be submitted right now.",
+            invalidName: "Category name must have at least 3 characters.",
+          };
+
+    const user = await requireSeller();
+    if (shouldSkipPrismaCalls()) {
+      redirect(
+        `/categories?requestError=${encodeURIComponent(errors.dbUnavailable)}#request-category`,
+      );
+    }
+
+    const desiredName = String(formData.get("desiredName") || "").trim();
+    if (desiredName.length < 3) {
+      redirect(
+        `/categories?requestError=${encodeURIComponent(errors.invalidName)}#request-category`,
+      );
+    }
+
+    const parentIdRaw = String(formData.get("parentId") || "").trim();
+    const parentId = parentIdRaw || null;
+    const descriptionRaw = String(formData.get("description") || "").trim();
+    const description = descriptionRaw ? descriptionRaw.slice(0, 400) : null;
+
+    try {
+      await prisma.categoryRequest.create({
+        data: {
+          requesterId: user.id,
+          desiredName: desiredName.slice(0, 80),
+          parentId,
+          description,
+        },
+      });
+      markPrismaHealthy();
+    } catch (error) {
+      if (isMissingCategoryRequestTableError(error)) {
+        redirect(
+          `/categories?requestError=${encodeURIComponent(errors.dbUnavailable)}#request-category`,
+        );
+      }
+      if (isPrismaConnectionError(error)) {
+        markPrismaUnavailable();
+        redirect(
+          `/categories?requestError=${encodeURIComponent(errors.dbUnavailable)}#request-category`,
+        );
+      }
+      throw error;
+    }
+
+    revalidatePath("/categories");
+    revalidatePath("/dashboard");
+    revalidatePath("/admin");
+    redirect("/categories?requested=1#request-category");
+  }
 
   async function fetchCategoriesData() {
     return prisma.category.findMany({
@@ -121,6 +211,44 @@ export default async function CategoriesPage({
     }
   }
 
+  let recentRequests: {
+    id: string;
+    desiredName: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    createdAtLabel: string;
+  }[] = [];
+  if (sessionUser && !dbUnavailable && !shouldSkipPrismaCalls()) {
+    try {
+      const requests = await prisma.categoryRequest.findMany({
+        where: { requesterId: sessionUser.id },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          id: true,
+          desiredName: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+      recentRequests = requests.map((request) => ({
+        id: request.id,
+        desiredName: request.desiredName,
+        status: request.status,
+        createdAtLabel: request.createdAt.toLocaleDateString(
+          isMk ? "mk-MK" : "en-US",
+        ),
+      }));
+      markPrismaHealthy();
+    } catch (error) {
+      if (
+        !isMissingCategoryRequestTableError(error) &&
+        !isPrismaConnectionError(error)
+      ) {
+        throw error;
+      }
+    }
+  }
+
   const visibleCategories = categories.filter((category) =>
     query
       ? `${category.name} ${localizeCategoryName(category, locale)}`
@@ -145,9 +273,7 @@ export default async function CategoriesPage({
         <div className="space-y-5">
           <div className="space-y-2">
             <h1 className="text-4xl font-black sm:text-5xl">{text.title}</h1>
-            <p className="max-w-2xl text-muted-foreground">
-              {text.subtitle}
-            </p>
+            <p className="max-w-2xl text-muted-foreground">{text.subtitle}</p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
@@ -198,7 +324,8 @@ export default async function CategoriesPage({
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {visibleCategories.map((category) => {
-          const Icon = iconBySlug[category.slug as keyof typeof iconBySlug] || PackageOpen;
+          const Icon =
+            iconBySlug[category.slug as keyof typeof iconBySlug] || PackageOpen;
           const activeCount = category.listings.filter(
             (listing) => listing.status === "ACTIVE",
           ).length;
@@ -259,7 +386,7 @@ export default async function CategoriesPage({
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
           {text.missingCategoryText}
         </p>
-        <Link href="/dashboard" className="mt-4 inline-block">
+        <Link href="#request-category" className="mt-4 inline-block">
           <Button variant="outline" className="gap-2">
             <PlusCircle size={16} />
             {text.openDashboardCategories}
@@ -271,6 +398,53 @@ export default async function CategoriesPage({
         >
           {text.continueBrowsing} <ArrowRight size={14} />
         </Link>
+      </section>
+
+      <section
+        id="request-category"
+        className="rounded-3xl border border-border/70 bg-card p-6"
+      >
+        <h2 className="text-2xl font-bold">{text.requestCategoryTitle}</h2>
+        <p className="mt-2 text-muted-foreground">{text.requestCategoryDesc}</p>
+
+        {requestSaved && (
+          <Card className="mt-4 border-success/30 bg-success/10">
+            <CardContent className="py-3 text-sm text-success">
+              {text.requestSaved}
+            </CardContent>
+          </Card>
+        )}
+        {requestError && (
+          <Card className="mt-4 border-warning/30 bg-warning/10">
+            <CardContent className="py-3 text-sm text-foreground">
+              {requestError || text.requestErrorGeneric}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="mt-4">
+          {sessionUser ? (
+            <CategoryRequestForm
+              action={submitCategoryRequest}
+              categories={categories.map((category) => ({
+                id: category.id,
+                name: category.name,
+              }))}
+              recentRequests={recentRequests}
+              locale={locale}
+            />
+          ) : (
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm">
+              <p className="text-muted-foreground">{text.loginToRequest}</p>
+              <Link
+                href="/login?next=%2Fcategories%23request-category"
+                className="mt-2 inline-block"
+              >
+                <Button size="sm">{text.login}</Button>
+              </Link>
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );

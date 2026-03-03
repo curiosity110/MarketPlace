@@ -128,6 +128,7 @@ export function CategoryRequestForm({
         <label className="space-y-1 md:col-span-1">
           <span className="text-sm font-medium">{text.categoryName}</span>
           <input
+            id="category-request-name"
             name="desiredName"
             required
             minLength={3}
@@ -135,16 +136,19 @@ export function CategoryRequestForm({
             onChange={(event) => setDesiredName(event.target.value)}
             className="h-10 w-full rounded-xl border border-border bg-input px-3 text-sm"
             placeholder={text.categoryNamePlaceholder}
+            autoComplete="off"
           />
         </label>
 
         <label className="space-y-1 md:col-span-1">
           <span className="text-sm font-medium">{text.closestParent}</span>
           <select
+            id="category-request-parent"
             name="parentId"
             value={parentId}
             onChange={(event) => setParentId(event.target.value)}
             className="h-10 w-full rounded-xl border border-border bg-input px-3 text-sm"
+            autoComplete="off"
           >
             <option value="">{text.noParent}</option>
             {categories.map((category) => (
@@ -158,11 +162,13 @@ export function CategoryRequestForm({
         <label className="space-y-1 md:col-span-2">
           <span className="text-sm font-medium">{text.reasonDetails}</span>
           <textarea
+            id="category-request-description"
             name="description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
             placeholder={text.reasonPlaceholder}
+            autoComplete="off"
           />
         </label>
 

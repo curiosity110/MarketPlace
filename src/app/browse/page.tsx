@@ -22,7 +22,6 @@ import {
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
 import { parseTemplateOptions } from "@/lib/listing-fields";
-import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 const PAGE_SIZE = 60;
 type BrowseSort = "newest" | "price-asc" | "price-desc";
@@ -193,8 +192,6 @@ export default async function BrowsePage({
     status: ListingStatus.ACTIVE,
     ...(andFilters.length > 0 ? { AND: andFilters } : {}),
   };
-
-  await runListingLifecycleMaintenance();
 
   async function fetchBrowseData() {
     return Promise.all([
@@ -380,11 +377,16 @@ export default async function BrowsePage({
             <p className="text-xs text-muted-foreground">{text.showingAll}</p>
           )}
         </div>
-
-        
+        {hasAppliedFilters && (
+          <Link href="/browse">
+            <Button variant="outline" type="button">
+              {text.resetFilters}
+            </Button>
+          </Link>
+        )}
       </div>
 
-      <Card>
+      <Card className="border-primary/15 bg-card/90">
         <CardContent className="p-4 sm:p-5">
           <BrowseFilters
             categories={parentCategories.map((category) => ({

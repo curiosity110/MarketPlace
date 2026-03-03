@@ -69,9 +69,10 @@ export function SiteFooter({ locale = "en" }: Props) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} MarketPlace MKD. {text.rights}
+          &copy; {new Date().getFullYear()} MarketPlace MKD. {text.rights}
         </p>
       </Container>
     </footer>
   );
 }
+

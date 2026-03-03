@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { askGPT } from "@/lib/openai";
+import { askAssistant } from "@/lib/openai";
 
 export const runtime = "nodejs";
 
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const answer = await askGPT(
+    const answer = await askAssistant(
       payload.question.trim(),
       payload.systemContext,
     );

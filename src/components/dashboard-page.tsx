@@ -23,7 +23,6 @@ import {
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
 import { getServerLocale } from "@/lib/i18n";
-import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -78,6 +77,7 @@ export async function DashboardPageContent({
         soon: "Наскоро",
         listings: "огласи",
         all: "Сите",
+        allCategories: "Сите категории",
         draft: "Нацрт",
         noListingsForFilter: "Нема огласи за овој филтер.",
         status: "статус",
@@ -96,6 +96,9 @@ export async function DashboardPageContent({
         soldHint: "Овој оглас е означен како продаден.",
         publishFree: "Објави бесплатно",
         firstPublishFreeHint: "Првото објавување за 30 дена е бесплатно.",
+        publishWithSubscription: "Објави со активна претплата",
+        subscriptionPublishHint:
+          "Имаш активна претплата, затоа оваа објава не бара дополнително плаќање.",
       }
     : {
         dbUnavailable: "Database is temporarily unreachable. Please retry in a moment.",
@@ -125,6 +128,7 @@ export async function DashboardPageContent({
         soon: "Soon",
         listings: "listings",
         all: "All",
+        allCategories: "All categories",
         draft: "Draft",
         noListingsForFilter: "No listings in this category for this filter.",
         status: "status",
@@ -143,6 +147,9 @@ export async function DashboardPageContent({
         soldHint: "This listing is marked as sold.",
         publishFree: "Publish free",
         firstPublishFreeHint: "First 30-day publish is free.",
+        publishWithSubscription: "Publish with active subscription",
+        subscriptionPublishHint:
+          "You have an active subscription, so this publish does not require extra payment.",
       };
   const user = await requireUser();
   const canCreateListings = canSell(user.role);
@@ -157,8 +164,6 @@ export async function DashboardPageContent({
   const selectedView = parseView(sp.view);
   const selectedPlan = parsePlan(sp.plan);
   const dbUnavailableError = text.dbUnavailable;
-
-  await runListingLifecycleMaintenance();
 
   async function fetchAnalyticsData() {
     return Promise.all([
@@ -251,6 +256,13 @@ export async function DashboardPageContent({
   const draftCount = allListings.filter(
     (listing) => listing.status === ListingStatus.DRAFT && !listing.sale,
   ).length;
+  const hasActiveSubscription = activeListings.some(
+    (listing) => listing.activeUntil === null,
+  );
+  const requiresPaymentForCreate = hasPublishedListing && !hasActiveSubscription;
+  const validCategoryIds = new Set(categories.map((category) => category.id));
+  const requestedCreateCategoryId =
+    sp.cat && validCategoryIds.has(sp.cat) ? sp.cat : undefined;
   const categoryStats = [...allListings]
     .reduce<
       Map<
@@ -294,36 +306,47 @@ export async function DashboardPageContent({
   const userCategories = [...categoryStats].sort((a, b) => b.posted - a.posted);
   const selectedCategoryFromQuery = sp.cat;
   const selectedCategory =
-    (selectedCategoryFromQuery
-      ? userCategories.find(
-          (category) => category.id === selectedCategoryFromQuery,
-        )
-      : null) ||
-    userCategories[0] ||
-    null;
+    selectedCategoryFromQuery && selectedCategoryFromQuery !== "all"
+      ? userCategories.find((category) => category.id === selectedCategoryFromQuery) || null
+      : null;
 
-  const selectedCategoryListings = selectedCategory
-    ? [...allListings]
-        .filter((listing) => listing.categoryId === selectedCategory.id)
-        .filter((listing) => {
-          if (selectedView === "sold") return Boolean(listing.sale);
-          if (selectedView === "active") {
-            return listing.status === ListingStatus.ACTIVE && !listing.sale;
-          }
-          if (selectedView === "draft") {
-            return listing.status === ListingStatus.DRAFT && !listing.sale;
-          }
-          if (selectedView === "expired") {
-            return listing.status === ListingStatus.INACTIVE && !listing.sale;
-          }
-          return true;
-        })
-        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-    : [];
+  const selectedCategoryListings = [...allListings]
+    .filter((listing) => {
+      if (selectedView === "sold") return Boolean(listing.sale);
+      if (selectedView === "active") {
+        return listing.status === ListingStatus.ACTIVE && !listing.sale;
+      }
+      if (selectedView === "draft") {
+        return listing.status === ListingStatus.DRAFT && !listing.sale;
+      }
+      if (selectedView === "expired") {
+        return listing.status === ListingStatus.INACTIVE && !listing.sale;
+      }
+      return true;
+    })
+    .filter((listing) =>
+      selectedCategory ? listing.categoryId === selectedCategory.id : true,
+    )
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
   const categoryBaseHref = selectedCategory
     ? `/dashboard?cat=${selectedCategory.id}`
-    : "/dashboard";
+    : "/dashboard?cat=all";
+  const categoryViewStats = selectedCategory
+    ? {
+        all: selectedCategory.posted,
+        active: selectedCategory.active,
+        draft: selectedCategory.draft,
+        expired: selectedCategory.expired,
+        sold: selectedCategory.sold,
+      }
+    : {
+        all: allListings.length,
+        active: activeListings.length,
+        draft: draftCount,
+        expired: expiredListings.length,
+        sold: soldListings.length,
+      };
 
   async function publishDraftFromDashboard(formData: FormData) {
     "use server";
@@ -423,7 +446,12 @@ export async function DashboardPageContent({
         );
       }
 
-      const [priorPublishedPosts, categoryExists, cityExists] =
+      const [
+        priorPublishedPosts,
+        categoryExists,
+        cityExists,
+        activeSubscriptionCount,
+      ] =
         await Promise.all([
           prisma.listing.count({
             where: {
@@ -438,9 +466,18 @@ export async function DashboardPageContent({
           prisma.city.count({
             where: { id: draftListing.cityId },
           }),
+          prisma.listing.count({
+            where: {
+              ownerId: sessionUser.authUserId,
+              status: ListingStatus.ACTIVE,
+              activeUntil: null,
+              sale: null,
+            },
+          }),
         ]);
+      const hasSubscriptionAccess = activeSubscriptionCount > 0;
 
-      if (priorPublishedPosts > 0) {
+      if (priorPublishedPosts > 0 && !hasSubscriptionAccess) {
         redirect(
           `/sell/${listingId}/edit?error=${encodeURIComponent(msg.paymentRequired)}`,
         );
@@ -461,7 +498,9 @@ export async function DashboardPageContent({
         where: { id: listingId, ownerId: sessionUser.authUserId },
         data: {
           status: ListingStatus.ACTIVE,
-          activeUntil: new Date(Date.now() + THIRTY_DAYS_MS),
+          activeUntil: hasSubscriptionAccess
+            ? null
+            : new Date(Date.now() + THIRTY_DAYS_MS),
         },
       });
 
@@ -506,20 +545,25 @@ export async function DashboardPageContent({
                 cities={cities}
                 templatesByCategory={templatesByCategory}
                 allowDraft={false}
-                showPlanSelector={hasPublishedListing}
+                showPlanSelector={requiresPaymentForCreate}
                 publishLabel={
-                  hasPublishedListing
+                  requiresPaymentForCreate
                     ? isMk
                       ? "Плати dummy Stripe и објави"
                       : "Pay dummy Stripe & publish"
+                    : hasActiveSubscription
+                      ? text.publishWithSubscription
                     : isMk
                       ? "Објави прв 30-дневен оглас (бесплатно)"
                       : "Publish first 30-day listing (free)"
                 }
-                paymentProvider={hasPublishedListing ? "stripe-dummy" : "none"}
+                paymentProvider={requiresPaymentForCreate ? "stripe-dummy" : "none"}
                 openOnMount={createRequested}
                 initial={{
-                  categoryId: selectedCategory?.id || categories[0]?.id,
+                  categoryId:
+                    requestedCreateCategoryId ||
+                    selectedCategory?.id ||
+                    categories[0]?.id,
                   phone: parsedPhone.localPhone,
                   phoneCountry: parsedPhone.countryCode,
                   currency: Currency.MKD,
@@ -613,6 +657,16 @@ export async function DashboardPageContent({
             <>
               <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/dashboard?cat=all&view=${selectedView}`}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      selectedCategory === null
+                        ? "border-primary/45 bg-primary/10 text-primary shadow-sm"
+                        : "border-border/80 bg-card text-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                    }`}
+                  >
+                    {text.allCategories} ({allListings.length})
+                  </Link>
                   {userCategories.map((category) => {
                     const isSelected = selectedCategory?.id === category.id;
                     return (
@@ -680,11 +734,12 @@ export async function DashboardPageContent({
                 </div>
               </div>
 
-              {selectedCategory && (
-                <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
+              <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                     <p className="text-sm font-semibold">
-                      {selectedCategory.name} {text.listings}
+                      {selectedCategory
+                        ? `${selectedCategory.name} ${text.listings}`
+                        : `${text.allCategories} ${text.listings}`}
                     </p>
                     <div className="flex flex-wrap gap-2 lg:justify-end">
                       <Link href={`${categoryBaseHref}&view=all`}>
@@ -694,7 +749,7 @@ export async function DashboardPageContent({
                             selectedView === "all" ? "default" : "outline"
                           }
                         >
-                          {text.all} ({selectedCategory.posted})
+                          {text.all} ({categoryViewStats.all})
                         </Button>
                       </Link>
                       <Link href={`${categoryBaseHref}&view=active`}>
@@ -704,7 +759,7 @@ export async function DashboardPageContent({
                             selectedView === "active" ? "default" : "outline"
                           }
                         >
-                          {text.active} ({selectedCategory.active})
+                          {text.active} ({categoryViewStats.active})
                         </Button>
                       </Link>
                       <Link href={`${categoryBaseHref}&view=draft`}>
@@ -714,7 +769,7 @@ export async function DashboardPageContent({
                             selectedView === "draft" ? "default" : "outline"
                           }
                         >
-                          {text.draft} ({selectedCategory.draft})
+                          {text.draft} ({categoryViewStats.draft})
                         </Button>
                       </Link>
                       <Link href={`${categoryBaseHref}&view=expired`}>
@@ -724,7 +779,7 @@ export async function DashboardPageContent({
                             selectedView === "expired" ? "default" : "outline"
                           }
                         >
-                          {text.expired} ({selectedCategory.expired})
+                          {text.expired} ({categoryViewStats.expired})
                         </Button>
                       </Link>
                       <Link href={`${categoryBaseHref}&view=sold`}>
@@ -734,7 +789,7 @@ export async function DashboardPageContent({
                             selectedView === "sold" ? "default" : "outline"
                           }
                         >
-                          {text.sold} ({selectedCategory.sold})
+                          {text.sold} ({categoryViewStats.sold})
                         </Button>
                       </Link>
                     </div>
@@ -888,7 +943,7 @@ export async function DashboardPageContent({
                                 </div>
                               ) : isDraft ? (
                                 <div className="space-y-2">
-                                  {hasPublishedListing ? (
+                                  {requiresPaymentForCreate ? (
                                     <>
                                       <div className="grid grid-cols-2 gap-2">
                                         <Link href={`/sell/${listing.id}/edit`}>
@@ -942,7 +997,9 @@ export async function DashboardPageContent({
                                         </form>
                                       </div>
                                       <p className="text-xs text-muted-foreground">
-                                        {text.firstPublishFreeHint}
+                                        {hasActiveSubscription
+                                          ? text.subscriptionPublishHint
+                                          : text.firstPublishFreeHint}
                                       </p>
                                     </>
                                   )}
@@ -965,7 +1022,9 @@ export async function DashboardPageContent({
                                         type="button"
                                         className="w-full"
                                       >
-                                        {text.payAndPublish}
+                                        {requiresPaymentForCreate
+                                          ? text.payAndPublish
+                                          : text.publishWithSubscription}
                                       </Button>
                                     </Link>
                                   </div>
@@ -981,7 +1040,6 @@ export async function DashboardPageContent({
                     </div>
                   )}
                 </div>
-              )}
             </>
           )}
         </CardContent>

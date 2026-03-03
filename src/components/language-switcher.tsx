@@ -41,11 +41,14 @@ export function LanguageSwitcher({
     <label className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-2 py-1 text-xs text-muted-foreground">
       <span className="hidden sm:inline">{label}</span>
       <select
+        id="site-locale"
+        name="locale"
         value={value}
         disabled={pending}
         onChange={(event) => onChange(event.target.value as Locale)}
         className="rounded-full border border-border/70 bg-background px-2 py-1 text-xs font-medium text-foreground"
         aria-label={label}
+        autoComplete="off"
       >
         <option value="en">{englishLabel}</option>
         <option value="mk">{macedonianLabel}</option>
@@ -53,4 +56,3 @@ export function LanguageSwitcher({
     </label>
   );
 }
-

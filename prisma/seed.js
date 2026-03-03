@@ -47,6 +47,49 @@ const categories = [
   ["Fashion", "fashion"],
 ];
 
+const subcategoriesByParentSlug = {
+  cars: [
+    ["Sedans", "cars-sedans"],
+    ["SUVs", "cars-suv"],
+    ["Hatchbacks", "cars-hatchback"],
+  ],
+  "real-estate": [
+    ["Apartments", "real-estate-apartments"],
+    ["Houses", "real-estate-houses"],
+    ["Land", "real-estate-land"],
+  ],
+  electronics: [
+    ["Computers", "electronics-computers"],
+    ["TV & Audio", "electronics-tv-audio"],
+    ["Gaming", "electronics-gaming"],
+  ],
+  jobs: [
+    ["IT & Software", "jobs-it-software"],
+    ["Sales", "jobs-sales"],
+    ["Operations", "jobs-operations"],
+  ],
+  services: [
+    ["Repairs", "services-repairs"],
+    ["Cleaning", "services-cleaning"],
+    ["Transport", "services-transport"],
+  ],
+  furniture: [
+    ["Living Room", "furniture-living-room"],
+    ["Bedroom", "furniture-bedroom"],
+    ["Office", "furniture-office"],
+  ],
+  phones: [
+    ["iPhone", "phones-iphone"],
+    ["Samsung", "phones-samsung"],
+    ["Xiaomi", "phones-xiaomi"],
+  ],
+  fashion: [
+    ["Men", "fashion-men"],
+    ["Women", "fashion-women"],
+    ["Shoes", "fashion-shoes"],
+  ],
+};
+
 const templatesByCategorySlug = {
   cars: [
     { key: "brand", label: "Brand", type: CategoryFieldType.TEXT, required: true, order: 1 },
@@ -423,6 +466,31 @@ async function main() {
     upsertedCategories.push(category);
   }
   console.log(`Categories upserted: ${upsertedCategories.length}`);
+
+  let subcategoryCount = 0;
+  for (const parentCategory of upsertedCategories) {
+    const subcategories = subcategoriesByParentSlug[parentCategory.slug] || [];
+    for (const [name, slug] of subcategories) {
+      await prisma.category.upsert({
+        where: { slug },
+        update: {
+          name,
+          isActive: true,
+          parentId: parentCategory.id,
+          ownerId: tester.supabaseAuthId || tester.id,
+        },
+        create: {
+          name,
+          slug,
+          isActive: true,
+          parentId: parentCategory.id,
+          ownerId: tester.supabaseAuthId || tester.id,
+        },
+      });
+      subcategoryCount += 1;
+    }
+  }
+  console.log(`Subcategories upserted: ${subcategoryCount}`);
 
   let templateCount = 0;
   for (const category of upsertedCategories) {

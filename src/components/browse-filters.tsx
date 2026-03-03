@@ -234,6 +234,7 @@ export function BrowseFilters({
     if (template.type === CategoryFieldType.SELECT) {
       return (
         <Select
+          name={`df_${template.key}`}
           value={value}
           onChange={(event: ChangeEvent<HTMLSelectElement>) =>
             setDynamicValues((prev) => ({ ...prev, [template.key]: event.target.value }))
@@ -254,6 +255,7 @@ export function BrowseFilters({
 
     return (
       <Input
+        name={`df_${template.key}`}
         value={value}
         onChange={(event) =>
           setDynamicValues((prev) => ({ ...prev, [template.key]: event.target.value }))
@@ -284,10 +286,12 @@ export function BrowseFilters({
               size={14}
             />
             <Input
+              name="q"
               value={q}
               onChange={(event) => setQ(event.target.value)}
               placeholder={text.searchPlaceholder}
               className="pl-9"
+              autoComplete="off"
             />
           </div>
         </label>
@@ -297,6 +301,7 @@ export function BrowseFilters({
             {text.category}
           </span>
           <Select
+            name="cat"
             value={cat}
             onChange={(event: ChangeEvent<HTMLSelectElement>) => {
               const next = event.target.value;
@@ -319,18 +324,26 @@ export function BrowseFilters({
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.subcategory}
           </span>
-          <Select
-            value={sub}
-            disabled={!cat}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => setSub(event.target.value)}
-          >
-            <option value="">{cat ? text.allSubcategories : text.selectCategoryFirst}</option>
-            {subcategories.map((subcategory) => (
-              <option key={subcategory.id} value={subcategory.id}>
-                {subcategory.name}
-              </option>
-            ))}
-          </Select>
+          <div className="space-y-1">
+            <Select
+              name="sub"
+              value={sub}
+              disabled={!cat}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setSub(event.target.value)}
+            >
+              <option value="">{cat ? text.allSubcategories : text.selectCategoryFirst}</option>
+              {subcategories.map((subcategory) => (
+                <option key={subcategory.id} value={subcategory.id}>
+                  {subcategory.name}
+                </option>
+              ))}
+            </Select>
+            {cat && subcategories.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                {text.allSubcategories}: 0
+              </p>
+            )}
+          </div>
         </label>
 
         <label className="space-y-1">
@@ -338,6 +351,7 @@ export function BrowseFilters({
             {text.city}
           </span>
           <Select
+            name="city"
             value={city}
             onChange={(event: ChangeEvent<HTMLSelectElement>) => setCity(event.target.value)}
           >
@@ -351,12 +365,13 @@ export function BrowseFilters({
         </label>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.condition}
           </span>
           <Select
+            name="condition"
             value={condition}
             onChange={(event: ChangeEvent<HTMLSelectElement>) => setCondition(event.target.value)}
           >
@@ -369,47 +384,31 @@ export function BrowseFilters({
           </Select>
         </label>
 
-        <label className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.orderBy}
-          </span>
-          <Select
-            value={sort}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-              const nextSort = parseSort(event.target.value);
-              setSort(nextSort);
-              apply({ sort: nextSort });
-            }}
-          >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </label>
-
-        <div className="price-shapes rounded-2xl border border-dashed border-primary/25 bg-orange-50/40 p-3 dark:bg-orange-500/5 md:col-span-2">
+        <div className="price-shapes rounded-2xl border border-dashed border-primary/25 bg-orange-50/40 p-3 dark:bg-orange-500/5 md:col-span-1 lg:col-span-2">
           <p className="mb-2 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <CircleDollarSign size={14} />
             {text.priceRange}
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             <Input
+              name="min"
               type="number"
               step="1"
               min="0"
               value={min}
               onChange={(event) => setMin(event.target.value)}
               placeholder={text.minPrice}
+              autoComplete="off"
             />
             <Input
+              name="max"
               type="number"
               step="1"
               min="0"
               value={max}
               onChange={(event) => setMax(event.target.value)}
               placeholder={text.maxPrice}
+              autoComplete="off"
             />
           </div>
         </div>
@@ -444,6 +443,28 @@ export function BrowseFilters({
           >
             {text.resetFilters}
           </Button>
+        </div>
+
+        <div className="ml-auto space-y-1">
+          <p className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.orderBy}
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            {sortOptions.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                size="sm"
+                variant={sort === option.value ? "default" : "outline"}
+                onClick={() => {
+                  setSort(option.value);
+                  apply({ sort: option.value });
+                }}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
     </form>

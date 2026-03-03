@@ -236,9 +236,11 @@ export function LoginForm({
           <label className="space-y-1">
             <span className="text-sm font-medium">{text.nameOptional}</span>
             <Input
+              name="name"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={text.namePlaceholder}
+              autoComplete="name"
             />
           </label>
         )}
@@ -246,11 +248,13 @@ export function LoginForm({
         <label className="space-y-1">
           <span className="text-sm font-medium">{text.email}</span>
           <Input
+            name="email"
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder={text.emailPlaceholder}
             required
+            autoComplete="email"
           />
         </label>
 
@@ -259,6 +263,7 @@ export function LoginForm({
             {text.password} {isRegister ? text.min8 : ""}
           </span>
           <Input
+            name="password"
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -267,6 +272,7 @@ export function LoginForm({
                 ? text.registerPasswordPlaceholder
                 : text.loginPasswordPlaceholder
             }
+            autoComplete={isRegister ? "new-password" : "current-password"}
           />
         </label>
       </div>

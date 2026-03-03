@@ -1,8 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { CategoryFieldType } from "@prisma/client";
-import { WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -20,27 +19,13 @@ type Template = {
 
 type Props = {
   categoryId: string;
-  categorySlugById: Record<string, string>;
   templatesByCategory: Record<string, Template[]>;
   initialValues?: Record<string, string>;
   locale?: "en" | "mk";
 };
 
-const presetValues: Record<string, Record<string, Record<string, string>>> = {
-  cars: {
-    Economy: { fuel: "Diesel", transmission: "Manual" },
-    Sport: { fuel: "Petrol", transmission: "Automatic" },
-    SUV: { fuel: "Diesel", transmission: "Automatic" },
-  },
-  jobs: {
-    Remote: { remote: "true" },
-    "On-site": { remote: "false" },
-  },
-};
-
 export function DynamicFieldsEditor({
   categoryId,
-  categorySlugById,
   templatesByCategory,
   initialValues = {},
   locale = "en",
@@ -49,26 +34,26 @@ export function DynamicFieldsEditor({
   const text = isMk
     ? {
         noAdditionalFields: "Нема дополнителни полиња за оваа категорија.",
-        smartAssist: "Паметен асистент",
+        categoryFields: "Полиња на категорија",
         clear: "Исчисти",
-        quickPresets: "Брзи пресети:",
         select: "Избери",
         yes: "Да",
         no: "Не",
       }
     : {
         noAdditionalFields: "No additional fields for this category.",
-        smartAssist: "Smart assist",
+        categoryFields: "Category fields",
         clear: "Clear",
-        quickPresets: "Quick presets:",
         select: "Select",
         yes: "Yes",
         no: "No",
       };
+
   const templates = useMemo(
     () => templatesByCategory[categoryId] ?? [],
     [templatesByCategory, categoryId],
   );
+
   const initialTemplateValues = useMemo(() => {
     const nextValues: Record<string, string> = {};
     for (const template of templates) {
@@ -80,12 +65,6 @@ export function DynamicFieldsEditor({
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(
     initialTemplateValues,
   );
-
-  const categorySlug = useMemo(
-    () => categorySlugById[categoryId] ?? "",
-    [categoryId, categorySlugById],
-  );
-  const availablePresets = presetValues[categorySlug] ?? {};
 
   function updateField(key: string, value: string) {
     setFieldValues((prev) => ({ ...prev, [key]: value }));
@@ -99,12 +78,6 @@ export function DynamicFieldsEditor({
     setFieldValues(cleared);
   }
 
-  function applyPreset(name: string) {
-    const preset = availablePresets[name];
-    if (!preset) return;
-    setFieldValues((prev) => ({ ...prev, ...preset }));
-  }
-
   if (templates.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
@@ -115,30 +88,13 @@ export function DynamicFieldsEditor({
 
   return (
     <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground">
-          <WandSparkles size={14} />
-          {text.smartAssist}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-muted-foreground">
+          {text.categoryFields}
         </p>
         <Button type="button" size="sm" variant="ghost" onClick={clearFields}>
           {text.clear}
         </Button>
-        {Object.keys(availablePresets).length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">{text.quickPresets}</span>
-            {Object.keys(availablePresets).map((presetName) => (
-              <Button
-                key={presetName}
-                type="button"
-                variant="outline"
-                onClick={() => applyPreset(presetName)}
-                className="h-8 px-2 text-xs"
-              >
-                {presetName}
-              </Button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="grid gap-2 md:grid-cols-2">

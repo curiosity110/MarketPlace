@@ -13,6 +13,7 @@ export async function Nav() {
   const locale = await getServerLocale();
   const messages = getMessages(locale);
   const isAdmin = user ? canAccessControl(user.role) : false;
+  const profileLabel = locale === "mk" ? "Профил" : "Profile";
 
   return (
     <>
@@ -67,11 +68,18 @@ export async function Nav() {
             />
             <ThemeToggle label={messages.theme.toggle} />
             {user ? (
-              <form action="/api/auth/logout" method="post" className="contents">
-                <Button variant="outline" size="sm" type="submit">
-                  {messages.nav.logout}
-                </Button>
-              </form>
+              <div className="flex items-center gap-2">
+                <Link href="/profile">
+                  <Button variant="outline" size="sm" type="button">
+                    {profileLabel}
+                  </Button>
+                </Link>
+                <form action="/api/auth/logout" method="post" className="contents">
+                  <Button variant="outline" size="sm" type="submit">
+                    {messages.nav.logout}
+                  </Button>
+                </form>
+              </div>
             ) : (
               <AuthCtaLinks
                 registerLabel={messages.nav.register}

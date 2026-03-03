@@ -82,6 +82,8 @@ async function updateListing(formData: FormData) {
   const plan = String(formData.get("plan") || "pay-per-listing");
   const paymentProvider = String(formData.get("paymentProvider") || "none");
   let isFirstPublishedPost = false;
+  let hasActiveSubscription = false;
+  let chargedWithDummyPayment = false;
 
   let listing: Awaited<ReturnType<typeof prisma.listing.findFirst>> = null;
   try {
@@ -130,15 +132,26 @@ async function updateListing(formData: FormData) {
 
   if (status === ListingStatus.ACTIVE && listing.status === ListingStatus.DRAFT) {
     try {
-      const priorPublishedPosts = await prisma.listing.count({
-        where: {
-          ownerId: user.authUserId,
-          id: { not: listing.id },
-          status: { not: ListingStatus.DRAFT },
-        },
-      });
+      const [priorPublishedPosts, activeSubscriptionCount] = await Promise.all([
+        prisma.listing.count({
+          where: {
+            ownerId: user.authUserId,
+            id: { not: listing.id },
+            status: { not: ListingStatus.DRAFT },
+          },
+        }),
+        prisma.listing.count({
+          where: {
+            ownerId: user.authUserId,
+            status: ListingStatus.ACTIVE,
+            activeUntil: null,
+            sale: null,
+          },
+        }),
+      ]);
       markPrismaHealthy();
       isFirstPublishedPost = priorPublishedPosts === 0;
+      hasActiveSubscription = activeSubscriptionCount > 0;
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
@@ -147,10 +160,10 @@ async function updateListing(formData: FormData) {
       throw error;
     }
 
-    if (!isFirstPublishedPost && paymentProvider !== "stripe-dummy") {
+    if (!isFirstPublishedPost && !hasActiveSubscription && paymentProvider !== "stripe-dummy") {
       redirect(`/dashboard?error=${encodeURIComponent(msg.paymentRequired)}`);
     }
-    if (!isFirstPublishedPost && paymentProvider === "stripe-dummy") {
+    if (!isFirstPublishedPost && !hasActiveSubscription && paymentProvider === "stripe-dummy") {
       const paymentResult = validateDummyStripePayment({
         cardNumberRaw: String(formData.get("dummyCardNumber") || ""),
         cardExpRaw: String(formData.get("dummyCardExp") || ""),
@@ -159,6 +172,7 @@ async function updateListing(formData: FormData) {
       if (!paymentResult.ok) {
         redirect(`/sell/${id}/edit?error=${encodeURIComponent(paymentResult.error)}`);
       }
+      chargedWithDummyPayment = true;
     }
   }
 
@@ -219,11 +233,13 @@ async function updateListing(formData: FormData) {
           status,
           activeUntil: resolveActiveUntil(
             status,
-            status === ListingStatus.ACTIVE &&
-              listing.status === ListingStatus.DRAFT &&
-              isFirstPublishedPost
-              ? "pay-per-listing"
-              : plan,
+            hasActiveSubscription
+              ? "subscription"
+              : status === ListingStatus.ACTIVE &&
+                  listing.status === ListingStatus.DRAFT &&
+                  isFirstPublishedPost
+                ? "pay-per-listing"
+                : plan,
           ),
         },
       });
@@ -263,7 +279,7 @@ async function updateListing(formData: FormData) {
     if (isFirstPublishedPost) {
       redirect("/dashboard?free=1");
     }
-    if (paymentProvider === "stripe-dummy") {
+    if (!isFirstPublishedPost && !hasActiveSubscription && chargedWithDummyPayment) {
       redirect("/dashboard?paid=1");
     }
   }
@@ -315,6 +331,7 @@ export default async function EditListing({
         editSubtitle:
           "Ажурирај содржина, план и полиња по категорија без губење податоци.",
         payAndPublish: "Плати dummy Stripe и објави",
+        publishNow: "Објави оглас",
         deleteDraft: "Избриши нацрт",
       }
     : {
@@ -324,6 +341,7 @@ export default async function EditListing({
         editSubtitle:
           "Update content, plan, and category fields without losing data.",
         payAndPublish: "Pay dummy Stripe & publish",
+        publishNow: "Publish listing",
         deleteDraft: "Delete draft",
       };
   const user = await requireSeller();
@@ -347,6 +365,21 @@ export default async function EditListing({
         orderBy: [{ categoryId: "asc" }, { order: "asc" }],
       }),
       prisma.listingFieldValue.findMany({ where: { listingId: id } }),
+      prisma.listing.count({
+        where: {
+          ownerId: user.authUserId,
+          id: { not: id },
+          status: { not: ListingStatus.DRAFT },
+        },
+      }),
+      prisma.listing.count({
+        where: {
+          ownerId: user.authUserId,
+          status: ListingStatus.ACTIVE,
+          activeUntil: null,
+          sale: null,
+        },
+      }),
     ]);
   }
 
@@ -380,7 +413,16 @@ export default async function EditListing({
     );
   }
 
-  const [sellerProfile, listing, categories, cities, templates, fieldValues] = editData;
+  const [
+    sellerProfile,
+    listing,
+    categories,
+    cities,
+    templates,
+    fieldValues,
+    priorPublishedCount,
+    activeSubscriptionCount,
+  ] = editData;
 
   if (!listing) notFound();
   const initialPhone = parseStoredPhone(sellerProfile?.phone);
@@ -389,6 +431,10 @@ export default async function EditListing({
   const dynamicValues = Object.fromEntries(
     fieldValues.map((value) => [value.key, value.value]),
   );
+  const requiresPaymentForPublish =
+    listing.status === ListingStatus.DRAFT &&
+    priorPublishedCount > 0 &&
+    activeSubscriptionCount === 0;
 
   return (
     <div className="space-y-6">
@@ -414,8 +460,9 @@ export default async function EditListing({
             categories={categories}
             cities={cities}
             templatesByCategory={templatesByCategory}
-            paymentProvider="stripe-dummy"
-            publishLabel={text.payAndPublish}
+            paymentProvider={requiresPaymentForPublish ? "stripe-dummy" : "none"}
+            showPlanSelector={requiresPaymentForPublish}
+            publishLabel={requiresPaymentForPublish ? text.payAndPublish : text.publishNow}
             initial={{
               id: listing.id,
               title: listing.title,

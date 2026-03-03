@@ -33,7 +33,7 @@ export function AuthCtaLinks({ registerLabel, loginLabel }: Props) {
   const encodedNext = encodeURIComponent(nextPath);
 
   return (
-    <div className="hidden items-center gap-2 sm:flex">
+    <div className="flex items-center gap-2">
       <Link href={`/register?next=${encodedNext}`}>
         <Button variant="outline" size="sm">
           {registerLabel}
