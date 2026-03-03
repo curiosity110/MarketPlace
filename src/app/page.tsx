@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionUser } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
+import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 export default async function Home() {
   const sessionUser = await getSessionUser();
@@ -157,6 +158,8 @@ export default async function Home() {
           featured: true,
         },
       ];
+
+  await runListingLifecycleMaintenance();
 
   async function fetchHomeData() {
     return Promise.all([

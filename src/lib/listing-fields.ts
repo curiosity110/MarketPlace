@@ -1,6 +1,7 @@
 import { CategoryFieldTemplate, ListingStatus } from "@prisma/client";
 
 export const DYNAMIC_FIELD_PREFIX = "df__";
+export type ValidationLocale = "en" | "mk";
 
 type FieldTemplateWithOptions = CategoryFieldTemplate & { options: string[] };
 
@@ -42,15 +43,27 @@ export function getDynamicFieldEntries(formData: FormData): Record<string, strin
 export function validatePublishInputs(input: {
   title: string;
   priceCents: number;
+  locale?: ValidationLocale;
 }) {
   const errors: string[] = [];
+  const locale = input.locale === "mk" ? "mk" : "en";
+  const messages =
+    locale === "mk"
+      ? {
+          titleMin: "Насловот мора да има најмалку 5 карактери за објава.",
+          priceMin: "Цената мора да биде поголема од 0 за објава.",
+        }
+      : {
+          titleMin: "Title must be at least 5 characters to publish.",
+          priceMin: "Price must be greater than 0 to publish.",
+        };
 
   if (input.title.trim().length < 5) {
-    errors.push("Title must be at least 5 characters to publish.");
+    errors.push(messages.titleMin);
   }
 
   if (input.priceCents <= 0) {
-    errors.push("Price must be greater than 0 to publish.");
+    errors.push(messages.priceMin);
   }
 
   return {

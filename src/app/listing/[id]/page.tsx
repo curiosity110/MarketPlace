@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ListingStatus } from "@prisma/client";
+import { ListingCondition, ListingStatus } from "@prisma/client";
 import { MapPin, ShieldAlert, UserRound } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { localizeCategoryPath } from "@/lib/category-label";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { getServerLocale } from "@/lib/i18n";
+import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 export default async function ListingDetails({
   params,
@@ -78,6 +79,8 @@ export default async function ListingDetails({
   const reportSaved = sp.reported === "1";
   const reportError = sp.error;
   const sessionUser = await getSessionUser();
+
+  await runListingLifecycleMaintenance();
 
   async function fetchListingDetails() {
     return prisma.listing.findFirst({
@@ -162,6 +165,9 @@ export default async function ListingDetails({
     );
 
   const categoryLabel = localizeCategoryPath(listing.category, locale);
+  const conditionLabelByValue: Record<ListingCondition, string> = isMk
+    ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
+    : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" };
 
   return (
     <div className="space-y-6">
@@ -176,7 +182,7 @@ export default async function ListingDetails({
             <span>|</span>
             <span>{categoryLabel}</span>
             <span>|</span>
-            <span>{listing.condition}</span>
+            <span>{conditionLabelByValue[listing.condition]}</span>
           </div>
         </div>
 

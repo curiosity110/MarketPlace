@@ -19,6 +19,7 @@ import {
 } from "@/lib/prisma-circuit-breaker";
 import { normalizePhoneInput, parseStoredPhone, PHONE_COUNTRIES } from "@/lib/phone";
 import { getServerLocale } from "@/lib/i18n";
+import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 function sanitizeUsername(value: string) {
   return value
@@ -46,13 +47,24 @@ function normalizeOptionalText(value: string, maxLength: number) {
 async function updateProfile(formData: FormData) {
   "use server";
 
+  const locale = String(formData.get("locale") || "en") === "mk" ? "mk" : "en";
+  const errors =
+    locale === "mk"
+      ? {
+          dbUnavailable: "Базата е привремено недостапна.",
+          phoneRequired: "Јавен телефон е задолжителен.",
+        }
+      : {
+          dbUnavailable: "Database is temporarily unreachable",
+          phoneRequired: "Public phone is required.",
+        };
+
   const user = await requireUser();
   if (shouldSkipPrismaCalls()) {
-    redirect("/profile?error=Database%20is%20temporarily%20unreachable");
+    redirect(`/profile?error=${encodeURIComponent(errors.dbUnavailable)}`);
   }
 
   const name = String(formData.get("name") || "").trim();
-  const usernameRaw = String(formData.get("username") || "").trim();
   const company = normalizeOptionalText(String(formData.get("company") || ""), 80);
   const address = normalizeOptionalText(String(formData.get("address") || ""), 180);
   const bio = normalizeOptionalText(String(formData.get("bio") || ""), 500);
@@ -62,43 +74,16 @@ async function updateProfile(formData: FormData) {
       ? websiteRaw.slice(0, 180)
       : `https://${websiteRaw.slice(0, 170)}`
     : null;
-  const sanitizedUsername = usernameRaw ? sanitizeUsername(usernameRaw) : "";
-  const username = sanitizedUsername || null;
-  if (usernameRaw && sanitizedUsername.length < 3) {
-    redirect("/profile?error=Username%20must%20be%20at%20least%203%20characters.");
-  }
 
   const phoneCountry = String(formData.get("phoneCountry") || "MK");
   const phoneRaw = String(formData.get("phone") || "").trim();
   if (!phoneRaw) {
-    redirect("/profile?error=Public%20phone%20is%20required.");
+    redirect(`/profile?error=${encodeURIComponent(errors.phoneRequired)}`);
   }
 
-  const normalizedPhone = normalizePhoneInput(phoneRaw, phoneCountry);
+  const normalizedPhone = normalizePhoneInput(phoneRaw, phoneCountry, locale);
   if (!normalizedPhone.ok) {
     redirect(`/profile?error=${encodeURIComponent(normalizedPhone.error)}`);
-  }
-
-  if (username) {
-    try {
-      const existingUsername = await prisma.user.findFirst({
-        where: {
-          username,
-          id: { not: user.id },
-        },
-        select: { id: true },
-      });
-      markPrismaHealthy();
-      if (existingUsername) {
-        redirect("/profile?error=This%20username%20is%20already%20in%20use.");
-      }
-    } catch (error) {
-      if (isPrismaConnectionError(error)) {
-        markPrismaUnavailable();
-        redirect("/profile?error=Database%20is%20temporarily%20unreachable");
-      }
-      throw error;
-    }
   }
 
   try {
@@ -107,7 +92,6 @@ async function updateProfile(formData: FormData) {
       data: {
         name: name || null,
         phone: normalizedPhone.e164,
-        username,
         company,
         website,
         bio,
@@ -118,7 +102,7 @@ async function updateProfile(formData: FormData) {
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      redirect("/profile?error=Database%20is%20temporarily%20unreachable");
+      redirect(`/profile?error=${encodeURIComponent(errors.dbUnavailable)}`);
     }
     throw error;
   }
@@ -170,17 +154,13 @@ export default async function ProfilePage({
         profileSettings: "Подесувања на профил",
         profileSettingsDesc:
           "Чувај ги сите информации за продавач и јавниот телефон на едно место.",
-        publicHandle: "Јавен handle",
-        setUsernameHint: "Постави корисничко име за точен handle.",
+        publicHandle: "Handle",
+        setUsernameHint: "Handle-то е врзано со твојот профил.",
         memberSince: "Член од",
         listings: "Огласи",
         active: "Активни",
         fullName: "Целосно име",
         fullNamePlaceholder: "Внеси целосно име",
-        publicUsername: "Јавно корисничко име",
-        usernamePlaceholder: "username",
-        usernameHint:
-          "3-40 знаци, мали букви, бројки, точка, цртичка, долна црта.",
         email: "Е-пошта",
         phoneCountry: "Држава за телефон",
         publicPhone: "Јавен телефон за сите огласи",
@@ -226,17 +206,13 @@ export default async function ProfilePage({
         profileSettings: "Profile settings",
         profileSettingsDesc:
           "Keep all your seller info and public phone in one place.",
-        publicHandle: "Public handle",
-        setUsernameHint: "Set a username to choose your exact handle.",
+        publicHandle: "Handle",
+        setUsernameHint: "Your handle is tied to this account.",
         memberSince: "Member since",
         listings: "Listings",
         active: "Active",
         fullName: "Full name",
         fullNamePlaceholder: "Enter your full name",
-        publicUsername: "Public username",
-        usernamePlaceholder: "username",
-        usernameHint:
-          "3-40 chars, lowercase letters, numbers, dot, dash, underscore.",
         email: "Email",
         phoneCountry: "Phone country",
         publicPhone: "Public phone for all posts",
@@ -277,6 +253,8 @@ export default async function ProfilePage({
   const billingSuccess = sp.billing === "success";
   const dbUnavailableError = text.dbUnavailable;
   const dashboardHref = canSell(user.role) ? "/dashboard" : "/browse";
+
+  await runListingLifecycleMaintenance();
 
   async function fetchProfileData() {
     return Promise.all([
@@ -349,7 +327,6 @@ export default async function ProfilePage({
   const handleValue =
     userRecord?.username || buildFallbackHandle(userRecord?.email || user.email);
   const sellerHandle = toPublicHandle(handleValue);
-  const usingFallbackHandle = !userRecord?.username;
   const totalListings = listings.length;
   const activeListings = listings.filter((listing) => listing.status === "ACTIVE");
   const payPerListingActive = activeListings.filter((listing) => listing.activeUntil).length;
@@ -407,11 +384,9 @@ export default async function ProfilePage({
                   {text.publicHandle}
                 </p>
                 <p className="text-lg font-bold">{sellerHandle}</p>
-                {usingFallbackHandle && (
-                  <p className="text-xs text-muted-foreground">
-                    {text.setUsernameHint}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {text.setUsernameHint}
+                </p>
               </div>
               <div className="text-xs text-muted-foreground sm:text-right">
                 <p>
@@ -429,6 +404,7 @@ export default async function ProfilePage({
             action={updateProfile}
             className="space-y-3 rounded-xl border border-border/70 bg-card p-4"
           >
+            <input type="hidden" name="locale" value={locale} />
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">{text.fullName}</span>
@@ -440,57 +416,44 @@ export default async function ProfilePage({
                 />
               </label>
 
-              <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">{text.publicUsername}</span>
-                <Input
-                  name="username"
-                  defaultValue={userRecord?.username || ""}
-                  placeholder={text.usernamePlaceholder}
-                  minLength={3}
-                  maxLength={40}
-                  pattern="[a-z0-9._-]{3,40}"
-                />
-                <span className="block text-[11px] text-muted-foreground">
-                  {text.usernameHint}
-                </span>
-              </label>
-
               <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs font-medium text-muted-foreground">{text.email}</span>
                 <Input value={userRecord?.email || user.email} readOnly />
               </label>
 
-              <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">{text.phoneCountry}</span>
-                <select
-                  name="phoneCountry"
-                  defaultValue={parsedPhone.countryCode}
-                  className="h-10 rounded-xl border border-border bg-input px-3 text-sm"
-                >
-                  {PHONE_COUNTRIES.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.flag} {country.label} (+{country.dialCode})
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="grid gap-3 sm:col-span-2 sm:grid-cols-[220px_minmax(0,1fr)]">
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">{text.phoneCountry}</span>
+                  <select
+                    name="phoneCountry"
+                    defaultValue={parsedPhone.countryCode}
+                    className="h-10 rounded-xl border border-border bg-input px-3 text-sm"
+                  >
+                    {PHONE_COUNTRIES.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.flag} {country.label} (+{country.dialCode})
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {text.publicPhone}
-                </span>
-                <Input
-                  name="phone"
-                  defaultValue={parsedPhone.localPhone}
-                  placeholder={text.phonePlaceholder}
-                  required
-                  minLength={6}
-                  maxLength={20}
-                  inputMode="tel"
-                  autoComplete="tel"
-                  pattern="[0-9+()\\-\\s]{6,20}"
-                />
-              </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {text.publicPhone}
+                  </span>
+                  <Input
+                    name="phone"
+                    defaultValue={parsedPhone.localPhone}
+                    placeholder={text.phonePlaceholder}
+                    required
+                    minLength={6}
+                    maxLength={20}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    pattern="[0-9+()\\-\\s]{6,20}"
+                  />
+                </label>
+              </div>
 
               <label className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">{text.companyOptional}</span>

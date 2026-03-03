@@ -4,6 +4,7 @@ import type {
   Category,
   CategoryFieldTemplate,
   City,
+  ListingCondition,
   Listing,
   ListingFieldValue,
   ListingImage,
@@ -45,6 +46,9 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
         by: "By",
         listed: "Listed",
       };
+  const conditionLabelByValue: Record<ListingCondition, string> = isMk
+    ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
+    : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" };
 
   const firstImage = listing.images[0]?.url;
   const valuesByKey = Object.fromEntries(
@@ -101,7 +105,9 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
           </p>
 
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary">{listing.condition}</Badge>
+            <Badge variant="secondary">
+              {conditionLabelByValue[listing.condition]}
+            </Badge>
             {highlights.map((item) => (
               <Badge key={item.label} variant="primary">
                 {item.value}
@@ -118,4 +124,3 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
     </Link>
   );
 }
-

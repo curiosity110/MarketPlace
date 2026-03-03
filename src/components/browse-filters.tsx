@@ -125,7 +125,7 @@ export function BrowseFilters({
       };
 
   const conditionLabelByValue: Record<ListingCondition, string> = isMk
-    ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Refurbished" }
+    ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
     : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" };
 
   const sortOptions: { value: BrowseSort; label: string }[] = [

@@ -26,6 +26,39 @@ import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
 import { getServerLocale } from "@/lib/i18n";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+type ActionLocale = "en" | "mk";
+
+function resolveActionLocale(value: FormDataEntryValue | null): ActionLocale {
+  return value === "mk" ? "mk" : "en";
+}
+
+function getActionMessages(locale: ActionLocale) {
+  if (locale === "mk") {
+    return {
+      dbUnavailable: "Базата е привремено недостапна",
+      onlyEurMkd: "Дозволени се само EUR и MKD.",
+      phoneRequired: "Телефонски број е задолжителен за објава.",
+      paymentRequired:
+        "Потребно е Dummy Stripe плаќање пред активација.",
+      categoryRequired: "Категорија е задолжителна за објава.",
+      cityRequired: "Град е задолжителен за објава.",
+      categoryInvalid: "Избраната категорија е невалидна.",
+      cityInvalid: "Избраниот град е невалиден.",
+    };
+  }
+
+  return {
+    dbUnavailable: "Database is temporarily unreachable",
+    onlyEurMkd: "Only EUR and MKD are allowed.",
+    phoneRequired: "Phone number is required to publish.",
+    paymentRequired:
+      "Dummy Stripe payment is required before activation.",
+    categoryRequired: "Category is required to publish.",
+    cityRequired: "City is required to publish.",
+    categoryInvalid: "Selected category is invalid.",
+    cityInvalid: "Selected city is invalid.",
+  };
+}
 
 function resolveActiveUntil(status: ListingStatus, plan: string) {
   if (status !== ListingStatus.ACTIVE) return null;
@@ -36,9 +69,11 @@ function resolveActiveUntil(status: ListingStatus, plan: string) {
 async function updateListing(formData: FormData) {
   "use server";
 
+  const locale = resolveActionLocale(formData.get("locale"));
+  const msg = getActionMessages(locale);
   const user = await requireSeller();
   if (shouldSkipPrismaCalls()) {
-    redirect("/dashboard?error=Database%20is%20temporarily%20unreachable");
+    redirect(`/dashboard?error=${encodeURIComponent(msg.dbUnavailable)}`);
   }
 
   const id = String(formData.get("id") || "");
@@ -57,7 +92,7 @@ async function updateListing(formData: FormData) {
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      redirect("/dashboard?error=Database%20is%20temporarily%20unreachable");
+      redirect(`/dashboard?error=${encodeURIComponent(msg.dbUnavailable)}`);
     }
     throw error;
   }
@@ -70,7 +105,7 @@ async function updateListing(formData: FormData) {
   const cityId = String(formData.get("cityId") || "");
   const currencyRaw = String(formData.get("currency") || Currency.MKD);
   if (!isMarketplaceCurrency(currencyRaw)) {
-    redirect(`/sell/${id}/edit?error=Only%20EUR%20and%20MKD%20are%20allowed.`);
+    redirect(`/sell/${id}/edit?error=${encodeURIComponent(msg.onlyEurMkd)}`);
   }
   const currency = currencyRaw;
   const condition = formData.get(
@@ -80,13 +115,13 @@ async function updateListing(formData: FormData) {
   const phoneRaw = String(formData.get("phone") || "").trim();
   let sellerPhoneToSave: string | null = null;
   if (phoneRaw.length > 0) {
-    const normalizedPhoneResult = normalizePhoneInput(phoneRaw, phoneCountry);
+    const normalizedPhoneResult = normalizePhoneInput(phoneRaw, phoneCountry, locale);
     if (!normalizedPhoneResult.ok) {
       redirect(`/sell/${id}/edit?error=${encodeURIComponent(normalizedPhoneResult.error)}`);
     }
     sellerPhoneToSave = normalizedPhoneResult.e164;
   } else if (status === ListingStatus.ACTIVE) {
-    redirect(`/sell/${id}/edit?error=Phone%20number%20is%20required%20to%20publish.`);
+    redirect(`/sell/${id}/edit?error=${encodeURIComponent(msg.phoneRequired)}`);
   }
   const price = Number(formData.get("price") || 0);
   const priceCents = Number.isFinite(price) ? Math.round(price * 100) : 0;
@@ -107,13 +142,13 @@ async function updateListing(formData: FormData) {
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
-        redirect("/dashboard?error=Database%20is%20temporarily%20unreachable");
+        redirect(`/dashboard?error=${encodeURIComponent(msg.dbUnavailable)}`);
       }
       throw error;
     }
 
     if (!isFirstPublishedPost && paymentProvider !== "stripe-dummy") {
-      redirect("/dashboard?error=Dummy%20Stripe%20payment%20is%20required%20before%20activation.");
+      redirect(`/dashboard?error=${encodeURIComponent(msg.paymentRequired)}`);
     }
     if (!isFirstPublishedPost && paymentProvider === "stripe-dummy") {
       const paymentResult = validateDummyStripePayment({
@@ -129,10 +164,10 @@ async function updateListing(formData: FormData) {
 
   if (status === ListingStatus.ACTIVE) {
     if (!categoryId) {
-      redirect(`/sell/${id}/edit?error=Category%20is%20required%20to%20publish.`);
+      redirect(`/sell/${id}/edit?error=${encodeURIComponent(msg.categoryRequired)}`);
     }
     if (!cityId) {
-      redirect(`/sell/${id}/edit?error=City%20is%20required%20to%20publish.`);
+      redirect(`/sell/${id}/edit?error=${encodeURIComponent(msg.cityRequired)}`);
     }
 
     try {
@@ -146,15 +181,15 @@ async function updateListing(formData: FormData) {
       ]);
       markPrismaHealthy();
       if (categoryExists === 0) {
-        redirect(`/sell/${id}/edit?error=Selected%20category%20is%20invalid.`);
+        redirect(`/sell/${id}/edit?error=${encodeURIComponent(msg.categoryInvalid)}`);
       }
       if (cityExists === 0) {
-        redirect(`/sell/${id}/edit?error=Selected%20city%20is%20invalid.`);
+        redirect(`/sell/${id}/edit?error=${encodeURIComponent(msg.cityInvalid)}`);
       }
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
-        redirect("/dashboard?error=Database%20is%20temporarily%20unreachable");
+        redirect(`/dashboard?error=${encodeURIComponent(msg.dbUnavailable)}`);
       }
       throw error;
     }
@@ -162,6 +197,7 @@ async function updateListing(formData: FormData) {
     const validation = validatePublishInputs({
       title,
       priceCents,
+      locale,
     });
     if (!validation.isValid) {
       redirect(`/sell/${id}/edit?error=${encodeURIComponent(validation.errors[0])}`);
@@ -214,7 +250,7 @@ async function updateListing(formData: FormData) {
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      redirect("/dashboard?error=Database%20is%20temporarily%20unreachable");
+      redirect(`/dashboard?error=${encodeURIComponent(msg.dbUnavailable)}`);
     }
     throw error;
   }
@@ -420,4 +456,3 @@ export default async function EditListing({
     </div>
   );
 }
-

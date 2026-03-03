@@ -22,6 +22,7 @@ import {
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
 import { parseTemplateOptions } from "@/lib/listing-fields";
+import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 const PAGE_SIZE = 60;
 type BrowseSort = "newest" | "price-asc" | "price-desc";
@@ -192,6 +193,8 @@ export default async function BrowsePage({
     status: ListingStatus.ACTIVE,
     ...(andFilters.length > 0 ? { AND: andFilters } : {}),
   };
+
+  await runListingLifecycleMaintenance();
 
   async function fetchBrowseData() {
     return Promise.all([

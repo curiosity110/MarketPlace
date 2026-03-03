@@ -23,14 +23,17 @@ import {
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
 import { getServerLocale } from "@/lib/i18n";
+import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
-type ListingView = "all" | "active" | "draft";
+type ListingView = "all" | "active" | "draft" | "expired" | "sold";
 type ListingPlan = "pay-per-listing" | "subscription";
 
 function parseView(value: string | undefined): ListingView {
-  if (value === "active" || value === "draft") return value;
+  if (value === "active" || value === "draft" || value === "expired" || value === "sold") {
+    return value;
+  }
   return "all";
 }
 
@@ -70,18 +73,27 @@ export async function DashboardPageContent({
         total: "Вкупно",
         active: "Активни",
         drafts: "Нацрти",
+        expired: "Истечени",
+        sold: "Продадени",
         soon: "Наскоро",
         listings: "огласи",
         all: "Сите",
         draft: "Нацрт",
         noListingsForFilter: "Нема огласи за овој филтер.",
         status: "статус",
+        statusActive: "Активен",
+        statusDraft: "Нацрт",
+        statusExpired: "Истечен",
+        statusSold: "Продаден",
         updated: "Ажурирано",
         ends: "Истекува",
+        soldOn: "Продадено на",
         edit: "Уреди",
         view: "Преглед",
         payAndPublish: "Плати и објави",
         openEditHint: "Отвори уредување за плаќање и објава.",
+        expiredHint: "Огласот е истечен. Отвори уредување за повторна објава.",
+        soldHint: "Овој оглас е означен како продаден.",
         publishFree: "Објави бесплатно",
         firstPublishFreeHint: "Првото објавување за 30 дена е бесплатно.",
       }
@@ -108,18 +120,27 @@ export async function DashboardPageContent({
         total: "Total",
         active: "Active",
         drafts: "Drafts",
+        expired: "Expired",
+        sold: "Sold",
         soon: "Soon",
         listings: "listings",
         all: "All",
         draft: "Draft",
         noListingsForFilter: "No listings in this category for this filter.",
         status: "status",
+        statusActive: "Active",
+        statusDraft: "Draft",
+        statusExpired: "Expired",
+        statusSold: "Sold",
         updated: "Updated",
         ends: "Ends",
+        soldOn: "Sold on",
         edit: "Edit",
         view: "View",
         payAndPublish: "Pay & publish",
         openEditHint: "Open edit to complete payment popup and publish.",
+        expiredHint: "This listing expired. Open edit to renew and publish again.",
+        soldHint: "This listing is marked as sold.",
         publishFree: "Publish free",
         firstPublishFreeHint: "First 30-day publish is free.",
       };
@@ -127,7 +148,6 @@ export async function DashboardPageContent({
   const canCreateListings = canSell(user.role);
   const showAdminTools = canAccessControl(user.role);
 
-  const now = new Date();
   const sp = searchParams;
   const error = sp.error;
   const draftSaved = sp.draft === "1";
@@ -138,6 +158,8 @@ export async function DashboardPageContent({
   const selectedPlan = parsePlan(sp.plan);
   const dbUnavailableError = text.dbUnavailable;
 
+  await runListingLifecycleMaintenance();
+
   async function fetchAnalyticsData() {
     return Promise.all([
       prisma.user.findUnique({
@@ -146,7 +168,7 @@ export async function DashboardPageContent({
       }),
       prisma.listing.findMany({
         where: { ownerId: user.authUserId },
-        include: { category: true, city: true, images: true },
+        include: { category: true, city: true, images: true, sale: true },
         orderBy: { updatedAt: "desc" },
       }),
       prisma.category.findMany({
@@ -220,20 +242,29 @@ export async function DashboardPageContent({
   const hasPublishedListing = publishedCount > 0;
 
   const activeListings = allListings.filter(
-    (listing) => listing.status === ListingStatus.ACTIVE,
+    (listing) => listing.status === ListingStatus.ACTIVE && !listing.sale,
+  );
+  const soldListings = allListings.filter((listing) => Boolean(listing.sale));
+  const expiredListings = allListings.filter(
+    (listing) => listing.status === ListingStatus.INACTIVE && !listing.sale,
   );
   const draftCount = allListings.filter(
-    (listing) => listing.status === ListingStatus.DRAFT,
+    (listing) => listing.status === ListingStatus.DRAFT && !listing.sale,
   ).length;
-  const expiringSoon = activeListings.filter((listing) => {
-    if (!listing.activeUntil) return false;
-    const diffMs = listing.activeUntil.getTime() - now.getTime();
-    return diffMs > 0 && diffMs <= 7 * 24 * 60 * 60 * 1000;
-  }).length;
-
   const categoryStats = [...allListings]
     .reduce<
-      Map<string, { id: string; name: string; posted: number; active: number }>
+      Map<
+        string,
+        {
+          id: string;
+          name: string;
+          posted: number;
+          active: number;
+          draft: number;
+          expired: number;
+          sold: number;
+        }
+      >
     >((acc, listing) => {
       const key = listing.category.id;
       const current = acc.get(key) || {
@@ -241,9 +272,20 @@ export async function DashboardPageContent({
         name: localizeCategoryName(listing.category, locale),
         posted: 0,
         active: 0,
+        draft: 0,
+        expired: 0,
+        sold: 0,
       };
       current.posted += 1;
-      if (listing.status === ListingStatus.ACTIVE) current.active += 1;
+      if (listing.sale) {
+        current.sold += 1;
+      } else if (listing.status === ListingStatus.ACTIVE) {
+        current.active += 1;
+      } else if (listing.status === ListingStatus.DRAFT) {
+        current.draft += 1;
+      } else if (listing.status === ListingStatus.INACTIVE) {
+        current.expired += 1;
+      }
       acc.set(key, current);
       return acc;
     }, new Map())
@@ -264,10 +306,16 @@ export async function DashboardPageContent({
     ? [...allListings]
         .filter((listing) => listing.categoryId === selectedCategory.id)
         .filter((listing) => {
-          if (selectedView === "active")
-            return listing.status === ListingStatus.ACTIVE;
-          if (selectedView === "draft")
-            return listing.status === ListingStatus.DRAFT;
+          if (selectedView === "sold") return Boolean(listing.sale);
+          if (selectedView === "active") {
+            return listing.status === ListingStatus.ACTIVE && !listing.sale;
+          }
+          if (selectedView === "draft") {
+            return listing.status === ListingStatus.DRAFT && !listing.sale;
+          }
+          if (selectedView === "expired") {
+            return listing.status === ListingStatus.INACTIVE && !listing.sale;
+          }
           return true;
         })
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
@@ -280,16 +328,44 @@ export async function DashboardPageContent({
   async function publishDraftFromDashboard(formData: FormData) {
     "use server";
 
+    const msg = isMk
+      ? {
+          dbUnavailable: "Базата е привремено недостапна",
+          invalidListing: "Невалиден оглас.",
+          draftNotFound: "Нацртот не е пронајден.",
+          phoneRequired: "Телефонски број е задолжителен за објава.",
+          titleRequired: "Наслов е задолжителен за објава.",
+          priceRequired: "Цената мора да биде поголема од 0.",
+          categoryRequired: "Категорија е задолжителна за објава.",
+          cityRequired: "Град е задолжителен за објава.",
+          paymentRequired: "Потребно е Dummy Stripe плаќање пред активација.",
+          categoryInvalid: "Избраната категорија е невалидна.",
+          cityInvalid: "Избраниот град е невалиден.",
+        }
+      : {
+          dbUnavailable: "Database is temporarily unreachable",
+          invalidListing: "Invalid listing.",
+          draftNotFound: "Draft listing not found.",
+          phoneRequired: "Phone number is required to publish.",
+          titleRequired: "Title is required to publish.",
+          priceRequired: "Price must be greater than 0.",
+          categoryRequired: "Category is required to publish.",
+          cityRequired: "City is required to publish.",
+          paymentRequired: "Dummy Stripe payment is required before activation.",
+          categoryInvalid: "Selected category is invalid.",
+          cityInvalid: "Selected city is invalid.",
+        };
+
     const sessionUser = await requireSeller();
     if (shouldSkipPrismaCalls()) {
       redirect(
-        "/dashboard?error=Database%20is%20temporarily%20unreachable",
+        `/dashboard?error=${encodeURIComponent(msg.dbUnavailable)}`,
       );
     }
 
     const listingId = String(formData.get("id") || "");
     if (!listingId) {
-      redirect("/dashboard?error=Invalid%20listing.");
+      redirect(`/dashboard?error=${encodeURIComponent(msg.invalidListing)}`);
     }
 
     try {
@@ -317,33 +393,33 @@ export async function DashboardPageContent({
         draftListing.ownerId !== sessionUser.authUserId ||
         draftListing.status !== ListingStatus.DRAFT
       ) {
-        redirect("/dashboard?error=Draft%20listing%20not%20found.");
+        redirect(`/dashboard?error=${encodeURIComponent(msg.draftNotFound)}`);
       }
 
       if (!profile?.phone?.trim()) {
         redirect(
-          `/sell/${listingId}/edit?error=Phone%20number%20is%20required%20to%20publish.`,
+          `/sell/${listingId}/edit?error=${encodeURIComponent(msg.phoneRequired)}`,
         );
       }
 
       if (!draftListing.title.trim()) {
         redirect(
-          `/sell/${listingId}/edit?error=Title%20is%20required%20to%20publish.`,
+          `/sell/${listingId}/edit?error=${encodeURIComponent(msg.titleRequired)}`,
         );
       }
       if (draftListing.priceCents <= 0) {
         redirect(
-          `/sell/${listingId}/edit?error=Price%20must%20be%20greater%20than%200.`,
+          `/sell/${listingId}/edit?error=${encodeURIComponent(msg.priceRequired)}`,
         );
       }
       if (!draftListing.categoryId) {
         redirect(
-          `/sell/${listingId}/edit?error=Category%20is%20required%20to%20publish.`,
+          `/sell/${listingId}/edit?error=${encodeURIComponent(msg.categoryRequired)}`,
         );
       }
       if (!draftListing.cityId) {
         redirect(
-          `/sell/${listingId}/edit?error=City%20is%20required%20to%20publish.`,
+          `/sell/${listingId}/edit?error=${encodeURIComponent(msg.cityRequired)}`,
         );
       }
 
@@ -366,18 +442,18 @@ export async function DashboardPageContent({
 
       if (priorPublishedPosts > 0) {
         redirect(
-          `/sell/${listingId}/edit?error=Dummy%20Stripe%20payment%20is%20required%20before%20activation.`,
+          `/sell/${listingId}/edit?error=${encodeURIComponent(msg.paymentRequired)}`,
         );
       }
 
       if (categoryExists === 0) {
         redirect(
-          `/sell/${listingId}/edit?error=Selected%20category%20is%20invalid.`,
+          `/sell/${listingId}/edit?error=${encodeURIComponent(msg.categoryInvalid)}`,
         );
       }
       if (cityExists === 0) {
         redirect(
-          `/sell/${listingId}/edit?error=Selected%20city%20is%20invalid.`,
+          `/sell/${listingId}/edit?error=${encodeURIComponent(msg.cityInvalid)}`,
         );
       }
 
@@ -394,7 +470,7 @@ export async function DashboardPageContent({
       if (isPrismaConnectionError(dbError)) {
         markPrismaUnavailable();
         redirect(
-          "/dashboard?error=Database%20is%20temporarily%20unreachable",
+          `/dashboard?error=${encodeURIComponent(msg.dbUnavailable)}`,
         );
       }
       throw dbError;
@@ -537,7 +613,7 @@ export async function DashboardPageContent({
             <>
               <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex flex-wrap gap-2">
-                  {userCategories.slice(0, 14).map((category) => {
+                  {userCategories.map((category) => {
                     const isSelected = selectedCategory?.id === category.id;
                     return (
                       <Link
@@ -576,10 +652,16 @@ export async function DashboardPageContent({
                       className: "border-border/70 text-foreground",
                     },
                     {
-                      key: "soon",
-                      label: text.soon,
-                      value: expiringSoon,
+                      key: "expired",
+                      label: text.expired,
+                      value: expiredListings.length,
                       className: "border-warning/35 text-warning",
+                    },
+                    {
+                      key: "sold",
+                      label: text.sold,
+                      value: soldListings.length,
+                      className: "border-secondary/35 text-secondary",
                     },
                   ].map((stat) => (
                     <div
@@ -632,7 +714,27 @@ export async function DashboardPageContent({
                             selectedView === "draft" ? "default" : "outline"
                           }
                         >
-                          {text.draft} ({Math.max(0, selectedCategory.posted - selectedCategory.active)})
+                          {text.draft} ({selectedCategory.draft})
+                        </Button>
+                      </Link>
+                      <Link href={`${categoryBaseHref}&view=expired`}>
+                        <Button
+                          size="sm"
+                          variant={
+                            selectedView === "expired" ? "default" : "outline"
+                          }
+                        >
+                          {text.expired} ({selectedCategory.expired})
+                        </Button>
+                      </Link>
+                      <Link href={`${categoryBaseHref}&view=sold`}>
+                        <Button
+                          size="sm"
+                          variant={
+                            selectedView === "sold" ? "default" : "outline"
+                          }
+                        >
+                          {text.sold} ({selectedCategory.sold})
                         </Button>
                       </Link>
                     </div>
@@ -646,11 +748,23 @@ export async function DashboardPageContent({
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                       {selectedCategoryListings.map((listing) => {
                         const heroImage = listing.images[0]?.url;
-                        const isActive =
-                          listing.status === ListingStatus.ACTIVE;
-                        const statusTone = isActive
+                        const isSold = Boolean(listing.sale);
+                        const isActive = listing.status === ListingStatus.ACTIVE;
+                        const isDraft = listing.status === ListingStatus.DRAFT;
+                        const statusLabel = isSold
+                          ? text.statusSold
+                          : isActive
+                          ? text.statusActive
+                          : isDraft
+                            ? text.statusDraft
+                            : text.statusExpired;
+                        const statusTone = isSold
+                          ? "border-secondary/35 text-secondary ring-secondary/20"
+                          : isActive
                           ? "border-success/35 text-success ring-success/25"
-                          : "border-warning/35 text-warning ring-warning/25";
+                          : isDraft
+                            ? "border-warning/35 text-warning ring-warning/25"
+                            : "border-destructive/35 text-destructive ring-destructive/20";
 
                         return (
                           <article
@@ -679,7 +793,7 @@ export async function DashboardPageContent({
                                   {text.status}
                                 </span>
                                 <span className="mt-1 text-[11px] font-black leading-none">
-                                  {isActive ? "ACTIVE" : "DRAFT"}
+                                  {statusLabel}
                                 </span>
                               </div>
 
@@ -705,7 +819,7 @@ export async function DashboardPageContent({
                               </p>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5 text-xs font-semibold">
-                                  {listing.status}
+                                  {statusLabel}
                                 </span>
                                 {listing.activeUntil && (
                                   <span className="rounded-full border border-warning/35 bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
@@ -717,7 +831,41 @@ export async function DashboardPageContent({
                                 )}
                               </div>
 
-                              {isActive ? (
+                              {isSold ? (
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Link href={`/sell/${listing.id}/edit`}>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full"
+                                      >
+                                        {text.edit}
+                                      </Button>
+                                    </Link>
+                                    <Link href={`/listing/${listing.id}`}>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="w-full"
+                                      >
+                                        {text.view}
+                                      </Button>
+                                    </Link>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {text.soldHint}
+                                  </p>
+                                  {listing.sale?.soldAt && (
+                                    <p className="text-xs text-muted-foreground">
+                                      {text.soldOn}{" "}
+                                      {new Date(listing.sale.soldAt).toLocaleDateString(
+                                        isMk ? "mk-MK" : "en-US",
+                                      )}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : isActive ? (
                                 <div className="grid grid-cols-2 gap-2">
                                   <Link href={`/sell/${listing.id}/edit`}>
                                     <Button
@@ -738,7 +886,7 @@ export async function DashboardPageContent({
                                     </Button>
                                   </Link>
                                 </div>
-                              ) : (
+                              ) : isDraft ? (
                                 <div className="space-y-2">
                                   {hasPublishedListing ? (
                                     <>
@@ -799,6 +947,32 @@ export async function DashboardPageContent({
                                     </>
                                   )}
                                 </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Link href={`/sell/${listing.id}/edit`}>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full"
+                                      >
+                                        {text.edit}
+                                      </Button>
+                                    </Link>
+                                    <Link href={`/sell/${listing.id}/edit`}>
+                                      <Button
+                                        size="sm"
+                                        type="button"
+                                        className="w-full"
+                                      >
+                                        {text.payAndPublish}
+                                      </Button>
+                                    </Link>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {text.expiredHint}
+                                  </p>
+                                </div>
                               )}
                             </div>
                           </article>
@@ -815,4 +989,3 @@ export async function DashboardPageContent({
     </div>
   );
 }
-

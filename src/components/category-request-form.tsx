@@ -44,6 +44,9 @@ export function CategoryRequestForm({
         submitRequest: "Поднеси барање за категорија",
         autosaveHint: "Оваа форма се зачувува локално додека не ја поднесеш.",
         latestRequests: "Твои последни барања",
+        statusPending: "На чекање",
+        statusApproved: "Одобрено",
+        statusRejected: "Одбиено",
       }
     : {
         categoryName: "Category name",
@@ -55,6 +58,9 @@ export function CategoryRequestForm({
         submitRequest: "Submit category request",
         autosaveHint: "This form auto-saves locally until you submit.",
         latestRequests: "Your latest requests",
+        statusPending: "Pending",
+        statusApproved: "Approved",
+        statusRejected: "Rejected",
       };
   const [desiredName, setDesiredName] = useState("");
   const [parentId, setParentId] = useState("");
@@ -104,6 +110,11 @@ export function CategoryRequestForm({
   }, [description, desiredName, isReady, parentId]);
 
   const canSubmit = useMemo(() => desiredName.trim().length >= 3, [desiredName]);
+  const statusLabelByValue = {
+    PENDING: text.statusPending,
+    APPROVED: text.statusApproved,
+    REJECTED: text.statusRejected,
+  } as const;
 
   return (
     <div className="space-y-4">
@@ -185,7 +196,7 @@ export function CategoryRequestForm({
                         : "warning"
                   }
                 >
-                  {request.status}
+                  {statusLabelByValue[request.status]}
                 </Badge>
               </div>
             ))}

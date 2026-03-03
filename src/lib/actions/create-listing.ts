@@ -26,6 +26,41 @@ const MAX_IMAGES_PER_LISTING = 10;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 type CreateRedirectBase = "/sell" | "/sell/analytics" | "/dashboard";
+type ActionLocale = "en" | "mk";
+
+function resolveActionLocale(value: FormDataEntryValue | null): ActionLocale {
+  return value === "mk" ? "mk" : "en";
+}
+
+function getActionMessages(locale: ActionLocale) {
+  if (locale === "mk") {
+    return {
+      dbUnavailable: "Базата е привремено недостапна",
+      onlyEurMkd: "Дозволени се само EUR и MKD.",
+      phoneRequired: "Телефонски број е задолжителен за објава.",
+      categoryRequired: "Категорија е задолжителна за објава.",
+      cityRequired: "Град е задолжителен за објава.",
+      categoryInvalid: "Избраната категорија е невалидна.",
+      cityInvalid: "Избраниот град е невалиден.",
+      paymentRequired:
+        "Потребно е плаќање пред активација. Нацртот е зачуван за да платиш и објавиш од уредување.",
+      draftSaveFailed: "Зачувувањето на нацрт не успеа",
+    };
+  }
+
+  return {
+    dbUnavailable: "Database is temporarily unreachable",
+    onlyEurMkd: "Only EUR and MKD are allowed.",
+    phoneRequired: "Phone number is required to publish.",
+    categoryRequired: "Category is required to publish.",
+    cityRequired: "City is required to publish.",
+    categoryInvalid: "Selected category is invalid.",
+    cityInvalid: "Selected city is invalid.",
+    paymentRequired:
+      "Payment is required before activation. Draft saved so you can pay and publish from edit.",
+    draftSaveFailed: "Draft save failed",
+  };
+}
 
 function resolveActiveUntil(status: ListingStatus, plan: string) {
   if (status !== ListingStatus.ACTIVE) return null;
@@ -136,9 +171,11 @@ async function createListingWithBase(
   formData: FormData,
   basePath: CreateRedirectBase,
 ) {
+  const locale = resolveActionLocale(formData.get("locale"));
+  const msg = getActionMessages(locale);
   const user = await requireSeller();
   if (shouldSkipPrismaCalls()) {
-    redirectWithError(basePath, "Database is temporarily unreachable");
+    redirectWithError(basePath, msg.dbUnavailable);
   }
 
   const intent = String(formData.get("intent") || "draft");
@@ -154,7 +191,7 @@ async function createListingWithBase(
   const cityId = String(formData.get("cityId") || "");
   const currencyRaw = String(formData.get("currency") || Currency.MKD);
   if (!isMarketplaceCurrency(currencyRaw)) {
-    redirectWithError(basePath, "Only EUR and MKD are allowed.");
+    redirectWithError(basePath, msg.onlyEurMkd);
   }
   const currency = currencyRaw;
   const condition = formData.get(
@@ -164,13 +201,13 @@ async function createListingWithBase(
   const phoneRaw = String(formData.get("phone") || "").trim();
   let sellerPhoneToSave: string | null = null;
   if (phoneRaw.length > 0) {
-    const normalizedPhoneResult = normalizePhoneInput(phoneRaw, phoneCountry);
+    const normalizedPhoneResult = normalizePhoneInput(phoneRaw, phoneCountry, locale);
     if (!normalizedPhoneResult.ok) {
       redirectWithError(basePath, normalizedPhoneResult.error);
     }
     sellerPhoneToSave = normalizedPhoneResult.e164;
   } else if (status === ListingStatus.ACTIVE) {
-    redirectWithError(basePath, "Phone number is required to publish.");
+    redirectWithError(basePath, msg.phoneRequired);
   }
   const price = Number(formData.get("price") || 0);
   const priceCents = Number.isFinite(price) ? Math.round(price * 100) : 0;
@@ -180,10 +217,10 @@ async function createListingWithBase(
 
   if (status === ListingStatus.ACTIVE) {
     if (!categoryId) {
-      redirectWithError(basePath, "Category is required to publish.");
+      redirectWithError(basePath, msg.categoryRequired);
     }
     if (!cityId) {
-      redirectWithError(basePath, "City is required to publish.");
+      redirectWithError(basePath, msg.cityRequired);
     }
 
     try {
@@ -197,15 +234,15 @@ async function createListingWithBase(
       ]);
       markPrismaHealthy();
       if (categoryExists === 0) {
-        redirectWithError(basePath, "Selected category is invalid.");
+        redirectWithError(basePath, msg.categoryInvalid);
       }
       if (cityExists === 0) {
-        redirectWithError(basePath, "Selected city is invalid.");
+        redirectWithError(basePath, msg.cityInvalid);
       }
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
-        redirectWithError(basePath, "Database is temporarily unreachable");
+        redirectWithError(basePath, msg.dbUnavailable);
       }
       throw error;
     }
@@ -222,7 +259,7 @@ async function createListingWithBase(
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
-        redirectWithError(basePath, "Database is temporarily unreachable");
+        redirectWithError(basePath, msg.dbUnavailable);
       }
       throw error;
     }
@@ -231,8 +268,7 @@ async function createListingWithBase(
   if (status === ListingStatus.ACTIVE) {
     if (!isFirstPublishedPost && paymentProvider !== "stripe-dummy") {
       status = ListingStatus.DRAFT;
-      paymentDeferredReason =
-        "Payment is required before activation. Draft saved so you can pay and publish from edit.";
+      paymentDeferredReason = msg.paymentRequired;
     } else if (!isFirstPublishedPost && paymentProvider === "stripe-dummy") {
       const paymentResult = validateDummyStripePayment({
         cardNumberRaw: String(formData.get("dummyCardNumber") || ""),
@@ -249,6 +285,7 @@ async function createListingWithBase(
       const validation = validatePublishInputs({
         title,
         priceCents,
+        locale,
       });
       if (!validation.isValid) {
         redirectWithError(basePath, validation.errors[0]);
@@ -302,7 +339,7 @@ async function createListingWithBase(
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      redirectWithError(basePath, "Database is temporarily unreachable");
+      redirectWithError(basePath, msg.dbUnavailable);
     }
     throw error;
   }
@@ -334,7 +371,7 @@ async function createListingWithBase(
       }
       redirect(`/sell/${listingId}/edit`);
     }
-    redirect(`${basePath}?error=Draft%20save%20failed`);
+    redirect(`${basePath}?error=${encodeURIComponent(msg.draftSaveFailed)}`);
   }
 
   redirect(basePath);

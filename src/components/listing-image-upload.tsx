@@ -74,6 +74,13 @@ export function ListingImageUpload({
         uploaded: "прикачено",
         currentImages: "Тековни слики",
         noImages: "Сè уште нема прикачени слики.",
+        prepareImagesFailed: "Не може да се подготват избраните слики.",
+        sessionExpired: "Сесијата ти е истечена. Најави се повторно.",
+        uploadFailed: "Прикачувањето не успеа. Обиди се повторно.",
+        networkError: "Мрежна грешка при прикачување.",
+        fileFailedPrefix: "Сликата",
+        fileFailedSuffix: "не успеа",
+        uploadSuccess: "Сликите се прикачени успешно.",
       }
     : {
         selectPhotos: "Select photos",
@@ -85,6 +92,13 @@ export function ListingImageUpload({
         uploaded: "uploaded",
         currentImages: "Current images",
         noImages: "No images uploaded yet.",
+        prepareImagesFailed: "Could not prepare selected images.",
+        sessionExpired: "Your session expired. Please log in again.",
+        uploadFailed: "Upload failed. Please try again.",
+        networkError: "Network error during upload.",
+        fileFailedPrefix: "File",
+        fileFailedSuffix: "failed",
+        uploadSuccess: "Images uploaded successfully.",
       };
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [queue, setQueue] = useState<QueueImage[]>([]);
@@ -127,7 +141,7 @@ export function ListingImageUpload({
       const message =
         selectError instanceof Error
           ? selectError.message
-          : "Could not prepare selected images.";
+          : text.prepareImagesFailed;
       setError(message);
       replaceQueue([]);
       if (inputRef.current) inputRef.current.value = "";
@@ -167,13 +181,13 @@ export function ListingImageUpload({
             textError ||
               responseError ||
               (loginRedirected
-                ? "Your session expired. Please log in again."
-                : "Upload failed. Please try again."),
+                ? text.sessionExpired
+                : text.uploadFailed),
           ),
         );
       };
 
-      xhr.onerror = () => reject(new Error("Network error during upload."));
+      xhr.onerror = () => reject(new Error(text.networkError));
       xhr.send(formData);
     });
   }
@@ -194,12 +208,14 @@ export function ListingImageUpload({
           const message =
             fileError instanceof Error
               ? fileError.message
-              : "Upload failed. Please retry.";
-          throw new Error(`File ${index + 1} failed: ${message}`);
+              : text.uploadFailed;
+          throw new Error(
+            `${text.fileFailedPrefix} ${index + 1} ${text.fileFailedSuffix}: ${message}`,
+          );
         }
       }
 
-      setSuccess("Images uploaded successfully.");
+      setSuccess(text.uploadSuccess);
       replaceQueue([]);
       if (inputRef.current) inputRef.current.value = "";
       router.refresh();
@@ -207,7 +223,7 @@ export function ListingImageUpload({
       const message =
         uploadError instanceof Error
           ? uploadError.message
-          : "Upload failed. Please retry.";
+          : text.uploadFailed;
       setError(message);
     } finally {
       setUploading(false);

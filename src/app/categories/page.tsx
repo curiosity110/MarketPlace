@@ -25,6 +25,7 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
+import { runListingLifecycleMaintenance } from "@/lib/listing-lifecycle";
 
 const iconBySlug = {
   cars: Car,
@@ -83,6 +84,8 @@ export default async function CategoriesPage({
       };
   const sp = await searchParams;
   const query = (sp.q || "").trim().toLowerCase();
+
+  await runListingLifecycleMaintenance();
 
   async function fetchCategoriesData() {
     return prisma.category.findMany({

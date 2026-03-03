@@ -51,6 +51,24 @@ const MAX_CREATE_PHOTOS = 10;
 const MAX_CREATE_SINGLE_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const MAX_CREATE_TOTAL_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 
+function readStoredCreateDraft(): PersistedCreateDraft | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(CREATE_FORM_STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as PersistedCreateDraft;
+    if (!parsed || typeof parsed !== "object") {
+      window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
+    return null;
+  }
+}
+
 type Props = {
   action: (formData: FormData) => void | Promise<void>;
   categories: Category[];
@@ -96,12 +114,15 @@ export function ListingForm({
     ? {
         subscriptionCharge: "Претплата (месечно)",
         perPostCharge: "Наплата по оглас (30 дена)",
-        restoringDraft: "Се вчитува зачуваниот нацрт...",
+        savedDraftDetected: "Пронајдовме локален зачуван нацрт на овој уред.",
+        restoreSavedDraft: "Вчитај нацрт",
+        discardSavedDraft: "Избриши нацрт",
         listingDetails: "Детали за оглас",
         title: "Наслов",
         titlePlaceholder: "Пример: Volkswagen Golf 7 2017",
         condition: "Состојба",
         categoryFields: "Полиња на категорија",
+        categoryFieldsExpand: "Прикажи полиња за категорија",
         categoryAndLocation: "Категорија и локација",
         pricingAndLocation: "Cena i lokacija",
         categoryPriority: "Prvo izberi kategorija za poprecizni filtri.",
@@ -164,12 +185,15 @@ export function ListingForm({
     : {
         subscriptionCharge: "Subscription charge (monthly)",
         perPostCharge: "Per post charge (30 days)",
-        restoringDraft: "Restoring your saved listing draft...",
+        savedDraftDetected: "A locally saved draft was found on this device.",
+        restoreSavedDraft: "Restore draft",
+        discardSavedDraft: "Discard draft",
         listingDetails: "Listing details",
         title: "Title",
         titlePlaceholder: "Example: Volkswagen Golf 7 2017",
         condition: "Condition",
         categoryFields: "Category fields",
+        categoryFieldsExpand: "Show category fields",
         categoryAndLocation: "Category and location",
         pricingAndLocation: "Pricing and location",
         categoryPriority: "Pick category first for smarter field suggestions.",
@@ -277,9 +301,11 @@ export function ListingForm({
   const [plan, setPlan] = useState<ListingPlan>(
     initial?.plan ?? "pay-per-listing",
   );
-  const [isRestored, setIsRestored] = useState(!isCreateMode);
   const [restoredValues, setRestoredValues] = useState<Record<string, string>>(
     {},
+  );
+  const [savedDraft, setSavedDraft] = useState<PersistedCreateDraft | null>(
+    readStoredCreateDraft,
   );
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [photoValidationError, setPhotoValidationError] = useState<string | null>(
@@ -293,11 +319,14 @@ export function ListingForm({
       : text.perPostCharge;
   const requiresDummyPayment = paymentProvider === "stripe-dummy";
 
-  const selectedCategoryId = subcategoryId || parentCategoryId;
   const subcategoriesForSelectedParent = useMemo(
     () => subcategoriesByParentId[parentCategoryId] ?? [],
     [parentCategoryId, subcategoriesByParentId],
   );
+  const hasValidSubcategory =
+    Boolean(subcategoryId) &&
+    subcategoriesForSelectedParent.some((item) => item.id === subcategoryId);
+  const selectedCategoryId = (hasValidSubcategory ? subcategoryId : "") || parentCategoryId;
   const selectedCategoryPath = useMemo(() => {
     const parent = categoryById[parentCategoryId];
     const selected = categoryById[selectedCategoryId];
@@ -321,34 +350,24 @@ export function ListingForm({
     [categories],
   );
 
-  const validateCreatePhotos = useCallback(
-    (files: FileList | null) => {
-      if (!isCreateMode || !files || files.length === 0) return null;
-      if (files.length > MAX_CREATE_PHOTOS) return text.photosCountError;
+  function validateCreatePhotos(files: FileList | null) {
+    if (!isCreateMode || !files || files.length === 0) return null;
+    if (files.length > MAX_CREATE_PHOTOS) return text.photosCountError;
 
-      let totalBytes = 0;
-      for (const file of Array.from(files)) {
-        totalBytes += file.size;
-        if (file.size > MAX_CREATE_SINGLE_FILE_SIZE) {
-          return text.photosSingleSizeError;
-        }
+    let totalBytes = 0;
+    for (const file of Array.from(files)) {
+      totalBytes += file.size;
+      if (file.size > MAX_CREATE_SINGLE_FILE_SIZE) {
+        return text.photosSingleSizeError;
       }
-
-      if (totalBytes > MAX_CREATE_TOTAL_FILE_SIZE) {
-        return text.photosTotalSizeError;
-      }
-
-      return null;
-    },
-    [isCreateMode, text.photosCountError, text.photosSingleSizeError, text.photosTotalSizeError],
-  );
-
-  useEffect(() => {
-    if (!subcategoryId) return;
-    if (!subcategoriesForSelectedParent.some((item) => item.id === subcategoryId)) {
-      setSubcategoryId("");
     }
-  }, [subcategoryId, subcategoriesForSelectedParent]);
+
+    if (totalBytes > MAX_CREATE_TOTAL_FILE_SIZE) {
+      return text.photosTotalSizeError;
+    }
+
+    return null;
+  }
 
   const dynamicInitialValues = useMemo(() => {
     const base = { ...(initial?.dynamicValues ?? {}) };
@@ -426,85 +445,57 @@ export function ListingForm({
     );
   }, [isCreateMode, plan, selectedCategoryId]);
 
-  useEffect(() => {
-    if (!isCreateMode || typeof window === "undefined") return;
+  function clearPersistedDraft() {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
+    setSavedDraft(null);
+  }
 
-    const raw = window.localStorage.getItem(CREATE_FORM_STORAGE_KEY);
-    if (!raw) {
-      setIsRestored(true);
-      return;
+  function restoreSavedDraft() {
+    if (!savedDraft) return;
+
+    const nextValues = savedDraft.values ?? {};
+    setRestoredValues(nextValues);
+
+    const nextCategory =
+      savedDraft.categoryId || nextValues.categoryId || initial?.categoryId;
+    if (nextCategory && categories.some((category) => category.id === nextCategory)) {
+      const selected = categoryById[nextCategory];
+      if (selected?.parentId) {
+        setParentCategoryId(selected.parentId);
+        setSubcategoryId(selected.id);
+      } else {
+        setParentCategoryId(nextCategory);
+        setSubcategoryId("");
+      }
     }
 
-    try {
-      const parsed = JSON.parse(raw) as PersistedCreateDraft;
-      const nextValues = parsed?.values ?? {};
-      setRestoredValues(nextValues);
-
-      const nextCategory =
-        parsed.categoryId || nextValues.categoryId || initial?.categoryId;
-      if (
-        nextCategory &&
-        categories.some((category) => category.id === nextCategory)
-      ) {
-        const selected = categoryById[nextCategory];
-        if (selected?.parentId) {
-          setParentCategoryId(selected.parentId);
-          setSubcategoryId(selected.id);
-        } else {
-          setParentCategoryId(nextCategory);
-          setSubcategoryId("");
-        }
-      }
-
-      if (parsed.plan === "subscription" || parsed.plan === "pay-per-listing") {
-        setPlan(parsed.plan);
-      }
-
-      const parsedCountry = parsed.values?.phoneCountry;
-      if (
-        parsedCountry &&
-        PHONE_COUNTRIES.some((country) => country.code === parsedCountry)
-      ) {
-        setPhoneCountry(parsedCountry);
-      }
-
-      if (hasSavedProfilePhone && parsed.values?.useSavedPhone === "false") {
-        setUseSavedPhone(false);
-      }
-
-      if (
-        parsed.values?.dummyCardNumber ||
-        parsed.values?.dummyCardExp ||
-        parsed.values?.dummyCardCvc
-      ) {
-        setShowPaymentPanel(true);
-      }
-    } catch {
-      window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
-    } finally {
-      setIsRestored(true);
+    if (savedDraft.plan === "subscription" || savedDraft.plan === "pay-per-listing") {
+      setPlan(savedDraft.plan);
     }
-  }, [
-    categories,
-    categoryById,
-    hasSavedProfilePhone,
-    initial?.categoryId,
-    isCreateMode,
-  ]);
 
-  useEffect(() => {
-    if (!isCreateMode || !isRestored) return;
-    persistDraft();
-  }, [
-    isCreateMode,
-    isRestored,
-    parentCategoryId,
-    persistDraft,
-    phoneCountry,
-    plan,
-    selectedCategoryId,
-    subcategoryId,
-  ]);
+    const parsedCountry = savedDraft.values?.phoneCountry;
+    if (
+      parsedCountry &&
+      PHONE_COUNTRIES.some((country) => country.code === parsedCountry)
+    ) {
+      setPhoneCountry(parsedCountry);
+    }
+
+    if (hasSavedProfilePhone && savedDraft.values?.useSavedPhone === "false") {
+      setUseSavedPhone(false);
+    }
+
+    if (
+      savedDraft.values?.dummyCardNumber ||
+      savedDraft.values?.dummyCardExp ||
+      savedDraft.values?.dummyCardCvc
+    ) {
+      setShowPaymentPanel(true);
+    }
+
+    setSavedDraft(null);
+  }
 
   useEffect(() => {
     if (!showPaymentPanel) return;
@@ -521,14 +512,6 @@ export function ListingForm({
     };
   }, [showPaymentPanel]);
 
-  if (!isRestored) {
-    return (
-      <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
-        {text.restoringDraft}
-      </div>
-    );
-  }
-
   return (
     <form
       id={formId}
@@ -537,6 +520,7 @@ export function ListingForm({
       encType="multipart/form-data"
       className="space-y-4"
       onChange={() => {
+        if (savedDraft) setSavedDraft(null);
         if (isCreateMode) persistDraft();
       }}
       onSubmit={(event) => {
@@ -547,180 +531,223 @@ export function ListingForm({
           return;
         }
 
-        if (isCreateMode) persistDraft();
+        if (isCreateMode) clearPersistedDraft();
       }}
     >
       {initial?.id && <input type="hidden" name="id" value={initial.id} />}
+      <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="plan" value={plan} />
       {paymentProvider !== "none" && (
         <input type="hidden" name="paymentProvider" value={paymentProvider} />
+      )}
+      {isCreateMode && savedDraft && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-blue-50/50 p-3 dark:bg-blue-500/10">
+          <p className="text-sm text-foreground">{text.savedDraftDetected}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={restoreSavedDraft}>
+              {text.restoreSavedDraft}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={clearPersistedDraft}
+            >
+              {text.discardSavedDraft}
+            </Button>
+          </div>
+        </div>
       )}
 
       <section className="grid items-start gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
           <h3 className="text-lg font-semibold">{text.listingDetails}</h3>
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
-            <div className="grid gap-3">
+
+          <label className="space-y-1">
+            <span className="text-sm font-medium">{text.title}</span>
+            <Input
+              name="title"
+              defaultValue={readValue("title", initial?.title ?? "")}
+              placeholder={text.titlePlaceholder}
+              required
+              minLength={5}
+              maxLength={120}
+            />
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-sm font-medium">{text.description}</span>
+            <textarea
+              name="description"
+              defaultValue={readValue("description", initial?.description ?? "")}
+              className="min-h-36 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
+              placeholder={text.descriptionPlaceholder}
+              maxLength={2000}
+            />
+          </label>
+
+          {!initial?.id && (
+            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
               <label className="space-y-1">
-                <span className="text-sm font-medium">{text.title}</span>
-                <Input
-                  name="title"
-                  defaultValue={readValue("title", initial?.title ?? "")}
-                  placeholder={text.titlePlaceholder}
-                  required
-                  minLength={5}
-                  maxLength={120}
+                <span className="text-sm font-medium">{text.photos}</span>
+                <input
+                  ref={photosInputRef}
+                  type="file"
+                  name="photos"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  multiple
+                  onChange={(event) => {
+                    const nextError = validateCreatePhotos(event.target.files);
+                    setPhotoValidationError(nextError);
+                  }}
+                  className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
                 />
               </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {text.photosHint}
+              </p>
+              {photoValidationError && (
+                <p className="mt-1 text-xs font-medium text-destructive">
+                  {photoValidationError}
+                </p>
+              )}
+            </div>
+          )}
 
+          {initial?.id && (
+            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
+              <ListingImageUpload
+                listingId={initial.id}
+                existingImages={existingImages}
+                locale={locale}
+              />
+            </div>
+          )}
+
+          <label className="space-y-1">
+            <span className="text-sm font-medium">{text.condition}</span>
+            <Select name="condition" defaultValue={restoredCondition}>
+              {Object.values(ListingCondition).map((condition) => (
+                <option key={condition} value={condition}>
+                  {conditionLabelByValue[condition]}
+                </option>
+              ))}
+            </Select>
+          </label>
+        </div>
+
+        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
+          <div className="space-y-2 rounded-xl border border-primary/30 bg-orange-50/70 p-3 dark:bg-orange-500/10">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <CirclePlus size={13} />
+                {text.requestCategory}
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground">{text.categoryPriority}</p>
+
+            <input type="hidden" name="categoryId" value={selectedCategoryId} />
+
+            <div className="grid gap-2">
               <label className="space-y-1">
-                <span className="text-sm font-medium">{text.condition}</span>
-                <Select name="condition" defaultValue={restoredCondition}>
-                  {Object.values(ListingCondition).map((condition) => (
-                    <option key={condition} value={condition}>
-                      {conditionLabelByValue[condition]}
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.mainCategory}
+                </span>
+                <Select
+                  value={parentCategoryId}
+                  onChange={(event) => {
+                    setParentCategoryId(event.target.value);
+                    setSubcategoryId("");
+                  }}
+                  required
+                >
+                  {parentCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {localizeCategoryName(category, locale)}
                     </option>
                   ))}
                 </Select>
               </label>
-            </div>
 
-            <div className="space-y-2 rounded-xl border border-primary/30 bg-orange-50/70 p-3 dark:bg-orange-500/10">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                >
-                  <CirclePlus size={13} />
-                  {text.requestCategory}
-                </Link>
-              </div>
-              <p className="text-xs text-muted-foreground">{text.categoryPriority}</p>
-
-              <input type="hidden" name="categoryId" value={selectedCategoryId} />
-
-              <div className="grid gap-2">
+              {subcategoriesForSelectedParent.length > 0 && (
                 <label className="space-y-1">
                   <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {text.mainCategory}
+                    {text.subcategory}
                   </span>
                   <Select
-                    value={parentCategoryId}
-                    onChange={(event) => {
-                      setParentCategoryId(event.target.value);
-                      setSubcategoryId("");
-                    }}
-                    required
+                    value={hasValidSubcategory ? subcategoryId : ""}
+                    onChange={(event) => setSubcategoryId(event.target.value)}
                   >
-                    {parentCategories.map((category) => (
+                    <option value="">{text.useParentCategory}</option>
+                    {subcategoriesForSelectedParent.map((category) => (
                       <option key={category.id} value={category.id}>
                         {localizeCategoryName(category, locale)}
                       </option>
                     ))}
                   </Select>
                 </label>
+              )}
+            </div>
 
-                {subcategoriesForSelectedParent.length > 0 && (
-                  <label className="space-y-1">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {text.subcategory}
-                    </span>
-                    <Select
-                      value={subcategoryId}
-                      onChange={(event) => setSubcategoryId(event.target.value)}
-                    >
-                      <option value="">{text.useParentCategory}</option>
-                      {subcategoriesForSelectedParent.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {localizeCategoryName(category, locale)}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                )}
-              </div>
-
-              <div className="rounded-lg border border-primary/20 bg-card/70 px-3 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {text.selectedCategory}
-                </p>
-                <p className="text-sm font-semibold">{selectedCategoryPath}</p>
-              </div>
+            <div className="rounded-lg border border-primary/20 bg-card/70 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.selectedCategory}
+              </p>
+              <p className="text-sm font-semibold">{selectedCategoryPath}</p>
             </div>
           </div>
-          <h3 className="text-base font-semibold">{text.categoryFields}</h3>
-          <DynamicFieldsEditor
-            key={selectedCategoryId}
-            categoryId={selectedCategoryId}
-            categorySlugById={categorySlugById}
-            templatesByCategory={templatesByCategory}
-            initialValues={dynamicInitialValues}
-            locale={locale}
-          />
-        </div>
 
-        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <h3 className="text-lg font-semibold">{text.pricingAndLocation}</h3>
+          <div className="space-y-3 rounded-xl border border-border/70 bg-card/90 p-3">
+            <h3 className="text-sm font-semibold">{text.pricingAndLocation}</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-sm font-medium">{text.price}</span>
+                <Input
+                  type="number"
+                  step="1"
+                  min="1"
+                  name="price"
+                  defaultValue={readValue("price", String(initial?.price ?? 0))}
+                  placeholder={text.pricePlaceholder}
+                  required
+                />
+              </label>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-sm font-medium">{text.currency}</span>
+                <Select name="currency" defaultValue={restoredCurrency}>
+                  {MARKETPLACE_CURRENCIES.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
+
             <label className="space-y-1">
-              <span className="text-sm font-medium">{text.price}</span>
-              <Input
-                type="number"
-                step="1"
-                min="1"
-                name="price"
-                defaultValue={readValue("price", String(initial?.price ?? 0))}
-                placeholder={text.pricePlaceholder}
-                required
-              />
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-sm font-medium">{text.currency}</span>
-              <Select name="currency" defaultValue={restoredCurrency}>
-                {MARKETPLACE_CURRENCIES.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.city}
+              </span>
+              <Select name="cityId" defaultValue={restoredCityId} required>
+                {cities.length === 0 ? (
+                  <option value="" disabled>
+                    {text.noCityAvailable}
                   </option>
-                ))}
+                ) : (
+                  cities.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))
+                )}
               </Select>
             </label>
           </div>
-
-          <label className="space-y-1">
-            <span className="text-sm font-medium">{text.description}</span>
-            <textarea
-              name="description"
-              defaultValue={readValue(
-                "description",
-                initial?.description ?? "",
-              )}
-              className="min-h-32 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
-              placeholder={text.descriptionPlaceholder}
-              maxLength={2000}
-            />
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {text.city}
-            </span>
-            <Select name="cityId" defaultValue={restoredCityId} required>
-              {cities.length === 0 ? (
-                <option value="" disabled>
-                  {text.noCityAvailable}
-                </option>
-              ) : (
-                cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}
-                  </option>
-                ))
-              )}
-            </Select>
-          </label>
 
           <div className="space-y-2 rounded-xl border border-border/70 bg-card/90 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -731,9 +758,7 @@ export function ListingForm({
                   className="text-xs font-semibold text-primary hover:underline"
                   onClick={() => setUseSavedPhone((prev) => !prev)}
                 >
-                  {useSavedPhone
-                    ? text.useDifferentPhone
-                    : text.useSavedPhone}
+                  {useSavedPhone ? text.useDifferentPhone : text.useSavedPhone}
                 </button>
               )}
             </div>
@@ -806,43 +831,21 @@ export function ListingForm({
             </p>
           </div>
 
-          {!initial?.id && (
-            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
-              <label className="space-y-1">
-                <span className="text-sm font-medium">{text.photos}</span>
-                <input
-                  ref={photosInputRef}
-                  type="file"
-                  name="photos"
-                  accept="image/jpeg,image/jpg,image/png,image/webp"
-                  multiple
-                  onChange={(event) => {
-                    const nextError = validateCreatePhotos(event.target.files);
-                    setPhotoValidationError(nextError);
-                  }}
-                  className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
-                />
-              </label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {text.photosHint}
-              </p>
-              {photoValidationError && (
-                <p className="mt-1 text-xs font-medium text-destructive">
-                  {photoValidationError}
-                </p>
-              )}
-            </div>
-          )}
-
-          {initial?.id && (
-            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
-              <ListingImageUpload
-                listingId={initial.id}
-                existingImages={existingImages}
+          <details className="rounded-xl border border-border/70 bg-card/90 p-3">
+            <summary className="cursor-pointer text-sm font-semibold">
+              {text.categoryFieldsExpand}
+            </summary>
+            <div className="mt-3">
+              <DynamicFieldsEditor
+                key={selectedCategoryId}
+                categoryId={selectedCategoryId}
+                categorySlugById={categorySlugById}
+                templatesByCategory={templatesByCategory}
+                initialValues={dynamicInitialValues}
                 locale={locale}
               />
             </div>
-          )}
+          </details>
         </div>
       </section>
 

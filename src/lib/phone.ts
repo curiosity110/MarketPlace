@@ -1,4 +1,5 @@
 export type PhoneCountry = "MK" | "AL" | "XK" | "RS" | "BG" | "GR" | "DE" | "IT" | "AT" | "US";
+export type PhoneLocale = "en" | "mk";
 
 type PhoneCountryOption = {
   code: PhoneCountry;
@@ -126,14 +127,19 @@ function getCountryByCode(countryCode: string): PhoneCountryOption {
   );
 }
 
-export function normalizePhoneInput(rawPhone: string, countryCodeRaw: string) {
+export function normalizePhoneInput(
+  rawPhone: string,
+  countryCodeRaw: string,
+  locale: PhoneLocale = "en",
+) {
   const country = getCountryByCode(countryCodeRaw);
   const compact = toCompact(rawPhone.trim());
+  const mk = locale === "mk";
 
   if (!compact) {
     return {
       ok: false as const,
-      error: "Phone number is required.",
+      error: mk ? "Телефонски број е задолжителен." : "Phone number is required.",
     };
   }
 
@@ -143,7 +149,9 @@ export function normalizePhoneInput(rawPhone: string, countryCodeRaw: string) {
     if (!intlDigits.startsWith(country.dialCode)) {
       return {
         ok: false as const,
-        error: `Phone must match selected country prefix +${country.dialCode}.`,
+        error: mk
+          ? `Телефонот мора да одговара на избраниот префикс +${country.dialCode}.`
+          : `Phone must match selected country prefix +${country.dialCode}.`,
       };
     }
     nationalDigits = intlDigits.slice(country.dialCode.length);
@@ -162,8 +170,9 @@ export function normalizePhoneInput(rawPhone: string, countryCodeRaw: string) {
     if (!/^7\d{7}$/.test(nationalDigits)) {
       return {
         ok: false as const,
-        error:
-          "Macedonian phone must start with 07 in local format, or use +389 / 00389.",
+        error: mk
+          ? "Македонскиот телефон мора да почнува со 07 (или +389 / 00389)."
+          : "Macedonian phone must start with 07 in local format, or use +389 / 00389.",
       };
     }
   } else if (
@@ -172,7 +181,9 @@ export function normalizePhoneInput(rawPhone: string, countryCodeRaw: string) {
   ) {
     return {
       ok: false as const,
-      error: `${country.label} phone must be ${country.minNationalDigits}-${country.maxNationalDigits} digits.`,
+      error: mk
+        ? `Телефонот за ${country.label} мора да има ${country.minNationalDigits}-${country.maxNationalDigits} цифри.`
+        : `${country.label} phone must be ${country.minNationalDigits}-${country.maxNationalDigits} digits.`,
     };
   }
 
