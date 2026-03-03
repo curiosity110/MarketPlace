@@ -2,7 +2,6 @@
 
 import type { ChangeEvent } from "react";
 import * as React from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CategoryFieldType, ListingCondition } from "@prisma/client";
 import { CircleDollarSign, Filter, Search } from "lucide-react";
@@ -266,13 +265,6 @@ export function BrowseFilters({
     );
   }
 
-  // Base params for sort/reset links: preserve everything except "page"
-  const baseParams = React.useMemo(() => {
-    const p = new URLSearchParams(spString);
-    p.delete("page");
-    return p;
-  }, [spString]);
-
   return (
     <form
       className="space-y-4"
@@ -373,6 +365,26 @@ export function BrowseFilters({
               <option key={item} value={item}>
                 {conditionLabelByValue[item]}
               </option>
+              ))}
+          </Select>
+        </label>
+
+        <label className="space-y-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.orderBy}
+          </span>
+          <Select
+            value={sort}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+              const nextSort = parseSort(event.target.value);
+              setSort(nextSort);
+              apply({ sort: nextSort });
+            }}
+          >
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </Select>
         </label>
@@ -420,49 +432,18 @@ export function BrowseFilters({
         </div>
       )}
 
-           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        {/* Left: primary actions */}
+      <div className="flex flex-wrap gap-2 pt-1">
         <div className="flex flex-wrap gap-2">
           <Button type="submit" className="min-w-28">
             {text.apply}
           </Button>
-          <Button type="button" variant="outline" onClick={clearAll}>
-            {text.clear}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={clearAll}
+          >
+            {text.resetFilters}
           </Button>
-        </div>
-
-        {/* Right: sort */}
-        <div className="flex flex-col items-start gap-2 lg:items-end">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.orderBy}
-          </p>
-
-          <div className="flex flex-wrap gap-2 lg:justify-end">
-            {sortOptions.map((option) => {
-              const sortParams = new URLSearchParams(baseParams.toString());
-              sortParams.set("sort", option.value);
-              sortParams.set("page", "1");
-
-              return (
-                <Link key={option.value} href={`/browse?${sortParams.toString()}`}>
-                  <Button
-                    size="sm"
-                    variant={sort === option.value ? "default" : "outline"}
-                    type="button"
-                    onClick={() => setSort(option.value)}
-                  >
-                    {option.label}
-                  </Button>
-                </Link>
-              );
-            })}
-
-            <Link href="/browse">
-              <Button size="sm" variant="outline" type="button">
-                {text.resetFilters}
-              </Button>
-            </Link>
-          </div>
         </div>
       </div>
     </form>

@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
 import { Container } from "@/components/ui/container";
 import { SiteAssistant } from "@/components/site-assistant";
+import { SiteFooter } from "@/components/site-footer";
 import { getServerLocale } from "@/lib/i18n";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -33,11 +34,12 @@ export default async function RootLayout({
         >
           <div className="min-h-screen bg-background text-foreground">
             <Nav />
-            <main>
-              <Container className="pb-28 pt-6 md:pb-10 md:pt-8">
+            <main className="min-h-[calc(100vh-4rem)]">
+              <Container className="pb-24 pt-6 md:pb-8 md:pt-8">
                 {children}
               </Container>
             </main>
+            <SiteFooter locale={locale} />
             <SiteAssistant locale={locale} />
           </div>
         </ThemeProvider>

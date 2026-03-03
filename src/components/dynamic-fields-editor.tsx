@@ -26,42 +26,6 @@ type Props = {
   locale?: "en" | "mk";
 };
 
-const demoValues: Record<string, Record<string, string>> = {
-  cars: {
-    brand: "Volkswagen",
-    model: "Golf 7",
-    year: "2017",
-    km: "124000",
-    fuel: "Diesel",
-    transmission: "Manual",
-  },
-  "real-estate": {
-    sqm: "78",
-    rooms: "3",
-    floor: "4",
-    furnished: "true",
-    heating: "Central",
-  },
-  electronics: { brand: "Samsung", model: "QLED Q80", specs: "4K Smart TV" },
-  jobs: {
-    company: "Skopje Tech",
-    position: "Frontend Developer",
-    salary: "1600",
-    remote: "true",
-    contract: "Full-time",
-  },
-  services: { serviceType: "Repair", availability: "Mon-Sat 08:00 - 17:00" },
-  furniture: { material: "Wood", dimensions: "200x90x75 cm", color: "Brown" },
-  phones: {
-    brand: "Apple",
-    model: "iPhone 14",
-    storage: "128GB",
-    condition: "Used",
-    warranty: "false",
-  },
-  fashion: { size: "M", brand: "Zara", color: "Black" },
-};
-
 const presetValues: Record<string, Record<string, Record<string, string>>> = {
   cars: {
     Economy: { fuel: "Diesel", transmission: "Manual" },
@@ -86,7 +50,6 @@ export function DynamicFieldsEditor({
     ? {
         noAdditionalFields: "Нема дополнителни полиња за оваа категорија.",
         smartAssist: "Паметен асистент",
-        autoFillDemo: "Авто-пополнување демо",
         clear: "Исчисти",
         quickPresets: "Брзи пресети:",
         select: "Избери",
@@ -96,7 +59,6 @@ export function DynamicFieldsEditor({
     : {
         noAdditionalFields: "No additional fields for this category.",
         smartAssist: "Smart assist",
-        autoFillDemo: "Auto-fill demo",
         clear: "Clear",
         quickPresets: "Quick presets:",
         select: "Select",
@@ -129,17 +91,6 @@ export function DynamicFieldsEditor({
     setFieldValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function autofillDemo() {
-    const source = demoValues[categorySlug] ?? {};
-    setFieldValues((prev) => {
-      const next = { ...prev };
-      templates.forEach((template) => {
-        next[template.key] = source[template.key] ?? next[template.key] ?? "";
-      });
-      return next;
-    });
-  }
-
   function clearFields() {
     const cleared: Record<string, string> = {};
     templates.forEach((template) => {
@@ -169,9 +120,6 @@ export function DynamicFieldsEditor({
           <WandSparkles size={14} />
           {text.smartAssist}
         </p>
-        <Button type="button" size="sm" variant="outline" onClick={autofillDemo}>
-          {text.autoFillDemo}
-        </Button>
         <Button type="button" size="sm" variant="ghost" onClick={clearFields}>
           {text.clear}
         </Button>

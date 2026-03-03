@@ -211,7 +211,7 @@ export function LoginForm({
           type="button"
           className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
             mode === "login"
-              ? "bg-white text-foreground shadow-sm dark:bg-card"
+              ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground"
           }`}
           onClick={() => setMode("login")}
@@ -222,7 +222,7 @@ export function LoginForm({
           type="button"
           className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
             mode === "register"
-              ? "bg-white text-foreground shadow-sm dark:bg-card"
+              ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground"
           }`}
           onClick={() => setMode("register")}

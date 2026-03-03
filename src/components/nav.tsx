@@ -29,20 +29,20 @@ export async function Nav() {
             <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-muted/30 p-1 md:flex">
               <Link
                 href="/browse"
-                className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
+                className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-card hover:text-foreground"
               >
                 {messages.nav.browse}
               </Link>
               <Link
                 href="/categories"
-                className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
+                className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-card hover:text-foreground"
               >
                 {messages.nav.categories}
               </Link>
               {user && (
                 <Link
                   href="/dashboard"
-                  className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-white hover:text-foreground dark:hover:bg-white/10"
+                  className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground/75 transition-colors hover:bg-card hover:text-foreground"
                 >
                   {messages.nav.dashboard}
                 </Link>

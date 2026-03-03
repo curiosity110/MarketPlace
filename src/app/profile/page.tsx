@@ -154,8 +154,8 @@ export default async function ProfilePage({
         profileSettings: "Подесувања на профил",
         profileSettingsDesc:
           "Чувај ги сите информации за продавач и јавниот телефон на едно место.",
-        publicHandle: "Handle",
-        setUsernameHint: "Handle-то е врзано со твојот профил.",
+        publicHandle: "Профил @име",
+        setUsernameHint: "Ова @име е врзано со твојот профил.",
         memberSince: "Член од",
         listings: "Огласи",
         active: "Активни",
@@ -185,6 +185,11 @@ export default async function ProfilePage({
         subscription: "Претплата",
         monthlyUnlimited: "Месечно неограничено",
         activeWithSubscription: "Активни со претплата",
+        nextExpiry: "Следно истекување",
+        subscriptionState: "Претплата активна",
+        subscriptionStateHint:
+          "Огласите со претплата остануваат активни додека е вклучена претплатата.",
+        noActiveCycle: "Сѐ уште нема активен циклус.",
         startSubscriptionFlow: "Почни тек на претплата",
         dummyStripeOptional: "Dummy Stripe тест картичка (опционално)",
         cardNumber: "Број на картичка",
@@ -206,8 +211,8 @@ export default async function ProfilePage({
         profileSettings: "Profile settings",
         profileSettingsDesc:
           "Keep all your seller info and public phone in one place.",
-        publicHandle: "Handle",
-        setUsernameHint: "Your handle is tied to this account.",
+        publicHandle: "Profile @handle",
+        setUsernameHint: "This @handle is tied to your account.",
         memberSince: "Member since",
         listings: "Listings",
         active: "Active",
@@ -237,6 +242,11 @@ export default async function ProfilePage({
         subscription: "Subscription",
         monthlyUnlimited: "Monthly unlimited",
         activeWithSubscription: "Active with subscription",
+        nextExpiry: "Next expiration",
+        subscriptionState: "Subscription active",
+        subscriptionStateHint:
+          "Subscription listings stay active while your subscription remains enabled.",
+        noActiveCycle: "No active cycle yet.",
         startSubscriptionFlow: "Start subscription flow",
         dummyStripeOptional: "Dummy Stripe test card (optional)",
         cardNumber: "Card number",
@@ -331,6 +341,11 @@ export default async function ProfilePage({
   const activeListings = listings.filter((listing) => listing.status === "ACTIVE");
   const payPerListingActive = activeListings.filter((listing) => listing.activeUntil).length;
   const subscriptionActive = activeListings.filter((listing) => !listing.activeUntil).length;
+  const nextPayPerExpiryDate =
+    activeListings
+      .map((listing) => listing.activeUntil)
+      .filter((value): value is Date => Boolean(value))
+      .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   const storedPhoneE164 = userRecord?.phone || "";
 
   return (
@@ -518,6 +533,22 @@ export default async function ProfilePage({
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+            {nextPayPerExpiryDate ? (
+              <p>
+                <span className="font-semibold">{text.nextExpiry}:</span>{" "}
+                {nextPayPerExpiryDate.toLocaleDateString(isMk ? "mk-MK" : "en-US")}
+              </p>
+            ) : subscriptionActive > 0 ? (
+              <p>
+                <span className="font-semibold">{text.subscriptionState}.</span>{" "}
+                <span className="text-muted-foreground">{text.subscriptionStateHint}</span>
+              </p>
+            ) : (
+              <p className="text-muted-foreground">{text.noActiveCycle}</p>
+            )}
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-border/70 bg-card p-3">
               <p className="text-sm font-semibold">{text.payPerListing}</p>

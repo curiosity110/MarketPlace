@@ -611,7 +611,7 @@ export async function DashboardPageContent({
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border/70 bg-muted/20 p-3">
+              <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
                 <div className="flex flex-wrap gap-2">
                   {userCategories.map((category) => {
                     const isSelected = selectedCategory?.id === category.id;
@@ -621,7 +621,7 @@ export async function DashboardPageContent({
                         href={`/dashboard?cat=${category.id}&view=${selectedView}`}
                         className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                           isSelected
-                            ? "border-primary/45 bg-primary/10 text-primary"
+                            ? "border-primary/45 bg-primary/10 text-primary shadow-sm"
                             : "border-border/80 bg-card text-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
                         }`}
                       >
@@ -631,7 +631,7 @@ export async function DashboardPageContent({
                   })}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
                   {[
                     {
                       key: "total",
@@ -666,13 +666,13 @@ export async function DashboardPageContent({
                   ].map((stat) => (
                     <div
                       key={stat.key}
-                      className={`flex h-14 w-14 flex-col items-center justify-center rounded-full border bg-card ${stat.className}`}
+                      className={`rounded-xl border bg-card px-3 py-2 ${stat.className}`}
                       title={`${stat.label}: ${stat.value}`}
                     >
-                      <span className="text-[10px] font-semibold uppercase leading-none text-muted-foreground">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {stat.label}
                       </span>
-                      <span className="mt-1 text-sm font-black leading-none">
+                      <span className="mt-1 block text-lg font-black leading-none">
                         {stat.value}
                       </span>
                     </div>
@@ -682,11 +682,11 @@ export async function DashboardPageContent({
 
               {selectedCategory && (
                 <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                     <p className="text-sm font-semibold">
                       {selectedCategory.name} {text.listings}
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 lg:justify-end">
                       <Link href={`${categoryBaseHref}&view=all`}>
                         <Button
                           size="sm"

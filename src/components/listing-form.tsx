@@ -124,9 +124,9 @@ export function ListingForm({
         categoryFields: "Полиња на категорија",
         categoryFieldsExpand: "Прикажи полиња за категорија",
         categoryAndLocation: "Категорија и локација",
-        pricingAndLocation: "Cena i lokacija",
-        categoryPriority: "Prvo izberi kategorija za poprecizni filtri.",
-        selectedCategory: "Izbrana kategorija",
+        pricingAndLocation: "Цена и локација",
+        categoryPriority: "Прво избери категорија за попрецизни филтри.",
+        selectedCategory: "Избрана категорија",
         requestCategory: "Побарај категорија",
         price: "Цена",
         pricePlaceholder: "Цена",
@@ -155,9 +155,9 @@ export function ListingForm({
           "Прифатен формат: локален, +држава или 00држава.",
         photos: "Фотографии",
         photosHint: "Можеш да прикачиш до 10 слики веднаш при креирање.",
-        photosCountError: "Mozes da prikacis najmnogu 10 sliki.",
-        photosSingleSizeError: "Sekoja slika mora da e 4MB ili pomalku.",
-        photosTotalSizeError: "Vkupnata golemina na sliki treba da bide do 4MB.",
+        photosCountError: "Можеш да прикачиш најмногу 10 слики.",
+        photosSingleSizeError: "Секоја слика мора да е 4MB или помалку.",
+        photosTotalSizeError: "Вкупната големина на слики треба да биде до 4MB.",
         sellerPackage: "Пакет за продавач",
         gptIncluded: "GPT вклучен",
         payPerListing: "Плаќање по оглас",
@@ -519,10 +519,6 @@ export function ListingForm({
       action={action}
       encType="multipart/form-data"
       className="space-y-4"
-      onChange={() => {
-        if (savedDraft) setSavedDraft(null);
-        if (isCreateMode) persistDraft();
-      }}
       onSubmit={(event) => {
         const photosError = validateCreatePhotos(photosInputRef.current?.files ?? null);
         setPhotoValidationError(photosError);
@@ -531,7 +527,23 @@ export function ListingForm({
           return;
         }
 
-        if (isCreateMode) clearPersistedDraft();
+        const submitter =
+          event.nativeEvent instanceof SubmitEvent
+            ? event.nativeEvent.submitter
+            : null;
+        const intent =
+          submitter instanceof HTMLButtonElement ||
+          submitter instanceof HTMLInputElement
+            ? submitter.value
+            : "publish";
+
+        if (!isCreateMode) return;
+        if (intent === "draft") {
+          persistDraft();
+          return;
+        }
+
+        clearPersistedDraft();
       }}
     >
       {initial?.id && <input type="hidden" name="id" value={initial.id} />}
@@ -559,7 +571,7 @@ export function ListingForm({
         </div>
       )}
 
-      <section className="grid items-start gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
           <h3 className="text-lg font-semibold">{text.listingDetails}</h3>
 
@@ -915,6 +927,9 @@ export function ListingForm({
             type="submit"
             variant="outline"
             disabled={showPaymentPanel || Boolean(photoValidationError)}
+            onClick={() => {
+              if (isCreateMode) persistDraft();
+            }}
           >
             {text.saveDraft}
           </Button>

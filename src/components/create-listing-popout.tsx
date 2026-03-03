@@ -170,7 +170,7 @@ export function CreateListingPopout({
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4"
+          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto p-2 pt-3 sm:p-4 sm:pt-5"
           role="dialog"
           aria-modal="true"
         >
@@ -184,7 +184,7 @@ export function CreateListingPopout({
           />
 
           <div
-            className={`relative mx-auto flex h-full max-h-[86vh] w-full max-w-[980px] flex-col rounded-2xl border border-border bg-background shadow-2xl transition-all duration-200 ${
+            className={`relative mx-auto flex max-h-[94vh] w-full max-w-[1180px] flex-col rounded-2xl border border-border bg-background shadow-2xl transition-all duration-200 ${
               isActive
                 ? "translate-y-0 scale-100 opacity-100"
                 : "translate-y-2 scale-[0.99] opacity-0"
