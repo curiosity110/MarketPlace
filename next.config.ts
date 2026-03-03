@@ -1,8 +1,20 @@
 import type { NextConfig } from "next";
 
-const supaHost = process.env.NEXT_PUBLIC_SUPABASE_URL
-  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
-  : null;
+function getSupabaseHost() {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!rawUrl) return null;
+
+  try {
+    return new URL(rawUrl).hostname;
+  } catch {
+    console.warn(
+      "[next.config] NEXT_PUBLIC_SUPABASE_URL is invalid. next/image remotePatterns is empty.",
+    );
+    return null;
+  }
+}
+
+const supaHost = getSupabaseHost();
 
 if (!supaHost) {
   console.warn(
@@ -15,21 +27,18 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
 
-  // ✅ Fix cross-origin dev warning
+  // Fix cross-origin dev warning
   allowedDevOrigins: [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://169.254.109.251:3000",
     "http://169.254.158.92:3000",
-    "https://market-place-one-beige.vercel.app/",
-    "https://www.market-place-one-beige.vercel.app/"
-
+    "https://market-place-one-beige.vercel.app",
+    "https://www.market-place-one-beige.vercel.app",
   ],
 
   images: {
-    remotePatterns: supaHost
-      ? [{ protocol: "https", hostname: supaHost }]
-      : [],
+    remotePatterns: supaHost ? [{ protocol: "https", hostname: supaHost }] : [],
   },
 };
 

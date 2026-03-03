@@ -4,6 +4,14 @@ import { LoginForm } from "@/components/login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getServerLocale, t } from "@/lib/i18n";
 
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -31,7 +39,7 @@ export default async function LoginPage({
         openRegister: "Open register page",
       };
   const sp = await searchParams;
-  const errorRaw = sp.error ? decodeURIComponent(sp.error) : null;
+  const errorRaw = sp.error ? safeDecodeURIComponent(sp.error) : null;
   const error =
     errorRaw && errorRaw.startsWith("auth.")
       ? t(locale, errorRaw)

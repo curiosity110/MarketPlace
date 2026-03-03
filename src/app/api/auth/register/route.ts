@@ -5,6 +5,9 @@ import {
   authLog,
   buildAuthCallbackUrl,
   GENERIC_AUTH_ERROR,
+  isEmailNotConfirmedError,
+  isInvalidCredentialsError,
+  isUserAlreadyRegisteredError,
   isValidEmail,
   jsonWithCookies,
   normalizeEmail,
@@ -59,6 +62,55 @@ export async function POST(request: Request) {
     );
 
     if (result.error) {
+      if (isUserAlreadyRegisteredError(result.error.message)) {
+        const existingAccountSignIn = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+        authLog(
+          "signUpWithPassword.existingUserSignIn",
+          {
+            hasUser: Boolean(existingAccountSignIn.data.user),
+            hasSession: Boolean(existingAccountSignIn.data.session),
+          },
+          existingAccountSignIn.error
+            ? { message: existingAccountSignIn.error.message }
+            : null,
+        );
+
+        if (!existingAccountSignIn.error && existingAccountSignIn.data.session) {
+          return jsonWithCookies(cookieCarrier, {
+            ok: true,
+            messageKey: "auth.signup.successSignedIn",
+          });
+        }
+
+        if (
+          existingAccountSignIn.error &&
+          isEmailNotConfirmedError(existingAccountSignIn.error.message)
+        ) {
+          return jsonWithCookies(cookieCarrier, {
+            ok: false,
+            messageKey: "auth.signup.checkEmail",
+          });
+        }
+
+        if (
+          existingAccountSignIn.error &&
+          isInvalidCredentialsError(existingAccountSignIn.error.message)
+        ) {
+          return jsonWithCookies(cookieCarrier, {
+            ok: false,
+            messageKey: "auth.error.invalidCredentials",
+          });
+        }
+
+        return jsonWithCookies(cookieCarrier, {
+          ok: false,
+          messageKey: "auth.signup.checkEmail",
+        });
+      }
+
       return jsonWithCookies(cookieCarrier, GENERIC_AUTH_ERROR);
     }
     if (result.data.session) {

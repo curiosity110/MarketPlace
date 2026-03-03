@@ -86,6 +86,14 @@ export function isEmailNotConfirmedError(message: string) {
   return message.toLowerCase().includes("email not confirmed");
 }
 
+export function isUserAlreadyRegisteredError(message: string) {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("user already registered") ||
+    lower.includes("already been registered")
+  );
+}
+
 export function authLog(
   name: string,
   data: { hasUser?: boolean; hasSession?: boolean } | null,
