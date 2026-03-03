@@ -28,7 +28,7 @@ export default async function RegisterPage({
       };
   const sp = await searchParams;
   const next =
-    sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
+    sp.next && sp.next !== "/" && sp.next.startsWith("/") && !sp.next.startsWith("//")
       ? sp.next
       : "/dashboard";
   const encodedNext = encodeURIComponent(next);

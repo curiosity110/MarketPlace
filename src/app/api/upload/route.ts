@@ -10,7 +10,7 @@ import {
 import { getSupabaseAdminStorageContext } from "@/lib/supabase/admin";
 import { getSafeErrorMessage, isLikelySupabaseConnectionError } from "@/lib/supabase/errors";
 
-const MAX_FILE_SIZE = 6 * 1024 * 1024; // 6MB
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const MAX_IMAGES_PER_LISTING = 10;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    return jsonError("Image must be 6MB or smaller", 400);
+    return jsonError("Image must be 4MB or smaller", 400);
   }
 
   let listing: { id: string } | null = null;

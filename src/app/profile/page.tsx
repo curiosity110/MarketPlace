@@ -178,7 +178,7 @@ export default async function ProfilePage({
         fullName: "Целосно име",
         fullNamePlaceholder: "Внеси целосно име",
         publicUsername: "Јавно корисничко име",
-        usernamePlaceholder: "your.handle",
+        usernamePlaceholder: "username",
         usernameHint:
           "3-40 знаци, мали букви, бројки, точка, цртичка, долна црта.",
         email: "Е-пошта",
@@ -234,7 +234,7 @@ export default async function ProfilePage({
         fullName: "Full name",
         fullNamePlaceholder: "Enter your full name",
         publicUsername: "Public username",
-        usernamePlaceholder: "your.handle",
+        usernamePlaceholder: "username",
         usernameHint:
           "3-40 chars, lowercase letters, numbers, dot, dash, underscore.",
         email: "Email",
@@ -359,7 +359,7 @@ export default async function ProfilePage({
   return (
     <div className="space-y-5">
       <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div>
             <h1 className="text-4xl font-black">{text.myProfile}</h1>
             <p className="mt-2 max-w-2xl text-muted-foreground">
@@ -401,7 +401,7 @@ export default async function ProfilePage({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {text.publicHandle}
@@ -413,7 +413,7 @@ export default async function ProfilePage({
                   </p>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground sm:text-right">
                 <p>
                   {text.memberSince}{" "}
                   {new Date(userRecord?.createdAt || new Date()).toLocaleDateString()}

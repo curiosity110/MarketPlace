@@ -20,7 +20,8 @@ import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
 import { getSupabaseAdminStorageContext } from "@/lib/supabase/admin";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_FILE_SIZE = 6 * 1024 * 1024; // 6MB
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+const MAX_TOTAL_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const MAX_IMAGES_PER_LISTING = 10;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
@@ -69,8 +70,16 @@ async function uploadListingImages({
       return { ok: false as const, error: "Only JPG, PNG, or WEBP images are allowed" };
     }
     if (file.size > MAX_FILE_SIZE) {
-      return { ok: false as const, error: "Each image must be 6MB or smaller" };
+      return { ok: false as const, error: "Each image must be 4MB or smaller" };
     }
+  }
+
+  const totalFileSize = files.reduce((total, file) => total + file.size, 0);
+  if (totalFileSize > MAX_TOTAL_FILE_SIZE) {
+    return {
+      ok: false as const,
+      error: "Total image size must be 4MB or less",
+    };
   }
 
   const {

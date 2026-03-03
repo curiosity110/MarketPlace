@@ -21,6 +21,7 @@ export function isValidEmail(value: string) {
 export function getSafeNextPath(nextPath: string | null | undefined) {
   if (!nextPath) return "/dashboard";
   if (!nextPath.startsWith("/") || nextPath.startsWith("//")) return "/dashboard";
+  if (nextPath === "/") return "/dashboard";
   return nextPath;
 }
 

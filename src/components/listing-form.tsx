@@ -47,6 +47,9 @@ type PersistedCreateDraft = {
 };
 
 const CREATE_FORM_STORAGE_KEY = "mkd:create-listing-form:v1";
+const MAX_CREATE_PHOTOS = 10;
+const MAX_CREATE_SINGLE_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+const MAX_CREATE_TOTAL_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 
 type Props = {
   action: (formData: FormData) => void | Promise<void>;
@@ -100,6 +103,9 @@ export function ListingForm({
         condition: "Состојба",
         categoryFields: "Полиња на категорија",
         categoryAndLocation: "Категорија и локација",
+        pricingAndLocation: "Cena i lokacija",
+        categoryPriority: "Prvo izberi kategorija za poprecizni filtri.",
+        selectedCategory: "Izbrana kategorija",
         requestCategory: "Побарај категорија",
         price: "Цена",
         pricePlaceholder: "Цена",
@@ -128,6 +134,9 @@ export function ListingForm({
           "Прифатен формат: локален, +држава или 00држава.",
         photos: "Фотографии",
         photosHint: "Можеш да прикачиш до 10 слики веднаш при креирање.",
+        photosCountError: "Mozes da prikacis najmnogu 10 sliki.",
+        photosSingleSizeError: "Sekoja slika mora da e 4MB ili pomalku.",
+        photosTotalSizeError: "Vkupnata golemina na sliki treba da bide do 4MB.",
         sellerPackage: "Пакет за продавач",
         gptIncluded: "GPT вклучен",
         payPerListing: "Плаќање по оглас",
@@ -162,6 +171,9 @@ export function ListingForm({
         condition: "Condition",
         categoryFields: "Category fields",
         categoryAndLocation: "Category and location",
+        pricingAndLocation: "Pricing and location",
+        categoryPriority: "Pick category first for smarter field suggestions.",
+        selectedCategory: "Selected category",
         requestCategory: "Request category",
         price: "Price",
         pricePlaceholder: "Price",
@@ -190,6 +202,9 @@ export function ListingForm({
           "Accepted format: local, +country, or 00country.",
         photos: "Photos",
         photosHint: "You can upload up to 10 images directly while creating.",
+        photosCountError: "You can upload up to 10 images.",
+        photosSingleSizeError: "Each image must be 4MB or smaller.",
+        photosTotalSizeError: "Total image size must be 4MB or less.",
         sellerPackage: "Seller package",
         gptIncluded: "GPT included",
         payPerListing: "Pay per listing",
@@ -219,6 +234,7 @@ export function ListingForm({
     publishLabel ?? (locale === "mk" ? "Објави оглас" : "Publish listing");
   const isCreateMode = !initial?.id;
   const formRef = useRef<HTMLFormElement | null>(null);
+  const photosInputRef = useRef<HTMLInputElement | null>(null);
 
   const categoryById = useMemo(
     () =>
@@ -266,6 +282,9 @@ export function ListingForm({
     {},
   );
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
+  const [photoValidationError, setPhotoValidationError] = useState<string | null>(
+    null,
+  );
 
   const paymentAmount = plan === "subscription" ? 30 : 4;
   const paymentLabel =
@@ -279,6 +298,15 @@ export function ListingForm({
     () => subcategoriesByParentId[parentCategoryId] ?? [],
     [parentCategoryId, subcategoriesByParentId],
   );
+  const selectedCategoryPath = useMemo(() => {
+    const parent = categoryById[parentCategoryId];
+    const selected = categoryById[selectedCategoryId];
+    if (!selected) return "";
+    if (selected.parentId && parent) {
+      return `${localizeCategoryName(parent, locale)} / ${localizeCategoryName(selected, locale)}`;
+    }
+    return localizeCategoryName(selected, locale);
+  }, [categoryById, locale, parentCategoryId, selectedCategoryId]);
   const conditionLabelByValue: Record<ListingCondition, string> = {
     NEW: text.conditionNew,
     USED: text.conditionUsed,
@@ -291,6 +319,28 @@ export function ListingForm({
         categories.map((category) => [category.id, category.slug]),
       ),
     [categories],
+  );
+
+  const validateCreatePhotos = useCallback(
+    (files: FileList | null) => {
+      if (!isCreateMode || !files || files.length === 0) return null;
+      if (files.length > MAX_CREATE_PHOTOS) return text.photosCountError;
+
+      let totalBytes = 0;
+      for (const file of Array.from(files)) {
+        totalBytes += file.size;
+        if (file.size > MAX_CREATE_SINGLE_FILE_SIZE) {
+          return text.photosSingleSizeError;
+        }
+      }
+
+      if (totalBytes > MAX_CREATE_TOTAL_FILE_SIZE) {
+        return text.photosTotalSizeError;
+      }
+
+      return null;
+    },
+    [isCreateMode, text.photosCountError, text.photosSingleSizeError, text.photosTotalSizeError],
   );
 
   useEffect(() => {
@@ -489,7 +539,14 @@ export function ListingForm({
       onChange={() => {
         if (isCreateMode) persistDraft();
       }}
-      onSubmit={() => {
+      onSubmit={(event) => {
+        const photosError = validateCreatePhotos(photosInputRef.current?.files ?? null);
+        setPhotoValidationError(photosError);
+        if (photosError) {
+          event.preventDefault();
+          return;
+        }
+
         if (isCreateMode) persistDraft();
       }}
     >
@@ -502,29 +559,95 @@ export function ListingForm({
       <section className="grid items-start gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
           <h3 className="text-lg font-semibold">{text.listingDetails}</h3>
-          <div className="grid gap-3">
-            <label className="space-y-1 sm:col-span-3">
-              <span className="text-sm font-medium">{text.title}</span>
-              <Input
-                name="title"
-                defaultValue={readValue("title", initial?.title ?? "")}
-                placeholder={text.titlePlaceholder}
-                required
-                minLength={5}
-                maxLength={120}
-              />
-            </label>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
+            <div className="grid gap-3">
+              <label className="space-y-1">
+                <span className="text-sm font-medium">{text.title}</span>
+                <Input
+                  name="title"
+                  defaultValue={readValue("title", initial?.title ?? "")}
+                  placeholder={text.titlePlaceholder}
+                  required
+                  minLength={5}
+                  maxLength={120}
+                />
+              </label>
 
-            <label className="space-y-1">
-              <span className="text-sm font-medium">{text.condition}</span>
-              <Select name="condition" defaultValue={restoredCondition}>
-                {Object.values(ListingCondition).map((condition) => (
-                  <option key={condition} value={condition}>
-                    {conditionLabelByValue[condition]}
-                  </option>
-                ))}
-              </Select>
-            </label>
+              <label className="space-y-1">
+                <span className="text-sm font-medium">{text.condition}</span>
+                <Select name="condition" defaultValue={restoredCondition}>
+                  {Object.values(ListingCondition).map((condition) => (
+                    <option key={condition} value={condition}>
+                      {conditionLabelByValue[condition]}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-primary/30 bg-orange-50/70 p-3 dark:bg-orange-500/10">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  <CirclePlus size={13} />
+                  {text.requestCategory}
+                </Link>
+              </div>
+              <p className="text-xs text-muted-foreground">{text.categoryPriority}</p>
+
+              <input type="hidden" name="categoryId" value={selectedCategoryId} />
+
+              <div className="grid gap-2">
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {text.mainCategory}
+                  </span>
+                  <Select
+                    value={parentCategoryId}
+                    onChange={(event) => {
+                      setParentCategoryId(event.target.value);
+                      setSubcategoryId("");
+                    }}
+                    required
+                  >
+                    {parentCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {localizeCategoryName(category, locale)}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+
+                {subcategoriesForSelectedParent.length > 0 && (
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {text.subcategory}
+                    </span>
+                    <Select
+                      value={subcategoryId}
+                      onChange={(event) => setSubcategoryId(event.target.value)}
+                    >
+                      <option value="">{text.useParentCategory}</option>
+                      {subcategoriesForSelectedParent.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {localizeCategoryName(category, locale)}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-primary/20 bg-card/70 px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.selectedCategory}
+                </p>
+                <p className="text-sm font-semibold">{selectedCategoryPath}</p>
+              </div>
+            </div>
           </div>
           <h3 className="text-base font-semibold">{text.categoryFields}</h3>
           <DynamicFieldsEditor
@@ -538,16 +661,7 @@ export function ListingForm({
         </div>
 
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-semibold">{text.categoryAndLocation}</h3>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              <CirclePlus size={13} />
-              {text.requestCategory}
-            </Link>
-          </div>
+          <h3 className="text-lg font-semibold">{text.pricingAndLocation}</h3>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1">
@@ -589,67 +703,24 @@ export function ListingForm({
             />
           </label>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input type="hidden" name="categoryId" value={selectedCategoryId} />
-
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.mainCategory}
-              </span>
-              <Select
-                value={parentCategoryId}
-                onChange={(event) => {
-                  setParentCategoryId(event.target.value);
-                  setSubcategoryId("");
-                }}
-                required
-              >
-                {parentCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {localizeCategoryName(category, locale)}
+          <label className="space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {text.city}
+            </span>
+            <Select name="cityId" defaultValue={restoredCityId} required>
+              {cities.length === 0 ? (
+                <option value="" disabled>
+                  {text.noCityAvailable}
+                </option>
+              ) : (
+                cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}
                   </option>
-                ))}
-              </Select>
-            </label>
-
-            {subcategoriesForSelectedParent.length > 0 && (
-              <label className="space-y-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {text.subcategory}
-                </span>
-                <Select
-                  value={subcategoryId}
-                  onChange={(event) => setSubcategoryId(event.target.value)}
-                >
-                  <option value="">{text.useParentCategory}</option>
-                  {subcategoriesForSelectedParent.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {localizeCategoryName(category, locale)}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            )}
-
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.city}
-              </span>
-              <Select name="cityId" defaultValue={restoredCityId} required>
-                {cities.length === 0 ? (
-                  <option value="" disabled>
-                    {text.noCityAvailable}
-                  </option>
-                ) : (
-                  cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {city.name}
-                    </option>
-                  ))
-                )}
-              </Select>
-            </label>
-          </div>
+                ))
+              )}
+            </Select>
+          </label>
 
           <div className="space-y-2 rounded-xl border border-border/70 bg-card/90 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -740,16 +811,26 @@ export function ListingForm({
               <label className="space-y-1">
                 <span className="text-sm font-medium">{text.photos}</span>
                 <input
+                  ref={photosInputRef}
                   type="file"
                   name="photos"
                   accept="image/jpeg,image/jpg,image/png,image/webp"
                   multiple
+                  onChange={(event) => {
+                    const nextError = validateCreatePhotos(event.target.files);
+                    setPhotoValidationError(nextError);
+                  }}
                   className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
                 />
               </label>
               <p className="mt-1 text-xs text-muted-foreground">
                 {text.photosHint}
               </p>
+              {photoValidationError && (
+                <p className="mt-1 text-xs font-medium text-destructive">
+                  {photoValidationError}
+                </p>
+              )}
             </div>
           )}
 
@@ -830,19 +911,28 @@ export function ListingForm({
             value="draft"
             type="submit"
             variant="outline"
-            disabled={showPaymentPanel}
+            disabled={showPaymentPanel || Boolean(photoValidationError)}
           >
             {text.saveDraft}
           </Button>
         )}
         {requiresDummyPayment ? (
-          <Button type="button" onClick={() => setShowPaymentPanel(true)}>
+          <Button
+            type="button"
+            disabled={Boolean(photoValidationError)}
+            onClick={() => setShowPaymentPanel(true)}
+          >
             {text.payAndPublish}
             {paymentAmount}
             {text.publishSuffix}
           </Button>
         ) : (
-          <Button name="intent" value="publish" type="submit">
+          <Button
+            name="intent"
+            value="publish"
+            type="submit"
+            disabled={Boolean(photoValidationError)}
+          >
             {resolvedPublishLabel}
           </Button>
         )}
@@ -970,7 +1060,12 @@ export function ListingForm({
               >
                 {text.cancel}
               </Button>
-              <Button name="intent" value="publish" type="submit">
+              <Button
+                name="intent"
+                value="publish"
+                type="submit"
+                disabled={Boolean(photoValidationError)}
+              >
                 {resolvedPublishLabel}
               </Button>
             </div>
@@ -980,3 +1075,4 @@ export function ListingForm({
     </form>
   );
 }
+

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ListingStatus } from "@prisma/client";
 import {
   ArrowRight,
@@ -18,10 +19,16 @@ import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSessionUser } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
 
 export default async function Home() {
+  const sessionUser = await getSessionUser();
+  if (sessionUser) {
+    redirect("/dashboard");
+  }
+
   const locale = await getServerLocale();
   const isMk = locale === "mk";
   const text = isMk

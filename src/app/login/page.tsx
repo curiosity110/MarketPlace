@@ -45,7 +45,7 @@ export default async function LoginPage({
       ? t(locale, errorRaw)
       : errorRaw;
   const next =
-    sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//")
+    sp.next && sp.next !== "/" && sp.next.startsWith("/") && !sp.next.startsWith("//")
       ? sp.next
       : "/dashboard";
   const encodedNext = encodeURIComponent(next);

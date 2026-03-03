@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "12mb",
+    },
+  },
 
   // Fix cross-origin dev warning
   allowedDevOrigins: [
