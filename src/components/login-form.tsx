@@ -131,7 +131,12 @@ export function LoginForm({
     setLoadingAction("register");
     setMessage(null);
     try {
-      const result = await signUpWithPassword(email.trim(), password, name);
+      const result = await signUpWithPassword(
+        email.trim(),
+        password,
+        name,
+        safeNextPath,
+      );
       setMessage(t(locale, result.messageKey));
       if (result.ok && result.messageKey === "auth.signup.successSignedIn") {
         window.location.href = safeNextPath;
@@ -155,7 +160,7 @@ export function LoginForm({
     setLoadingAction("magic");
     setMessage(null);
     try {
-      const result = await signInWithMagicLink(email.trim());
+      const result = await signInWithMagicLink(email.trim(), safeNextPath);
       setMessage(t(locale, result.messageKey));
     } catch {
       setMessage(t(locale, "auth.error.generic"));

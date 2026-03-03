@@ -23,28 +23,60 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+function getSafeNextPath(nextPath: string | null | undefined) {
+  if (!nextPath) return "/dashboard";
+  if (!nextPath.startsWith("/") || nextPath.startsWith("//")) return "/dashboard";
+  return nextPath;
+}
+
+function normalizeSiteUrl(rawUrl: string | null | undefined) {
+  if (!rawUrl) return null;
+  try {
+    const parsed = new URL(rawUrl.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+}
+
 function isInvalidCredentialsError(message: string) {
   const lower = message.toLowerCase();
   return (
     lower.includes("invalid login credentials") ||
-    lower.includes("email not confirmed") ||
     lower.includes("invalid email or password")
   );
 }
 
+function isEmailNotConfirmedError(message: string) {
+  return message.toLowerCase().includes("email not confirmed");
+}
+
 async function resolveSiteUrl() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configured) return configured.replace(/\/+$/, "");
-
   const requestHeaders = await headers();
-  const origin = requestHeaders.get("origin");
-  if (origin) return origin.replace(/\/+$/, "");
+  const origin = normalizeSiteUrl(requestHeaders.get("origin"));
+  if (origin) return origin;
 
-  const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
-  const proto = requestHeaders.get("x-forwarded-proto") || "http";
-  if (host) return `${proto}://${host}`.replace(/\/+$/, "");
+  const forwardedHost = requestHeaders.get("x-forwarded-host");
+  const host = (forwardedHost?.split(",")[0] || requestHeaders.get("host") || "").trim();
+  if (host) {
+    const forwardedProto = requestHeaders.get("x-forwarded-proto");
+    const protoCandidate = (forwardedProto?.split(",")[0] || "").trim().toLowerCase();
+    const proto = protoCandidate === "https" ? "https" : "http";
+    const derived = normalizeSiteUrl(`${proto}://${host}`);
+    if (derived) return derived;
+  }
+
+  const configured = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  if (configured) return configured;
 
   return "http://localhost:3000";
+}
+
+function buildAuthCallbackUrl(siteUrl: string, nextPath: string | null | undefined) {
+  const url = new URL("/api/auth/callback", siteUrl);
+  url.searchParams.set("next", getSafeNextPath(nextPath));
+  return url.toString();
 }
 
 function authLog(name: string, data: unknown, error: { message: string } | null) {
@@ -58,6 +90,7 @@ export async function signUpWithPassword(
   email: string,
   password: string,
   name?: string,
+  nextPath?: string,
 ): Promise<AuthActionResult> {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
@@ -74,7 +107,7 @@ export async function signUpWithPassword(
       email: normalizedEmail,
       password,
       options: {
-        emailRedirectTo: `${site}/auth/callback`,
+        emailRedirectTo: buildAuthCallbackUrl(site, nextPath),
         data: {
           name: name?.trim() || undefined,
         },
@@ -133,6 +166,9 @@ export async function signInWithPassword(
     authLog("signInWithPassword", result.data, result.error);
 
     if (result.error) {
+      if (isEmailNotConfirmedError(result.error.message)) {
+        return { ok: false, messageKey: "auth.signup.checkEmail" };
+      }
       if (isInvalidCredentialsError(result.error.message)) {
         return { ok: false, messageKey: "auth.error.invalidCredentials" };
       }
@@ -150,6 +186,7 @@ export async function signInWithPassword(
 
 export async function signInWithMagicLink(
   email: string,
+  nextPath?: string,
 ): Promise<AuthActionResult> {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
@@ -162,7 +199,7 @@ export async function signInWithMagicLink(
     const result = await supabase.auth.signInWithOtp({
       email: normalizedEmail,
       options: {
-        emailRedirectTo: `${site}/auth/callback`,
+        emailRedirectTo: buildAuthCallbackUrl(site, nextPath),
       },
     });
 
