@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { signInWithMagicLink, signInWithPassword, signUpWithPassword } from "@/app/(auth)/actions";
 import type { Locale } from "@/lib/i18n";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,33 @@ function getSafeNextPath(nextPath: string) {
     return "/dashboard";
   }
   return nextPath;
+}
+
+type AuthApiResult = {
+  ok: boolean;
+  messageKey: string;
+};
+
+async function callAuthApi(
+  path: "/api/auth/login" | "/api/auth/register" | "/api/auth/magic",
+  payload: Record<string, string>,
+): Promise<AuthApiResult> {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    return { ok: false, messageKey: "auth.error.generic" };
+  }
+
+  const data = (await response.json()) as Partial<AuthApiResult>;
+  if (typeof data.ok !== "boolean" || typeof data.messageKey !== "string") {
+    return { ok: false, messageKey: "auth.error.generic" };
+  }
+
+  return { ok: data.ok, messageKey: data.messageKey };
 }
 
 export function LoginForm({
@@ -106,7 +132,10 @@ export function LoginForm({
     setLoadingAction("login");
     setMessage(null);
     try {
-      const result = await signInWithPassword(email.trim(), password);
+      const result = await callAuthApi("/api/auth/login", {
+        email: email.trim(),
+        password,
+      });
       setMessage(t(locale, result.messageKey));
       if (result.ok) {
         window.location.href = safeNextPath;
@@ -131,12 +160,12 @@ export function LoginForm({
     setLoadingAction("register");
     setMessage(null);
     try {
-      const result = await signUpWithPassword(
-        email.trim(),
+      const result = await callAuthApi("/api/auth/register", {
+        email: email.trim(),
         password,
         name,
-        safeNextPath,
-      );
+        nextPath: safeNextPath,
+      });
       setMessage(t(locale, result.messageKey));
       if (result.ok && result.messageKey === "auth.signup.successSignedIn") {
         window.location.href = safeNextPath;
@@ -160,7 +189,10 @@ export function LoginForm({
     setLoadingAction("magic");
     setMessage(null);
     try {
-      const result = await signInWithMagicLink(email.trim(), safeNextPath);
+      const result = await callAuthApi("/api/auth/magic", {
+        email: email.trim(),
+        nextPath: safeNextPath,
+      });
       setMessage(t(locale, result.messageKey));
     } catch {
       setMessage(t(locale, "auth.error.generic"));

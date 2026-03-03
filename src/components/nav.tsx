@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { signOut } from "@/app/(auth)/actions";
 import { canAccessControl, getSessionUser } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -68,7 +67,7 @@ export async function Nav() {
             />
             <ThemeToggle label={messages.theme.toggle} />
             {user ? (
-              <form action={signOut} className="contents">
+              <form action="/api/auth/logout" method="post" className="contents">
                 <Button variant="outline" size="sm" type="submit">
                   {messages.nav.logout}
                 </Button>

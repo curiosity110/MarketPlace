@@ -14,6 +14,18 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+
+  // ✅ Fix cross-origin dev warning
+  allowedDevOrigins: [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://169.254.109.251:3000",
+    "http://169.254.158.92:3000",
+    "https://market-place-one-beige.vercel.app/",
+    "https://www.market-place-one-beige.vercel.app/"
+
+  ],
+
   images: {
     remotePatterns: supaHost
       ? [{ protocol: "https", hostname: supaHost }]

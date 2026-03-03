@@ -351,12 +351,6 @@ export default async function BrowsePage({
     if (!single || key === "page") return;
     params.set(key, single);
   });
-  const sortOptions: { value: BrowseSort; label: string }[] = [
-    { value: "newest", label: text.newest },
-    { value: "price-asc", label: text.priceAsc },
-    { value: "price-desc", label: text.priceDesc },
-  ];
-
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -384,38 +378,7 @@ export default async function BrowsePage({
           )}
         </div>
 
-        <div className="space-y-2 pt-1">
-          <p className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.orderBy}
-          </p>
-          <div className="flex flex-wrap justify-end gap-2">
-            {sortOptions.map((option) => {
-              const sortParams = new URLSearchParams(params.toString());
-              sortParams.set("sort", option.value);
-              sortParams.set("page", "1");
-
-              return (
-                <Link
-                  key={option.value}
-                  href={`/browse?${sortParams.toString()}`}
-                >
-                  <Button
-                    size="sm"
-                    variant={sort === option.value ? "default" : "outline"}
-                  >
-                    {option.label}
-                  </Button>
-                </Link>
-              );
-            })}
-
-            <Link href="/browse">
-              <Button size="sm" variant="outline">
-                {text.resetFilters}
-              </Button>
-            </Link>
-          </div>
-        </div>
+        
       </div>
 
       <Card>

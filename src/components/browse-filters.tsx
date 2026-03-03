@@ -2,11 +2,8 @@
 
 import type { ChangeEvent } from "react";
 import * as React from "react";
-import {
-  useRouter,
-  useSearchParams,
-  type ReadonlyURLSearchParams,
-} from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CategoryFieldType, ListingCondition } from "@prisma/client";
 import { CircleDollarSign, Filter, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +25,8 @@ type ParentCategory = {
 
 type City = { id: string; name: string };
 
+type BrowseSort = "newest" | "price-asc" | "price-desc";
+
 type Props = {
   categories: ParentCategory[];
   cities: City[];
@@ -43,15 +42,18 @@ function setParam(params: URLSearchParams, key: string, value?: string) {
   params.set(key, value);
 }
 
-function getInitialDynamicValues(
-  sp: URLSearchParams | ReadonlyURLSearchParams,
-) {
+function getInitialDynamicValues(sp: URLSearchParams) {
   const values: Record<string, string> = {};
   for (const [key, value] of sp.entries()) {
     if (!key.startsWith("df_")) continue;
     values[key.slice(3)] = value;
   }
   return values;
+}
+
+function parseSort(value: string | null): BrowseSort {
+  if (value === "price-asc" || value === "price-desc") return value;
+  return "newest";
 }
 
 export function BrowseFilters({
@@ -61,7 +63,12 @@ export function BrowseFilters({
   locale = "en",
 }: Props) {
   const router = useRouter();
-  const sp = useSearchParams();
+  const spReadonly = useSearchParams();
+
+  // Convert readonly params to mutable snapshot
+  const spString = spReadonly.toString();
+  const sp = React.useMemo(() => new URLSearchParams(spString), [spString]);
+
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -79,15 +86,16 @@ export function BrowseFilters({
         priceRange: "Опсег на цена",
         minPrice: "Мин цена",
         maxPrice: "Макс цена",
-        sort: "Подреди",
-        newest: "Најнови прво",
-        priceAsc: "Цена од ниска кон висока",
-        priceDesc: "Цена од висока кон ниска",
         categoryFilters: "Филтри за категорија",
         extraFilters: "Дополнителни филтри",
         any: "Секој",
         apply: "Примени филтри",
         clear: "Исчисти сè",
+        orderBy: "Подреди по",
+        newest: "Најнови прво",
+        priceAsc: "Цена од ниска кон висока",
+        priceDesc: "Цена од висока кон ниска",
+        resetFilters: "Исчисти филтри",
       }
     : {
         search: "Search",
@@ -104,28 +112,29 @@ export function BrowseFilters({
         priceRange: "Price range",
         minPrice: "Min price",
         maxPrice: "Max price",
-        sort: "Sort",
-        newest: "Newest first",
-        priceAsc: "Price low to high",
-        priceDesc: "Price high to low",
         categoryFilters: "Category specific filters",
         extraFilters: "Extra filters",
         any: "Any",
         apply: "Apply filters",
         clear: "Clear all",
-      };
-  const conditionLabelByValue: Record<ListingCondition, string> = isMk
-    ? {
-        NEW: "Ново",
-        USED: "Користено",
-        REFURBISHED: "Refurbished",
-      }
-    : {
-        NEW: "New",
-        USED: "Used",
-        REFURBISHED: "Refurbished",
+        orderBy: "Sort by",
+        newest: "Newest first",
+        priceAsc: "Price low to high",
+        priceDesc: "Price high to low",
+        resetFilters: "Reset filters",
       };
 
+  const conditionLabelByValue: Record<ListingCondition, string> = isMk
+    ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Refurbished" }
+    : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" };
+
+  const sortOptions: { value: BrowseSort; label: string }[] = [
+    { value: "newest", label: text.newest },
+    { value: "price-asc", label: text.priceAsc },
+    { value: "price-desc", label: text.priceDesc },
+  ];
+
+  // Local UI state (controlled inputs)
   const [q, setQ] = React.useState(sp.get("q") ?? "");
   const [cat, setCat] = React.useState(sp.get("cat") ?? "");
   const [sub, setSub] = React.useState(sp.get("sub") ?? "");
@@ -133,15 +142,14 @@ export function BrowseFilters({
   const [condition, setCondition] = React.useState(sp.get("condition") ?? "");
   const [min, setMin] = React.useState(sp.get("min") ?? "");
   const [max, setMax] = React.useState(sp.get("max") ?? "");
-  const [sort, setSort] = React.useState(sp.get("sort") ?? "newest");
-  const [dynamicValues, setDynamicValues] = React.useState<
-    Record<string, string>
-  >(getInitialDynamicValues(sp));
+  const [sort, setSort] = React.useState<BrowseSort>(parseSort(sp.get("sort")));
+  const [dynamicValues, setDynamicValues] = React.useState<Record<string, string>>(
+    getInitialDynamicValues(sp),
+  );
 
-  const searchParamKey = sp.toString();
-
+  // Sync state when URL changes (back/forward, link clicks, etc.)
   React.useEffect(() => {
-    const latest = new URLSearchParams(searchParamKey);
+    const latest = new URLSearchParams(spString);
     setQ(latest.get("q") ?? "");
     setCat(latest.get("cat") ?? "");
     setSub(latest.get("sub") ?? "");
@@ -149,31 +157,29 @@ export function BrowseFilters({
     setCondition(latest.get("condition") ?? "");
     setMin(latest.get("min") ?? "");
     setMax(latest.get("max") ?? "");
-    setSort(latest.get("sort") ?? "newest");
+    setSort(parseSort(latest.get("sort")));
     setDynamicValues(getInitialDynamicValues(latest));
-  }, [searchParamKey]);
+  }, [spString]);
 
   const parent = categories.find((category) => category.id === cat);
   const subcategories = parent?.children ?? [];
   const selectedCategoryId = sub || cat;
+
   const dynamicTemplates = React.useMemo(
     () => templatesByCategory[selectedCategoryId] ?? [],
     [selectedCategoryId, templatesByCategory],
   );
 
+  // When category changes, drop dynamic filters that don’t belong
   React.useEffect(() => {
     setDynamicValues((prev) => {
-      const allowedKeys = new Set(
-        dynamicTemplates.map((template) => template.key),
-      );
-      return Object.fromEntries(
-        Object.entries(prev).filter(([key]) => allowedKeys.has(key)),
-      );
+      const allowedKeys = new Set(dynamicTemplates.map((t) => t.key));
+      return Object.fromEntries(Object.entries(prev).filter(([k]) => allowedKeys.has(k)));
     });
-  }, [selectedCategoryId, dynamicTemplates]);
+  }, [dynamicTemplates]);
 
   function apply(overrides?: Partial<Record<string, string>>) {
-    const params = new URLSearchParams(sp.toString());
+    const params = new URLSearchParams(spString);
 
     const nextQ = overrides?.q ?? q;
     const nextCat = overrides?.cat ?? cat;
@@ -182,7 +188,7 @@ export function BrowseFilters({
     const nextCondition = overrides?.condition ?? condition;
     const nextMin = overrides?.min ?? min;
     const nextMax = overrides?.max ?? max;
-    const nextSort = overrides?.sort ?? sort;
+    const nextSort = (overrides?.sort as BrowseSort | undefined) ?? sort;
 
     setParam(params, "q", nextQ.trim() || undefined);
     setParam(params, "cat", nextCat || undefined);
@@ -193,16 +199,20 @@ export function BrowseFilters({
     setParam(params, "max", nextMax || undefined);
     setParam(params, "sort", nextSort || undefined);
 
-    // Reset all dynamic params and re-apply for selected category.
+    // Reset all df_* then re-apply current dynamicValues
     [...params.keys()]
       .filter((key) => key.startsWith("df_"))
       .forEach((key) => params.delete(key));
+
     Object.entries(dynamicValues).forEach(([key, value]) => {
-      if (value.trim()) params.set(`df_${key}`, value.trim());
+      const trimmed = value.trim();
+      if (trimmed) params.set(`df_${key}`, trimmed);
     });
 
+    // Whenever filters change: go back to page 1
     setParam(params, "page", "1");
-    router.push(`/browse?${params.toString()}`);
+
+    router.push(params.toString() ? `/browse?${params.toString()}` : "/browse");
   }
 
   function clearAll() {
@@ -226,11 +236,8 @@ export function BrowseFilters({
       return (
         <Select
           value={value}
-          onChange={(event) =>
-            setDynamicValues((prev) => ({
-              ...prev,
-              [template.key]: event.target.value,
-            }))
+          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+            setDynamicValues((prev) => ({ ...prev, [template.key]: event.target.value }))
           }
           className={commonClasses}
         >
@@ -250,10 +257,7 @@ export function BrowseFilters({
       <Input
         value={value}
         onChange={(event) =>
-          setDynamicValues((prev) => ({
-            ...prev,
-            [template.key]: event.target.value,
-          }))
+          setDynamicValues((prev) => ({ ...prev, [template.key]: event.target.value }))
         }
         className={commonClasses}
         type={template.type === CategoryFieldType.NUMBER ? "number" : "text"}
@@ -261,6 +265,13 @@ export function BrowseFilters({
       />
     );
   }
+
+  // Base params for sort/reset links: preserve everything except "page"
+  const baseParams = React.useMemo(() => {
+    const p = new URLSearchParams(spString);
+    p.delete("page");
+    return p;
+  }, [spString]);
 
   return (
     <form
@@ -296,8 +307,11 @@ export function BrowseFilters({
           <Select
             value={cat}
             onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-              setCat(event.target.value);
+              const next = event.target.value;
+              setCat(next);
               setSub("");
+              // optionally auto-apply on category change:
+              // apply({ cat: next, sub: "" });
             }}
           >
             <option value="">{text.allCategories}</option>
@@ -316,13 +330,9 @@ export function BrowseFilters({
           <Select
             value={sub}
             disabled={!cat}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-              setSub(event.target.value)
-            }
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => setSub(event.target.value)}
           >
-            <option value="">
-              {cat ? text.allSubcategories : text.selectCategoryFirst}
-            </option>
+            <option value="">{cat ? text.allSubcategories : text.selectCategoryFirst}</option>
             {subcategories.map((subcategory) => (
               <option key={subcategory.id} value={subcategory.id}>
                 {subcategory.name}
@@ -337,9 +347,7 @@ export function BrowseFilters({
           </span>
           <Select
             value={city}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-              setCity(event.target.value)
-            }
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => setCity(event.target.value)}
           >
             <option value="">{text.allCities}</option>
             {cities.map((cityItem) => (
@@ -358,9 +366,7 @@ export function BrowseFilters({
           </span>
           <Select
             value={condition}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-              setCondition(event.target.value)
-            }
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => setCondition(event.target.value)}
           >
             <option value="">{text.anyCondition}</option>
             {Object.values(ListingCondition).map((item) => (
@@ -395,22 +401,6 @@ export function BrowseFilters({
             />
           </div>
         </div>
-
-        <label className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.sort}
-          </span>
-          <Select
-            value={sort}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-              setSort(event.target.value)
-            }
-          >
-            <option value="newest">{text.newest}</option>
-            <option value="price-asc">{text.priceAsc}</option>
-            <option value="price-desc">{text.priceDesc}</option>
-          </Select>
-        </label>
       </div>
 
       {dynamicTemplates.length > 0 && (
@@ -422,9 +412,7 @@ export function BrowseFilters({
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {dynamicTemplates.map((template) => (
               <label key={template.key} className="space-y-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {template.label}
-                </span>
+                <span className="text-xs font-semibold text-muted-foreground">{template.label}</span>
                 {renderDynamicInput(template)}
               </label>
             ))}
@@ -432,13 +420,50 @@ export function BrowseFilters({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" className="min-w-28">
-          {text.apply}
-        </Button>
-        <Button type="button" variant="outline" onClick={clearAll}>
-          {text.clear}
-        </Button>
+           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        {/* Left: primary actions */}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" className="min-w-28">
+            {text.apply}
+          </Button>
+          <Button type="button" variant="outline" onClick={clearAll}>
+            {text.clear}
+          </Button>
+        </div>
+
+        {/* Right: sort */}
+        <div className="flex flex-col items-start gap-2 lg:items-end">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.orderBy}
+          </p>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            {sortOptions.map((option) => {
+              const sortParams = new URLSearchParams(baseParams.toString());
+              sortParams.set("sort", option.value);
+              sortParams.set("page", "1");
+
+              return (
+                <Link key={option.value} href={`/browse?${sortParams.toString()}`}>
+                  <Button
+                    size="sm"
+                    variant={sort === option.value ? "default" : "outline"}
+                    type="button"
+                    onClick={() => setSort(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                </Link>
+              );
+            })}
+
+            <Link href="/browse">
+              <Button size="sm" variant="outline" type="button">
+                {text.resetFilters}
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
     </form>
   );
