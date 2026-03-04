@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ListingCondition, ListingStatus } from "@prisma/client";
+import { CarSpecBento } from "@/components/car-spec-bento";
 import {
   BadgeCheck,
   MapPin,
@@ -48,72 +49,72 @@ export default async function ListingDetails({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        dbUnavailable:
-          "Деталите за огласот се привремено недостапни затоа што базата е недостапна.",
-        backToBrowse: "Назад кон пребарување",
-        price: "Цена",
-        reportSubmitted:
-          "Пријавата е поднесена. Благодариме што помагаш маркетплејсот да е побезбеден.",
-        description: "Опис",
-        categoryDetails: "Детали за категорија",
-        noCategoryDetails: "Не се внесени детали за категорија.",
-        seller: "Продавач",
-        report: "Пријави",
-        reportListing: "Пријави го овој оглас",
-        reportHelp:
-          "Ако нешто изгледа небезбедно или лажно, пријави за проверка.",
-        reportReason: "Причина",
-        reportReasonFake: "Лажен оглас",
-        reportReasonScam: "Измама",
-        reportReasonSpam: "Спам",
-        reportReasonOther: "Друго",
-        reportDetails: "Детали (опционално)",
-        submitReport: "Поднеси пријава",
-        sellerProfile: "Профил на продавач",
-        sellerContact: "Контакт од продавач",
-        phone: "Телефон",
-        phoneNotSet: "Сè уште нема телефон",
-        viewProfile: "Погледни профил",
-        contactSeller: "Контактирај",
-        call: "Јави се",
-        whatsapp: "WhatsApp",
-        edit: "Уреди",
-        markSold: "Означи продадено",
-        sold: "Продадено",
-      }
+      dbUnavailable:
+        "Деталите за огласот се привремено недостапни затоа што базата е недостапна.",
+      backToBrowse: "Назад кон пребарување",
+      price: "Цена",
+      reportSubmitted:
+        "Пријавата е поднесена. Благодариме што помагаш маркетплејсот да е побезбеден.",
+      description: "Опис",
+      categoryDetails: "Детали за категорија",
+      noCategoryDetails: "Не се внесени детали за категорија.",
+      seller: "Продавач",
+      report: "Пријави",
+      reportListing: "Пријави го овој оглас",
+      reportHelp:
+        "Ако нешто изгледа небезбедно или лажно, пријави за проверка.",
+      reportReason: "Причина",
+      reportReasonFake: "Лажен оглас",
+      reportReasonScam: "Измама",
+      reportReasonSpam: "Спам",
+      reportReasonOther: "Друго",
+      reportDetails: "Детали (опционално)",
+      submitReport: "Поднеси пријава",
+      sellerProfile: "Профил на продавач",
+      sellerContact: "Контакт од продавач",
+      phone: "Телефон",
+      phoneNotSet: "Сè уште нема телефон",
+      viewProfile: "Погледни профил",
+      contactSeller: "Контактирај",
+      call: "Јави се",
+      whatsapp: "WhatsApp",
+      edit: "Уреди",
+      markSold: "Означи продадено",
+      sold: "Продадено",
+    }
     : {
-        dbUnavailable:
-          "Listing details are temporarily unavailable because the database is unreachable.",
-        backToBrowse: "Back to browse",
-        price: "Price",
-        reportSubmitted:
-          "Report submitted. Thank you for helping keep the marketplace safe.",
-        description: "Description",
-        categoryDetails: "Category details",
-        noCategoryDetails: "No category details were provided.",
-        seller: "Seller",
-        report: "Report",
-        reportListing: "Report this listing",
-        reportHelp: "If something looks unsafe or fake, report it for review.",
-        reportReason: "Reason",
-        reportReasonFake: "Fake listing",
-        reportReasonScam: "Scam",
-        reportReasonSpam: "Spam",
-        reportReasonOther: "Other",
-        reportDetails: "Details (optional)",
-        submitReport: "Submit report",
-        sellerProfile: "Seller profile",
-        sellerContact: "Seller contact",
-        phone: "Phone",
-        phoneNotSet: "Phone not set yet",
-        viewProfile: "View profile",
-        contactSeller: "Contact seller",
-        call: "Call",
-        whatsapp: "WhatsApp",
-        edit: "Edit",
-        markSold: "Mark sold",
-        sold: "Sold",
-      };
+      dbUnavailable:
+        "Listing details are temporarily unavailable because the database is unreachable.",
+      backToBrowse: "Back to browse",
+      price: "Price",
+      reportSubmitted:
+        "Report submitted. Thank you for helping keep the marketplace safe.",
+      description: "Description",
+      categoryDetails: "Category details",
+      noCategoryDetails: "No category details were provided.",
+      seller: "Seller",
+      report: "Report",
+      reportListing: "Report this listing",
+      reportHelp: "If something looks unsafe or fake, report it for review.",
+      reportReason: "Reason",
+      reportReasonFake: "Fake listing",
+      reportReasonScam: "Scam",
+      reportReasonSpam: "Spam",
+      reportReasonOther: "Other",
+      reportDetails: "Details (optional)",
+      submitReport: "Submit report",
+      sellerProfile: "Seller profile",
+      sellerContact: "Seller contact",
+      phone: "Phone",
+      phoneNotSet: "Phone not set yet",
+      viewProfile: "View profile",
+      contactSeller: "Contact seller",
+      call: "Call",
+      whatsapp: "WhatsApp",
+      edit: "Edit",
+      markSold: "Mark sold",
+      sold: "Sold",
+    };
   const { id } = await params;
   const sp = await searchParams;
   const reportSaved = sp.reported === "1";
@@ -237,6 +238,19 @@ export default async function ListingDetails({
       Boolean(item),
     );
 
+  const catName = (listing.category?.name || "").toLowerCase();
+  const parentName = (listing.category?.parent?.name || "").toLowerCase();
+  const catSlug = (listing.category?.slug || "").toLowerCase();
+
+  const isCarCategory =
+    catSlug.includes("car") ||
+    catName.includes("car") ||
+    catName.includes("auto") ||
+    catName.includes("vehicle") ||
+    parentName.includes("vehicle") ||
+    parentName.includes("auto");
+
+
   const categoryLabel = localizeCategoryPath(listing.category, locale);
   const conditionLabelByValue: Record<ListingCondition, string> = isMk
     ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
@@ -356,24 +370,35 @@ export default async function ListingDetails({
                 </span>
               </div>
 
-              {categoryDetails.length > 0 ? (
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                  {categoryDetails.map((detail) => (
-                    <div
-                      key={detail.id}
-                      className="rounded-xl border border-border/70 bg-muted/20 p-3"
-                    >
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {detail.label}
-                      </p>
-                      <p className="text-sm font-semibold">{detail.value}</p>
-                    </div>
-                  ))}
-                </div>
+              {isCarCategory ? (
+                <CarSpecBento locale={locale} valuesByKey={valuesByKey} />
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  {text.noCategoryDetails}
-                </p>
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-lg font-semibold">{text.categoryDetails}</h2>
+                    <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                      {categoryDetails.length}
+                    </span>
+                  </div>
+
+                  {categoryDetails.length > 0 ? (
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                      {categoryDetails.map((detail) => (
+                        <div
+                          key={detail.id}
+                          className="rounded-xl border border-border/70 bg-muted/20 p-3"
+                        >
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            {detail.label}
+                          </p>
+                          <p className="text-sm font-semibold">{detail.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{text.noCategoryDetails}</p>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
