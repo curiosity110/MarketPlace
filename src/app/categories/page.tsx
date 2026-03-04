@@ -16,17 +16,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryRequestPopout } from "@/components/category-request-popout";
-import { CreateListingPopout } from "@/components/create-listing-popout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createListingFromDashboard } from "@/lib/actions/create-listing";
 import { canSell, getSessionUser, requireSeller } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
-import {
-  groupTemplatesByCategory,
-  normalizeTemplates,
-} from "@/lib/listing-fields";
 import { prisma } from "@/lib/prisma";
 import {
   buildRateLimitKey,
@@ -134,7 +128,6 @@ export default async function CategoriesPage({
       };
   const sp = await searchParams;
   const query = (sp.q || "").trim().toLowerCase();
-  const createRequested = sp.create === "1";
   const requestPopupRequested = sp.request === "1";
   const requestedCategoryId = (sp.cat || "").trim();
   const requestSaved = sp.requested === "1";
@@ -264,78 +257,6 @@ export default async function CategoriesPage({
     }
   }
 
-  let createCategories: {
-    id: string;
-    name: string;
-    slug: string;
-    parentId: string | null;
-  }[] = [];
-  let createCities: { id: string; name: string }[] = [];
-  let createTemplatesByCategory: ReturnType<typeof groupTemplatesByCategory> = {};
-  let createRequiresPayment = false;
-  let createHasActiveSubscription = false;
-
-  if (canCreateListings && !dbUnavailable && !shouldSkipPrismaCalls() && sessionUser) {
-    try {
-      const [
-        activeCategories,
-        activeCities,
-        activeTemplates,
-        publishedCount,
-        activeSubscriptionCount,
-      ] = await Promise.all([
-        prisma.category.findMany({
-          where: { isActive: true },
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            parentId: true,
-          },
-          orderBy: { name: "asc" },
-        }),
-        prisma.city.findMany({
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-        }),
-        prisma.categoryFieldTemplate.findMany({
-          where: { isActive: true, category: { isActive: true } },
-          orderBy: [{ categoryId: "asc" }, { order: "asc" }],
-        }),
-        prisma.listing.count({
-          where: {
-            ownerId: sessionUser.authUserId,
-            status: { not: "DRAFT" },
-          },
-        }),
-        prisma.listing.count({
-          where: {
-            ownerId: sessionUser.authUserId,
-            status: "ACTIVE",
-            activeUntil: null,
-            sale: null,
-          },
-        }),
-      ]);
-
-      createCategories = activeCategories;
-      createCities = activeCities;
-      createTemplatesByCategory = groupTemplatesByCategory(
-        normalizeTemplates(activeTemplates),
-      );
-      createHasActiveSubscription = activeSubscriptionCount > 0;
-      createRequiresPayment =
-        publishedCount > 0 && activeSubscriptionCount === 0;
-      markPrismaHealthy();
-    } catch (error) {
-      if (isPrismaConnectionError(error)) {
-        markPrismaUnavailable();
-      } else {
-        throw error;
-      }
-    }
-  }
-
   let recentRequests: {
     id: string;
     desiredName: string;
@@ -405,17 +326,14 @@ export default async function CategoriesPage({
         arr.findIndex((current) => current.id === category.id) === index,
     );
   const popularLabel = isMk ? "\u041f\u043e\u043f\u0443\u043b\u0430\u0440\u043d\u043e" : "Popular";
-  const createReady =
-    canCreateListings &&
-    createCategories.length > 0 &&
-    createCities.length > 0;
+  const createReady = canCreateListings && categories.length > 0;
   const createCategoryIdSet = new Set(
-    createCategories.map((category) => category.id),
+    categories.map((category) => category.id),
   );
   const selectedCreateCategoryId =
     requestedCategoryId && createCategoryIdSet.has(requestedCategoryId)
       ? requestedCategoryId
-      : createCategories[0]?.id;
+      : categories[0]?.id;
   const createLinkBaseParams = new URLSearchParams();
   if (query) createLinkBaseParams.set("q", query);
   const requestLinkParams = new URLSearchParams(createLinkBaseParams.toString());
@@ -491,34 +409,15 @@ export default async function CategoriesPage({
 
           <div className="flex flex-wrap gap-2">
             {createReady ? (
-              <CreateListingPopout
-                mode="button"
-                buttonLabel={text.createNow}
-                action={createListingFromDashboard}
-                categories={createCategories}
-                cities={createCities}
-                templatesByCategory={createTemplatesByCategory}
-                allowDraft={false}
-                showPlanSelector={createRequiresPayment}
-                publishLabel={
-                  createRequiresPayment
-                    ? isMk
-                      ? "Плати dummy Stripe и објави"
-                      : "Pay dummy Stripe & publish"
-                    : createHasActiveSubscription
-                      ? isMk
-                        ? "Објави со активна претплата"
-                        : "Publish with active subscription"
-                      : isMk
-                        ? "Објави прв 30-дневен оглас (бесплатно)"
-                        : "Publish first 30-day listing (free)"
+              <Link
+                href={
+                  selectedCreateCategoryId
+                    ? `?create=1&cat=${selectedCreateCategoryId}`
+                    : "?create=1"
                 }
-                paymentProvider={createRequiresPayment ? "stripe-dummy" : "none"}
-                openOnMount={createRequested}
-                initial={{ categoryId: selectedCreateCategoryId }}
-                buttonClassName="h-9 rounded-full px-4"
-                locale={locale}
-              />
+              >
+                <Button className="h-9 rounded-full px-4">{text.createNow}</Button>
+              </Link>
             ) : canCreateListings ? (
               <Button disabled>{text.createNow}</Button>
             ) : (

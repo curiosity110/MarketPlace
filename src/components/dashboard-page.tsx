@@ -1,21 +1,14 @@
 import Link from "next/link";
-import { Currency, ListingStatus } from "@prisma/client";
+import { ListingStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CreateListingPopout } from "@/components/create-listing-popout";
 import { ListingCard } from "@/components/listing-card";
 import { SavedSearchesList } from "@/components/saved-searches-list";
 import { DashboardListingsPanel } from "@/components/dashboard-listings-panel";
 import { DashboardStatsBento } from "@/components/dashboard-stats-bento";
-import { createListingFromDashboard } from "@/lib/actions/create-listing";
 import { canAccessControl, canSell, requireSeller, requireUser } from "@/lib/auth";
-import {
-  groupTemplatesByCategory,
-  normalizeTemplates,
-} from "@/lib/listing-fields";
-import { parseStoredPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { listingCardSelect } from "@/lib/listing-card-select";
@@ -29,7 +22,6 @@ import { getServerLocale } from "@/lib/i18n";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 type ListingView = "all" | "active" | "draft" | "expired" | "sold";
-type ListingPlan = "pay-per-listing" | "subscription";
 type ListingSort = "newest" | "price-asc" | "price-desc";
 type ListingLayout = "grid" | "list";
 
@@ -38,11 +30,6 @@ function parseView(value: string | undefined): ListingView {
     return value;
   }
   return "all";
-}
-
-function parsePlan(value: string | undefined): ListingPlan | undefined {
-  if (value === "pay-per-listing" || value === "subscription") return value;
-  return undefined;
 }
 
 function parseSort(value: string | undefined): ListingSort {
@@ -252,20 +239,14 @@ export async function DashboardPageContent({
   const draftSaved = sp.draft === "1";
   const freeActivated = sp.free === "1";
   const paidActivated = sp.paid === "1";
-  const createRequested = sp.create === "1";
   const selectedView = parseView(sp.view);
   const selectedSort = parseSort(sp.sort);
   const selectedLayout = parseLayout(sp.layout);
   const searchQuery = (sp.q || "").trim();
-  const selectedPlan = parsePlan(sp.plan);
   const dbUnavailableError = text.dbUnavailable;
 
   async function fetchAnalyticsData() {
     return Promise.all([
-      prisma.user.findUnique({
-        where: { id: user.id },
-        select: { id: true, phone: true },
-      }),
       prisma.listing.findMany({
         where: { ownerId: user.authUserId },
         include: {
@@ -284,13 +265,6 @@ export async function DashboardPageContent({
       prisma.category.findMany({
         where: { isActive: true },
         orderBy: { name: "asc" },
-      }),
-      prisma.city.findMany({
-        orderBy: { name: "asc" },
-      }),
-      prisma.categoryFieldTemplate.findMany({
-        where: { isActive: true, category: { isActive: true } },
-        orderBy: [{ categoryId: "asc" }, { order: "asc" }],
       }),
       prisma.listing.count({
         where: {
@@ -359,20 +333,12 @@ export async function DashboardPageContent({
   }
 
   const [
-    userRecord,
     allListings,
     categories,
-    cities,
-    templates,
     publishedCount,
     favorites,
     savedSearches,
   ] = analyticsData;
-
-  const parsedPhone = parseStoredPhone(userRecord?.phone);
-  const templatesByCategory = groupTemplatesByCategory(
-    normalizeTemplates(templates),
-  );
   const hasPublishedListing = publishedCount > 0;
 
   const activeListings = allListings.filter(
@@ -389,7 +355,6 @@ export async function DashboardPageContent({
   const validCategoryIds = new Set(categories.map((category) => category.id));
   const selectedCategoryIdFromQuery =
     sp.cat && sp.cat !== "all" && validCategoryIds.has(sp.cat) ? sp.cat : undefined;
-  const requestedCreateCategoryId = selectedCategoryIdFromQuery;
   const favoriteListings = favorites.map((favorite) => favorite.listing);
   const savedSearchItems = savedSearches.map((searchItem) => ({
     id: searchItem.id,
@@ -611,40 +576,16 @@ return (
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canCreateListings && categories.length > 0 && cities.length > 0 ? (
-              <CreateListingPopout
-                mode="button"
-                buttonLabel={text.createNow}
-                action={createListingFromDashboard}
-                categories={categories}
-                cities={cities}
-                templatesByCategory={templatesByCategory}
-                allowDraft={false}
-                showPlanSelector={requiresPaymentForCreate}
-                publishLabel={
-                  requiresPaymentForCreate
-                    ? isMk
-                      ? "Плати dummy Stripe и објави"
-                      : "Pay dummy Stripe & publish"
-                    : hasActiveSubscription
-                      ? text.publishWithSubscription
-                    : isMk
-                      ? "Објави прв 30-дневен оглас (бесплатно)"
-                      : "Publish first 30-day listing (free)"
+            {canCreateListings && categories.length > 0 ? (
+              <Link
+                href={
+                  selectedCategoryIdFromQuery
+                    ? `?create=1&cat=${selectedCategoryIdFromQuery}`
+                    : "?create=1"
                 }
-                paymentProvider={requiresPaymentForCreate ? "stripe-dummy" : "none"}
-                openOnMount={createRequested}
-                initial={{
-                  categoryId:
-                    requestedCreateCategoryId ||
-                    categories[0]?.id,
-                  phone: parsedPhone.localPhone,
-                  phoneCountry: parsedPhone.countryCode,
-                  currency: Currency.MKD,
-                  plan: selectedPlan,
-                }}
-                locale={locale}
-              />
+              >
+                <Button>{text.createNow}</Button>
+              </Link>
             ) : (
               <Button disabled>{text.createNow}</Button>
             )}

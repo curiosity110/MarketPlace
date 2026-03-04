@@ -71,4 +71,14 @@
     yearTo: "Година до",
     carsFilters: "Филтри за коли",
   },
+  create: {
+    createListing: "Креирај оглас",
+    photos: "Фотографии",
+    basics: "Основи",
+    details: "Детали",
+    back: "Назад",
+    continue: "Продолжи",
+    publish: "Објави",
+    close: "Затвори",
+  },
 };

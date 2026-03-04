@@ -627,7 +627,7 @@ export default async function ProfilePage({
               <p className="mt-1 text-xs text-muted-foreground">
                 {text.activeWithPlan}: {payPerListingActive}
               </p>
-              <Link href="/dashboard?create=1&plan=pay-per-listing" className="mt-2 block">
+              <Link href="?create=1&plan=pay-per-listing" className="mt-2 block">
                 <Button className="w-full">{text.postWith4}</Button>
               </Link>
             </div>
@@ -639,7 +639,7 @@ export default async function ProfilePage({
               <p className="mt-1 text-xs text-muted-foreground">
                 {text.activeWithSubscription}: {subscriptionActive}
               </p>
-              <Link href="/dashboard?create=1&plan=subscription" className="mt-2 block">
+              <Link href="?create=1&plan=subscription" className="mt-2 block">
                 <Button variant="outline" className="w-full">
                   {text.startSubscriptionFlow}
                 </Button>

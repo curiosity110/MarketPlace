@@ -15,7 +15,7 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { getSessionUser } from "@/lib/auth";
+import { canSell, getSessionUser } from "@/lib/auth";
 import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,14 @@ const getCachedHomeLatestListings = unstable_cache(
 export default async function Home() {
   const locale = await getServerLocale();
   const sessionUser = await getSessionUser();
+  const canCreateListings = Boolean(sessionUser && canSell(sessionUser.role));
+  const createHref = canCreateListings ? "?create=1" : "/sell";
+  const createPayPerHref = canCreateListings
+    ? "?create=1&plan=pay-per-listing"
+    : "/sell?plan=pay-per-listing";
+  const createSubscriptionHref = canCreateListings
+    ? "?create=1&plan=subscription"
+    : "/sell?plan=subscription";
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -116,7 +124,7 @@ export default async function Home() {
             "Основни увиди за продавач",
           ],
           cta: "Почни со $4",
-          href: "/sell",
+          href: createPayPerHref,
           featured: false,
         },
         {
@@ -131,7 +139,7 @@ export default async function Home() {
             "Поголема видливост",
           ],
           cta: "Претплати се за $30",
-          href: "/sell",
+          href: createSubscriptionHref,
           featured: true,
         },
       ]
@@ -148,7 +156,7 @@ export default async function Home() {
             "Basic seller insights",
           ],
           cta: "Start with $4",
-          href: "/sell",
+          href: createPayPerHref,
           featured: false,
         },
         {
@@ -163,7 +171,7 @@ export default async function Home() {
             "Higher visibility options",
           ],
           cta: "Subscribe for $30",
-          href: "/sell",
+          href: createSubscriptionHref,
           featured: true,
         },
       ];
@@ -288,7 +296,7 @@ export default async function Home() {
                   {text.explore} <ArrowRight size={16} />
                 </Button>
               </Link>
-              <Link href="/sell">
+              <Link href={createHref}>
                 <Button size="lg" variant="outline" className="gap-2">
                   {text.startSelling} <ArrowRight size={16} />
                 </Button>
@@ -378,7 +386,7 @@ export default async function Home() {
               <p className="text-muted-foreground">
                 {text.noListings}
               </p>
-              <Link href="/sell" className="mt-4 inline-block">
+              <Link href={createHref} className="mt-4 inline-block">
                 <Button>{text.listItem}</Button>
               </Link>
             </CardContent>
@@ -470,3 +478,4 @@ export default async function Home() {
     </div>
   );
 }
+

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Currency, ListingCondition } from "@prisma/client";
-import { ChevronLeft, ChevronRight, ImagePlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImagePlus, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/select";
 import { localizeCategoryName } from "@/lib/category-label";
 import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
 import { PHONE_COUNTRIES } from "@/lib/phone";
+import { smartFillFromTitle, type SmartFillSuggestions } from "@/lib/smart-fill";
 
 type Category = {
   id: string;
@@ -60,6 +61,34 @@ const MAX_CREATE_PHOTOS = 10;
 const MAX_CREATE_SINGLE_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const MAX_CREATE_TOTAL_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreSearchField(
+  field: string,
+  normalizedQuery: string,
+  queryTokens: string[],
+) {
+  if (!field) return 0;
+  if (field === normalizedQuery) return 120;
+  if (field.startsWith(normalizedQuery)) return 95;
+  if (field.includes(` ${normalizedQuery}`)) return 88;
+  if (field.includes(normalizedQuery)) return 76;
+  if (
+    queryTokens.length > 1 &&
+    queryTokens.every((token) => field.includes(token))
+  ) {
+    return 68 + Math.min(queryTokens.length, 5);
+  }
+  return 0;
+}
+
 export function CreateListingWizardForm({
   action,
   categories,
@@ -79,10 +108,26 @@ export function CreateListingWizardForm({
         photos: "Фотографии",
         basics: "Основи",
         details: "Детали",
+        stepPhotos: "Чекор 1: Фотографии",
+        stepBasics: "Чекор 2: Основи",
+        stepDetails: "Чекор 3: Детали",
         back: "Назад",
         continue: "Продолжи",
         publish: "Објави",
         close: "Затвори",
+        smartFill: "Паметно пополнување",
+        smartFillHint:
+          "Користи наслов за да добиеш предлог за марка, модел, година, состојба и опис.",
+        suggestions: "Предлози",
+        apply: "Примени",
+        smartFillTitleRequired: "Внеси наслов за да се прикажат предлози.",
+        smartFillNoSuggestions: "Нема доволно сигурни предлози од насловот.",
+        smartTitle: "Предложен наслов",
+        smartBrand: "Предложена марка",
+        smartModel: "Предложен модел",
+        smartYear: "Предложена година",
+        smartCondition: "Предложена состојба",
+        smartDescription: "Предложен опис",
         title: "Наслов",
         titlePlaceholder: "Пример: Volkswagen Golf 7 2017",
         titleRequired: "Насловот е задолжителен.",
@@ -151,10 +196,26 @@ export function CreateListingWizardForm({
         photos: "Photos",
         basics: "Basics",
         details: "Details",
+        stepPhotos: "Step 1: Photos",
+        stepBasics: "Step 2: Basics",
+        stepDetails: "Step 3: Details",
         back: "Back",
         continue: "Continue",
         publish: "Publish",
         close: "Close",
+        smartFill: "Smart Fill",
+        smartFillHint:
+          "Use title parsing to suggest brand, model, year, condition, and a cleaner description.",
+        suggestions: "Suggestions",
+        apply: "Apply",
+        smartFillTitleRequired: "Enter a title to generate suggestions.",
+        smartFillNoSuggestions: "No reliable suggestions were found from the title.",
+        smartTitle: "Suggested title",
+        smartBrand: "Suggested brand",
+        smartModel: "Suggested model",
+        smartYear: "Suggested year",
+        smartCondition: "Suggested condition",
+        smartDescription: "Suggested description",
         title: "Title",
         titlePlaceholder: "Example: Volkswagen Golf 7 2017",
         titleRequired: "Title is required.",
@@ -247,6 +308,9 @@ export function CreateListingWizardForm({
   );
   const [phoneCountry, setPhoneCountry] = useState(initial?.phoneCountry ?? "MK");
   const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [smartSuggestions, setSmartSuggestions] =
+    useState<SmartFillSuggestions | null>(null);
+  const [smartFillMessage, setSmartFillMessage] = useState<string | null>(null);
 
   const paymentAmount = plan === "subscription" ? 30 : 4;
   const paymentLabel = plan === "subscription" ? text.subscription : text.payPerListing;
@@ -274,13 +338,67 @@ export function CreateListingWizardForm({
     USED: text.conditionUsed,
     REFURBISHED: text.conditionRefurbished,
   };
+  const categorySearchEntries = useMemo(
+    () =>
+      categories.map((category) => {
+        const localizedName = localizeCategoryName(category, locale);
+        return {
+          category,
+          localizedName,
+          normalizedLocalizedName: normalizeSearchText(localizedName),
+          normalizedRawName: normalizeSearchText(category.name),
+          normalizedSlug: normalizeSearchText(category.slug),
+        };
+      }),
+    [categories, locale],
+  );
   const filteredCategories = useMemo(() => {
-    const query = categorySearch.trim().toLowerCase();
-    if (!query) return categories;
-    return categories.filter((category) =>
-      localizeCategoryName(category, locale).toLowerCase().includes(query),
-    );
-  }, [categories, categorySearch, locale]);
+    const normalizedQuery = normalizeSearchText(categorySearch);
+    if (!normalizedQuery) return categories;
+
+    const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+    return categorySearchEntries
+      .map((entry) => {
+        const localizedScore =
+          scoreSearchField(
+            entry.normalizedLocalizedName,
+            normalizedQuery,
+            queryTokens,
+          ) * 3;
+        const rawNameScore =
+          scoreSearchField(
+            entry.normalizedRawName,
+            normalizedQuery,
+            queryTokens,
+          ) * 2;
+        const slugScore = scoreSearchField(
+          entry.normalizedSlug,
+          normalizedQuery,
+          queryTokens,
+        );
+        const score = Math.max(localizedScore, rawNameScore, slugScore);
+        return { ...entry, score };
+      })
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.localizedName.localeCompare(b.localizedName, locale);
+      })
+      .map((entry) => entry.category);
+  }, [categories, categorySearch, categorySearchEntries, locale]);
+  const hasSmartSuggestions = useMemo(
+    () =>
+      Boolean(
+        smartSuggestions &&
+          Object.values(smartSuggestions).some(
+            (value) =>
+              typeof value === "string"
+                ? value.trim().length > 0
+                : Boolean(value),
+          ),
+      ),
+    [smartSuggestions],
+  );
 
   useEffect(() => {
     return () => {
@@ -324,6 +442,41 @@ export function CreateListingWizardForm({
       if (!files || files.length === 0) return [];
       return Array.from(files).slice(0, 8).map((file) => URL.createObjectURL(file));
     });
+  }
+
+  function appendSuggestionToTitle(value: string) {
+    const token = value.trim();
+    if (!token) return;
+    setTitle((previous) => {
+      const current = previous.trim();
+      if (!current) return token;
+      const hasToken = new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(
+        current,
+      );
+      if (hasToken) return current;
+      return `${current} ${token}`.replace(/\s+/g, " ").trim();
+    });
+  }
+
+  function runSmartFill() {
+    const baseTitle = title.trim();
+    if (!baseTitle) {
+      setSmartSuggestions(null);
+      setSmartFillMessage(text.smartFillTitleRequired);
+      return;
+    }
+
+    const suggestions = smartFillFromTitle(baseTitle, locale);
+    setSmartSuggestions(suggestions);
+    if (
+      !Object.values(suggestions).some((value) =>
+        typeof value === "string" ? value.trim().length > 0 : Boolean(value),
+      )
+    ) {
+      setSmartFillMessage(text.smartFillNoSuggestions);
+      return;
+    }
+    setSmartFillMessage(null);
   }
 
   function validateCurrentStep(step: number) {
@@ -389,9 +542,9 @@ export function CreateListingWizardForm({
 
       <div className="grid grid-cols-3 gap-2">
         {[
-          { id: 1, label: text.photos },
-          { id: 2, label: text.basics },
-          { id: 3, label: text.details },
+          { id: 1, label: text.stepPhotos },
+          { id: 2, label: text.stepBasics },
+          { id: 3, label: text.stepDetails },
         ].map((step) => (
           <button
             key={step.id}
@@ -465,11 +618,93 @@ export function CreateListingWizardForm({
           <Input
             name="title"
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => {
+              setTitle(event.target.value);
+              setSmartFillMessage(null);
+            }}
             placeholder={text.titlePlaceholder}
             required
           />
         </label>
+
+        <div className="space-y-2 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">{text.smartFill}</p>
+              <p className="text-xs text-muted-foreground">{text.smartFillHint}</p>
+            </div>
+            <Button type="button" size="sm" variant="outline" onClick={runSmartFill} className="gap-1">
+              <Wand2 size={14} />
+              {text.smartFill}
+            </Button>
+          </div>
+
+          {smartFillMessage && (
+            <p className="text-xs font-medium text-muted-foreground">{smartFillMessage}</p>
+          )}
+
+          {smartSuggestions && hasSmartSuggestions && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.suggestions}
+              </p>
+              {smartSuggestions.suggestedTitle && (
+                <SuggestionRow
+                  label={text.smartTitle}
+                  value={smartSuggestions.suggestedTitle}
+                  applyLabel={text.apply}
+                  onApply={() => setTitle(smartSuggestions.suggestedTitle || "")}
+                />
+              )}
+              {smartSuggestions.suggestedBrand && (
+                <SuggestionRow
+                  label={text.smartBrand}
+                  value={smartSuggestions.suggestedBrand}
+                  applyLabel={text.apply}
+                  onApply={() =>
+                    appendSuggestionToTitle(smartSuggestions.suggestedBrand || "")
+                  }
+                />
+              )}
+              {smartSuggestions.suggestedModel && (
+                <SuggestionRow
+                  label={text.smartModel}
+                  value={smartSuggestions.suggestedModel}
+                  applyLabel={text.apply}
+                  onApply={() =>
+                    appendSuggestionToTitle(smartSuggestions.suggestedModel || "")
+                  }
+                />
+              )}
+              {smartSuggestions.suggestedYear && (
+                <SuggestionRow
+                  label={text.smartYear}
+                  value={smartSuggestions.suggestedYear}
+                  applyLabel={text.apply}
+                  onApply={() =>
+                    appendSuggestionToTitle(smartSuggestions.suggestedYear || "")
+                  }
+                />
+              )}
+              {smartSuggestions.suggestedCondition && (
+                <SuggestionRow
+                  label={text.smartCondition}
+                  value={conditionLabelByValue[smartSuggestions.suggestedCondition]}
+                  applyLabel={text.apply}
+                  onApply={() => setCondition(smartSuggestions.suggestedCondition || condition)}
+                />
+              )}
+              {smartSuggestions.suggestedDescription && (
+                <SuggestionRow
+                  label={text.smartDescription}
+                  value={smartSuggestions.suggestedDescription}
+                  applyLabel={text.apply}
+                  onApply={() => setDescription(smartSuggestions.suggestedDescription || "")}
+                />
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className={currentStep === 2 ? "space-y-4" : "hidden"}>
@@ -910,5 +1145,31 @@ export function CreateListingWizardForm({
         <p className="hidden text-xs text-muted-foreground md:block">{text.stripeValidated}</p>
       )}
     </form>
+  );
+}
+
+function SuggestionRow({
+  label,
+  value,
+  applyLabel,
+  onApply,
+}: {
+  label: string;
+  value: string;
+  applyLabel: string;
+  onApply: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-2 rounded-xl border border-border/70 bg-card/90 px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <p className="line-clamp-2 text-sm text-foreground">{value}</p>
+      </div>
+      <Button type="button" size="sm" variant="outline" onClick={onApply}>
+        {applyLabel}
+      </Button>
+    </div>
   );
 }

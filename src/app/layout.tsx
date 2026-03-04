@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
 import { Container } from "@/components/ui/container";
 import { SiteAssistant } from "@/components/site-assistant";
+import { CreateListingGlobalServer } from "@/components/create-listing-global-server";
 import { SiteFooter } from "@/components/site-footer";
 import { getServerLocale } from "@/lib/i18n";
 
@@ -41,6 +42,7 @@ export default async function RootLayout({
             </main>
             <SiteFooter locale={locale} />
             <SiteAssistant locale={locale} />
+            <CreateListingGlobalServer />
           </div>
         </ThemeProvider>
       </body>

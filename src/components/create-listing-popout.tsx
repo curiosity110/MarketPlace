@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { PlusCircle, X } from "lucide-react";
 import { Currency, ListingCondition } from "@prisma/client";
 import { Button } from "@/components/ui/button";
+import { CreateListingWizardForm } from "@/components/create-listing-wizard-form";
 import { ListingForm } from "@/components/listing-form";
 
 type Category = { id: string; name: string; slug: string; parentId?: string | null };
@@ -35,7 +36,9 @@ type Props = {
   buttonVariant?: "default" | "outline" | "ghost" | "destructive" | "secondary";
   buttonSize?: "sm" | "md" | "lg";
   buttonClassName?: string;
+  hideTrigger?: boolean;
   openOnMount?: boolean;
+  onClose?: () => void;
   initial?: {
     id?: string;
     title?: string;
@@ -67,7 +70,9 @@ export function CreateListingPopout({
   buttonVariant = "default",
   buttonSize = "md",
   buttonClassName = "",
+  hideTrigger = false,
   openOnMount = false,
+  onClose,
   initial,
   locale = "en",
 }: Props) {
@@ -86,7 +91,7 @@ export function CreateListingPopout({
         openWhenNeeded: "Open the form only when you need it.",
         closeCreateListingForm: "Close create listing form",
         createNewListing: "Create a new listing",
-        fillAndPublish: "Complete 3 steps: basics, photos, and details.",
+        fillAndPublish: "Complete 3 steps: photos, basics, and details.",
         close: "Close",
       };
   const resolvedButtonLabel = buttonLabel ?? (isMk ? "Нов оглас" : "New listing");
@@ -97,23 +102,26 @@ export function CreateListingPopout({
   const closeTimerRef = useRef<number | null>(null);
   const autoOpenDoneRef = useRef(false);
 
-  function openPopout() {
+  const openPopout = useCallback(() => {
     setIsOpen(true);
     requestAnimationFrame(() => setIsActive(true));
-  }
+  }, []);
 
-  function closePopout() {
+  const closePopout = useCallback(() => {
     setIsActive(false);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = window.setTimeout(() => setIsOpen(false), 190);
-  }
+    closeTimerRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+      onClose?.();
+    }, 190);
+  }, [onClose]);
 
   useEffect(() => {
     if (!openOnMount || autoOpenDoneRef.current) return;
     autoOpenDoneRef.current = true;
     const timer = window.setTimeout(() => openPopout(), 0);
     return () => window.clearTimeout(timer);
-  }, [openOnMount]);
+  }, [openOnMount, openPopout]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -130,7 +138,7 @@ export function CreateListingPopout({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [isOpen]);
+  }, [closePopout, isOpen]);
 
   useEffect(() => {
     return () => {
@@ -141,36 +149,40 @@ export function CreateListingPopout({
   return (
     <>
       {mode === "card" ? (
-        <CardLike>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-base font-bold">{text.createListing}</p>
-              <p className="text-sm text-muted-foreground">
-                {text.openWhenNeeded}
-              </p>
+        !hideTrigger && (
+          <CardLike>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-base font-bold">{text.createListing}</p>
+                <p className="text-sm text-muted-foreground">
+                  {text.openWhenNeeded}
+                </p>
+              </div>
+              <Button type="button" onClick={openPopout} className="gap-2">
+                <PlusCircle size={16} />
+                {resolvedButtonLabel}
+              </Button>
             </div>
-            <Button type="button" onClick={openPopout} className="gap-2">
-              <PlusCircle size={16} />
-              {resolvedButtonLabel}
-            </Button>
-          </div>
-        </CardLike>
+          </CardLike>
+        )
       ) : (
-        <Button
-          type="button"
-          onClick={openPopout}
-          variant={buttonVariant}
-          size={buttonSize}
-          className={`gap-2 ${buttonClassName}`}
-        >
-          <PlusCircle size={16} />
-          {resolvedButtonLabel}
-        </Button>
+        !hideTrigger && (
+          <Button
+            type="button"
+            onClick={openPopout}
+            variant={buttonVariant}
+            size={buttonSize}
+            className={`gap-2 ${buttonClassName}`}
+          >
+            <PlusCircle size={16} />
+            {resolvedButtonLabel}
+          </Button>
+        )
       )}
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto p-2 pt-3 sm:p-4 sm:pt-5"
+          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto p-0 sm:p-4 sm:pt-5"
           role="dialog"
           aria-modal="true"
         >
@@ -184,16 +196,16 @@ export function CreateListingPopout({
           />
 
           <div
-            className={`relative mx-auto flex max-h-[94vh] w-full max-w-[1180px] flex-col rounded-2xl border border-border bg-background shadow-2xl transition-all duration-200 ${
+            className={`relative mx-auto flex min-h-dvh w-full max-w-[980px] flex-col border border-border bg-background shadow-2xl transition-all duration-200 sm:min-h-[92vh] sm:rounded-3xl ${
               isActive
                 ? "translate-y-0 scale-100 opacity-100"
                 : "translate-y-2 scale-[0.99] opacity-0"
             }`}
           >
-            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-6">
+            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-6 sm:py-4">
               <div>
-                <p className="text-xl font-black">{text.createNewListing}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-lg font-black sm:text-2xl">{text.createNewListing}</p>
+                <p className="text-xs text-muted-foreground sm:text-sm">
                   {text.fillAndPublish}
                 </p>
               </div>
@@ -203,19 +215,34 @@ export function CreateListingPopout({
               </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <ListingForm
-                action={action}
-                categories={categories}
-                cities={cities}
-                templatesByCategory={templatesByCategory}
-                allowDraft={allowDraft}
-                showPlanSelector={showPlanSelector}
-                publishLabel={resolvedPublishLabel}
-                paymentProvider={paymentProvider}
-                initial={initial}
-                locale={locale}
-              />
+            <div className="flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-6 sm:pb-6">
+              {initial?.id ? (
+                <ListingForm
+                  action={action}
+                  categories={categories}
+                  cities={cities}
+                  templatesByCategory={templatesByCategory}
+                  allowDraft={allowDraft}
+                  showPlanSelector={showPlanSelector}
+                  publishLabel={resolvedPublishLabel}
+                  paymentProvider={paymentProvider}
+                  initial={initial}
+                  locale={locale}
+                />
+              ) : (
+                <CreateListingWizardForm
+                  action={action}
+                  categories={categories}
+                  cities={cities}
+                  templatesByCategory={templatesByCategory}
+                  allowDraft={allowDraft}
+                  showPlanSelector={showPlanSelector}
+                  publishLabel={resolvedPublishLabel}
+                  paymentProvider={paymentProvider}
+                  initial={initial}
+                  locale={locale}
+                />
+              )}
             </div>
           </div>
         </div>

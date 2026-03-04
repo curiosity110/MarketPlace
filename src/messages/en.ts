@@ -70,4 +70,14 @@
     yearTo: "Year to",
     carsFilters: "Cars filters",
   },
+  create: {
+    createListing: "Create listing",
+    photos: "Photos",
+    basics: "Basics",
+    details: "Details",
+    back: "Back",
+    continue: "Continue",
+    publish: "Publish",
+    close: "Close",
+  },
 };

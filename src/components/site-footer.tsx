@@ -54,7 +54,7 @@ export function SiteFooter({ locale = "en" }: Props) {
               {text.categories}
             </Link>
             <Link
-              href="/sell"
+              href="?create=1"
               className="rounded-full border border-border/80 bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-primary/45 hover:text-primary"
             >
               {text.sell}

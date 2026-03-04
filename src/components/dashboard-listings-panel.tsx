@@ -254,7 +254,7 @@ export function DashboardListingsPanel({
           title={text.noCategoryActivity}
           description={text.emptyListingsHint}
           ctaLabel={text.createFirstListing}
-          ctaHref="/dashboard?create=1"
+          ctaHref="?create=1"
         />
       ) : (
         <>
@@ -303,7 +303,11 @@ export function DashboardListingsPanel({
                   title={text.emptyListingsTitle}
                   description={text.emptyListingsHint}
                   ctaLabel={text.createNow}
-                  ctaHref={selectedCategory ? `/dashboard?create=1&cat=${selectedCategory.id}` : "/dashboard?create=1"}
+                  ctaHref={
+                    selectedCategory
+                      ? `?create=1&cat=${selectedCategory.id}`
+                      : "?create=1"
+                  }
                 />
               ) : (
                 <div

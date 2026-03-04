@@ -13,25 +13,34 @@ type Props = {
     dashboard: string;
   };
   isLoggedIn: boolean;
+  canCreateListings: boolean;
 };
 
-export function NavPrimaryLinks({ labels, isLoggedIn }: Props) {
+export function NavPrimaryLinks({
+  labels,
+  isLoggedIn,
+  canCreateListings,
+}: Props) {
   const pathname = usePathname();
   const dashboardHref = isLoggedIn ? "/dashboard" : "/login?next=%2Fdashboard";
+  const sellHref = canCreateListings ? "?create=1" : "/sell";
+  const sellPrefix = canCreateListings ? "" : "/sell";
   const links = [
     { href: "/browse", prefix: "/browse", label: labels.browse },
     { href: "/categories", prefix: "/categories", label: labels.categories },
-    { href: "/sell", prefix: "/sell", label: labels.sell },
+    { href: sellHref, prefix: sellPrefix, label: labels.sell },
     { href: dashboardHref, prefix: "/dashboard", label: labels.dashboard },
   ];
 
   return (
     <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-muted/30 p-1 md:flex">
       {links.map((item) => {
-        const active = isActivePath(pathname, item.prefix);
+        const active = item.prefix
+          ? isActivePath(pathname, item.prefix)
+          : false;
         return (
           <Link
-            key={item.prefix}
+            key={item.href}
             href={item.href}
             className={cn(
               "rounded-full px-3 py-1.5 text-sm transition-all",

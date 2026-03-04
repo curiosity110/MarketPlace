@@ -406,6 +406,7 @@ export function ListingForm({
     plan === "subscription"
       ? text.subscriptionCharge
       : text.perPostCharge;
+  const smartFillEnabled = false;
   const requiresDummyPayment = paymentProvider === "stripe-dummy";
   const wizardEnabled = isCreateMode;
 
@@ -754,6 +755,12 @@ export function ListingForm({
   }
 
   async function runSmartFill() {
+    if (!smartFillEnabled) {
+      setSmartSuggestions(null);
+      setSmartFillError(null);
+      return;
+    }
+
     const files = photosInputRef.current?.files;
     if (!files || files.length === 0) {
       setSmartFillError(text.smartFillNoPhotos);
@@ -992,7 +999,8 @@ export function ListingForm({
                 </div>
               )}
 
-              <div className="mt-3 rounded-xl border border-primary/25 bg-orange-50/60 p-3 dark:bg-orange-500/10">
+              {smartFillEnabled && (
+                <div className="mt-3 rounded-xl border border-primary/25 bg-orange-50/60 p-3 dark:bg-orange-500/10">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-semibold">{text.smartFill}</p>
@@ -1119,7 +1127,8 @@ export function ListingForm({
                     {text.smartFillNoSuggestions}
                   </p>
                 )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 

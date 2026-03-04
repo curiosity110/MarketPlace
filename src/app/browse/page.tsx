@@ -16,7 +16,7 @@ import { SaveSearchPopout } from "@/components/save-search-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getSessionUser } from "@/lib/auth";
+import { canSell, getSessionUser } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
 import { listingCardSelect } from "@/lib/listing-card-select";
@@ -173,6 +173,8 @@ export default async function BrowsePage({
 }) {
   const locale = await getServerLocale();
   const sessionUser = await getSessionUser();
+  const canCreateListings = Boolean(sessionUser && canSell(sessionUser.role));
+  const createHref = canCreateListings ? "?create=1" : "/sell";
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -876,7 +878,7 @@ export default async function BrowsePage({
             <p className="text-muted-foreground">
               {hasAppliedFilters ? text.noMatch : text.noListingsYet}
             </p>
-            <Link href="/dashboard?create=1" className="mt-4 inline-block">
+            <Link href={createHref} className="mt-4 inline-block">
               <Button>{text.firstList}</Button>
             </Link>
             {!hasAppliedFilters && parentCategories.length > 0 && (

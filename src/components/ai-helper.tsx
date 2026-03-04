@@ -41,7 +41,7 @@ function resolveQuickRoute(question: string): string | null {
     return "/dashboard";
   }
   if (q.includes("create") || q.includes("sell") || q.includes("post") || q.includes("објав")) {
-    return "/dashboard?create=1";
+    return "?create=1";
   }
   if (q.includes("category") || q.includes("категор")) {
     return "/categories";
@@ -53,11 +53,19 @@ function resolveQuickRoute(question: string): string | null {
   return null;
 }
 
-function buildLocalRouteAnswer(question: string, locale: "en" | "mk", origin: string): string | null {
+function buildLocalRouteAnswer(
+  question: string,
+  locale: "en" | "mk",
+  origin: string,
+  currentPath: string,
+): string | null {
   const route = resolveQuickRoute(question);
   if (!route) return null;
 
-  const fullUrl = origin ? `${origin}${route}` : route;
+  const resolvedRoute = route.startsWith("?")
+    ? `${currentPath}${route}`
+    : route;
+  const fullUrl = origin ? `${origin}${resolvedRoute}` : resolvedRoute;
   if (locale === "mk") {
     return `Најбрз пат за ова е: ${fullUrl}`;
   }
@@ -137,6 +145,7 @@ export function AIHelper({
   const canSend = input.trim().length > 0 && !loading;
   const initialHint = useMemo(() => text.initialHint, [text.initialHint]);
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
 
   useEffect(() => {
     function openAssistant() {
@@ -157,7 +166,12 @@ export function AIHelper({
     setMessages((prev) => [...prev, { role: "user", content: question }]);
     setLoading(true);
 
-    const localAnswer = buildLocalRouteAnswer(question, locale, baseUrl);
+    const localAnswer = buildLocalRouteAnswer(
+      question,
+      locale,
+      baseUrl,
+      currentPath,
+    );
     if (localAnswer) {
       setMessages((prev) => [...prev, { role: "assistant", content: localAnswer }]);
       setLoading(false);
