@@ -10,12 +10,23 @@ import {
   useState,
 } from "react";
 import { Currency, ListingCondition } from "@prisma/client";
-import { CirclePlus, Sparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CirclePlus,
+  Sparkles,
+  Wand2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ListingImageUpload } from "@/components/listing-image-upload";
+import {
+  analyzeListingPhotos,
+  type ListingPhotoSuggestions,
+} from "@/lib/actions/analyze-listing-photos";
 import { localizeCategoryName } from "@/lib/category-label";
 import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
 import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
@@ -180,6 +191,37 @@ export function ListingForm({
         successFailCards:
           "Успешна картичка: 4242424242424242. Неуспешна: 4000000000000002.",
         cancel: "Откажи",
+        wizardStepBasics: "Чекор 1: Основи",
+        wizardStepPhotos: "Чекор 2: Фотографии",
+        wizardStepDetails: "Чекор 3: Детали",
+        wizardBasicsHint: "Наслов, категорија, цена, град и состојба.",
+        wizardPhotosHint: "Додај слики и добиј брзи предлози.",
+        wizardDetailsHint: "Контакт, полиња, преглед и објава.",
+        wizardNext: "Следно",
+        wizardBack: "Назад",
+        wizardGoTo: "Оди на чекор",
+        smartFill: "Паметно пополнување",
+        smartFillHint:
+          "Од избраните фотографии ќе предложиме наслов, категорија и детали.",
+        smartFillAction: "Анализирај фотографии",
+        smartFillWorking: "Анализирам...",
+        smartFillApply: "Примени",
+        smartFillNoPhotos: "Додај барем една фотографија за анализа.",
+        smartFillError: "Предлозите не може да се генерираат моментално.",
+        smartFillNoSuggestions: "Нема доволно сигурни предлози од фотографиите.",
+        smartTitle: "Предложен наслов",
+        smartCategory: "Предложена категорија",
+        smartBrand: "Предложена марка",
+        smartModel: "Предложен модел",
+        smartYear: "Предложена година",
+        smartCondition: "Предложена состојба",
+        smartDescription: "Предложен опис",
+        review: "Преглед",
+        reviewTitle: "Наслов",
+        reviewCategory: "Категорија",
+        reviewPrice: "Цена",
+        reviewCity: "Град",
+        reviewCondition: "Состојба",
       }
     : {
         subscriptionCharge: "Subscription charge (monthly)",
@@ -250,6 +292,37 @@ export function ListingForm({
         successFailCards:
           "Success card: 4242424242424242. Fail card: 4000000000000002.",
         cancel: "Cancel",
+        wizardStepBasics: "Step 1: Basics",
+        wizardStepPhotos: "Step 2: Photos",
+        wizardStepDetails: "Step 3: Details",
+        wizardBasicsHint: "Title, category, price, city, and condition.",
+        wizardPhotosHint: "Add images and get quick suggestions.",
+        wizardDetailsHint: "Contact, fields, review, and publish.",
+        wizardNext: "Next",
+        wizardBack: "Back",
+        wizardGoTo: "Go to step",
+        smartFill: "Smart Fill",
+        smartFillHint:
+          "We will suggest title, category, and details from selected photos.",
+        smartFillAction: "Analyze photos",
+        smartFillWorking: "Analyzing...",
+        smartFillApply: "Apply",
+        smartFillNoPhotos: "Add at least one photo to analyze.",
+        smartFillError: "Suggestions could not be generated right now.",
+        smartFillNoSuggestions: "No confident suggestions from selected photos.",
+        smartTitle: "Suggested title",
+        smartCategory: "Suggested category",
+        smartBrand: "Suggested brand",
+        smartModel: "Suggested model",
+        smartYear: "Suggested year",
+        smartCondition: "Suggested condition",
+        smartDescription: "Suggested description",
+        review: "Review",
+        reviewTitle: "Title",
+        reviewCategory: "Category",
+        reviewPrice: "Price",
+        reviewCity: "City",
+        reviewCondition: "Condition",
       };
   const resetDraftAndFormLabel = isMk ? "Ресетирај форма" : "Reset form";
   const assistantIncludedLabel = isMk ? "Паметен асистент" : "Smart assistant";
@@ -311,6 +384,16 @@ export function ListingForm({
   const [photoValidationError, setPhotoValidationError] = useState<string | null>(
     null,
   );
+  const [currentStep, setCurrentStep] = useState(1);
+  const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
+  const [isSmartFillPending, setIsSmartFillPending] = useState(false);
+  const [smartFillError, setSmartFillError] = useState<string | null>(null);
+  const [smartSuggestions, setSmartSuggestions] =
+    useState<ListingPhotoSuggestions | null>(null);
+  const [smartDynamicValues, setSmartDynamicValues] = useState<
+    Record<string, string>
+  >({});
+  const [dynamicFieldsSeed, setDynamicFieldsSeed] = useState(0);
 
   const paymentAmount = plan === "subscription" ? 30 : 4;
   const paymentLabel =
@@ -318,6 +401,35 @@ export function ListingForm({
       ? text.subscriptionCharge
       : text.perPostCharge;
   const requiresDummyPayment = paymentProvider === "stripe-dummy";
+  const wizardEnabled = isCreateMode;
+
+  const wizardSteps = useMemo(
+    () => [
+      {
+        id: 1,
+        label: text.wizardStepBasics,
+        hint: text.wizardBasicsHint,
+      },
+      {
+        id: 2,
+        label: text.wizardStepPhotos,
+        hint: text.wizardPhotosHint,
+      },
+      {
+        id: 3,
+        label: text.wizardStepDetails,
+        hint: text.wizardDetailsHint,
+      },
+    ],
+    [
+      text.wizardBasicsHint,
+      text.wizardDetailsHint,
+      text.wizardPhotosHint,
+      text.wizardStepBasics,
+      text.wizardStepDetails,
+      text.wizardStepPhotos,
+    ],
+  );
 
   const subcategoriesForSelectedParent = useMemo(
     () => subcategoriesByParentId[parentCategoryId] ?? [],
@@ -360,8 +472,12 @@ export function ListingForm({
       if (!key.startsWith(DYNAMIC_FIELD_PREFIX)) return;
       base[key.slice(DYNAMIC_FIELD_PREFIX.length)] = value;
     });
+    Object.entries(smartDynamicValues).forEach(([key, value]) => {
+      if (!value.trim()) return;
+      base[key] = value;
+    });
     return base;
-  }, [initial?.dynamicValues, isCreateMode, restoredValues]);
+  }, [initial?.dynamicValues, isCreateMode, restoredValues, smartDynamicValues]);
 
   const restoredCondition = useMemo(() => {
     if (!isCreateMode) return initial?.condition ?? ListingCondition.USED;
@@ -491,11 +607,159 @@ export function ListingForm({
     setPlan(initial?.plan ?? "pay-per-listing");
     setPhotoValidationError(null);
     setShowPaymentPanel(false);
+    setCurrentStep(1);
+    setSmartFillError(null);
+    setSmartSuggestions(null);
+    setSmartDynamicValues({});
+    setDynamicFieldsSeed(0);
+    setPhotoPreviewUrls((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    });
     if (photosInputRef.current) {
       photosInputRef.current.value = "";
     }
     formRef.current?.reset();
   }
+
+  function setFormFieldValue(name: string, value: string) {
+    const field = formRef.current?.elements.namedItem(name);
+    if (!field) return;
+    if (
+      field instanceof HTMLInputElement ||
+      field instanceof HTMLTextAreaElement ||
+      field instanceof HTMLSelectElement
+    ) {
+      field.value = value;
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
+  function getFormFieldValue(name: string, fallback = "") {
+    const field = formRef.current?.elements.namedItem(name);
+    if (
+      field instanceof HTMLInputElement ||
+      field instanceof HTMLTextAreaElement ||
+      field instanceof HTMLSelectElement
+    ) {
+      return field.value || fallback;
+    }
+    return fallback;
+  }
+
+  function resolveCategoryBySlug(slug: string) {
+    const normalized = slug.trim().toLowerCase();
+    if (!normalized) return null;
+    return (
+      categories.find((category) => category.slug.toLowerCase() === normalized) ?? null
+    );
+  }
+
+  function applyCategorySuggestion(slug: string) {
+    const category = resolveCategoryBySlug(slug);
+    if (!category) return;
+    if (category.parentId) {
+      setParentCategoryId(category.parentId);
+      setSubcategoryId(category.id);
+      return;
+    }
+    setParentCategoryId(category.id);
+    setSubcategoryId("");
+  }
+
+  function findTemplateKeyByIntent(intent: "brand" | "model" | "year") {
+    const templates = templatesByCategory[selectedCategoryId] ?? [];
+    const matcher =
+      intent === "brand"
+        ? /(brand|make|марка)/i
+        : intent === "model"
+          ? /(model|модел)/i
+          : /(year|година)/i;
+    const matched = templates.find((template) =>
+      matcher.test(`${template.key} ${template.label}`),
+    );
+    return matched?.key;
+  }
+
+  function applyDynamicSuggestion(intent: "brand" | "model" | "year", value: string) {
+    if (!value.trim()) return;
+    const templateKey = findTemplateKeyByIntent(intent);
+    if (!templateKey) return;
+    setSmartDynamicValues((prev) => ({ ...prev, [templateKey]: value.trim() }));
+    setDynamicFieldsSeed((prev) => prev + 1);
+  }
+
+  function conditionToLabel(condition: ListingCondition) {
+    return conditionLabelByValue[condition] ?? condition;
+  }
+
+  function goToStep(step: number) {
+    const safe = Math.min(3, Math.max(1, step));
+    setCurrentStep(safe);
+  }
+
+  function goNextStep() {
+    goToStep(currentStep + 1);
+  }
+
+  function goPrevStep() {
+    goToStep(currentStep - 1);
+  }
+
+  function refreshPhotoPreview(files: FileList | null) {
+    setPhotoPreviewUrls((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      if (!files || files.length === 0) return [];
+      return Array.from(files).slice(0, 6).map((file) => URL.createObjectURL(file));
+    });
+  }
+
+  async function runSmartFill() {
+    const files = photosInputRef.current?.files;
+    if (!files || files.length === 0) {
+      setSmartFillError(text.smartFillNoPhotos);
+      return;
+    }
+
+    const nextError = validateCreatePhotos(files);
+    setPhotoValidationError(nextError);
+    if (nextError) {
+      setSmartFillError(nextError);
+      return;
+    }
+
+    setSmartFillError(null);
+    setIsSmartFillPending(true);
+    setSmartSuggestions(null);
+
+    try {
+      const payload = new FormData();
+      payload.set("locale", locale);
+      Array.from(files)
+        .slice(0, 4)
+        .forEach((file) => payload.append("photos", file));
+
+      const result = await analyzeListingPhotos(payload);
+      if (!result.ok) {
+        setSmartFillError(result.error || text.smartFillError);
+        setSmartSuggestions(result.suggestions);
+      } else {
+        setSmartSuggestions(result.suggestions);
+      }
+    } catch {
+      setSmartFillError(text.smartFillError);
+    } finally {
+      setIsSmartFillPending(false);
+    }
+  }
+
+  const hasSmartSuggestions = Boolean(
+    smartSuggestions &&
+      Object.values(smartSuggestions).some(
+        (value) => typeof value === "string" && value.trim().length > 0,
+      ),
+  );
 
   useEffect(() => {
     if (!showPaymentPanel) return;
@@ -511,6 +775,12 @@ export function ListingForm({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [showPaymentPanel]);
+
+  useEffect(() => {
+    return () => {
+      photoPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [photoPreviewUrls]);
 
   return (
     <form
@@ -571,11 +841,42 @@ export function ListingForm({
         </div>
       )}
 
+      {wizardEnabled && (
+        <section className="space-y-2 rounded-2xl border border-border/70 bg-card/70 p-3 sm:p-4">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {wizardSteps.map((step) => {
+              const isActive = currentStep === step.id;
+              const isCompleted = currentStep > step.id;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => goToStep(step.id)}
+                  aria-label={`${text.wizardGoTo} ${step.id}`}
+                  className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                    isActive
+                      ? "border-primary/45 bg-primary/10"
+                      : isCompleted
+                        ? "border-secondary/30 bg-secondary/10"
+                        : "border-border/70 bg-background hover:border-primary/25"
+                  }`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {step.label}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{step.hint}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
           <h3 className="text-lg font-semibold">{text.listingDetails}</h3>
 
-          <label className="space-y-1">
+          <label className={`space-y-1 ${wizardEnabled && currentStep !== 1 ? "hidden" : ""}`}>
             <span className="text-sm font-medium">{text.title}</span>
             <Input
               name="title"
@@ -588,7 +889,7 @@ export function ListingForm({
             />
           </label>
 
-          <label className="space-y-1">
+          <label className={`space-y-1 ${wizardEnabled && currentStep !== 3 ? "hidden" : ""}`}>
             <span className="text-sm font-medium">{text.description}</span>
             <textarea
               name="description"
@@ -601,7 +902,11 @@ export function ListingForm({
           </label>
 
           {!initial?.id && (
-            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
+            <div
+              className={`rounded-xl border border-border/70 bg-card/90 p-3 ${
+                wizardEnabled && currentStep !== 2 ? "hidden" : ""
+              }`}
+            >
               <label className="space-y-1">
                 <span className="text-sm font-medium">{text.photos}</span>
                 <input
@@ -613,6 +918,9 @@ export function ListingForm({
                   onChange={(event) => {
                     const nextError = validateCreatePhotos(event.target.files);
                     setPhotoValidationError(nextError);
+                    setSmartFillError(null);
+                    setSmartSuggestions(null);
+                    refreshPhotoPreview(event.target.files);
                   }}
                   className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
                 />
@@ -625,11 +933,161 @@ export function ListingForm({
                   {photoValidationError}
                 </p>
               )}
+
+              {photoPreviewUrls.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {photoPreviewUrls.map((previewUrl, index) => (
+                    <div
+                      key={`${previewUrl}-${index}`}
+                      className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border/70 bg-muted/20"
+                    >
+                      <img
+                        src={previewUrl}
+                        alt={`${text.photos} ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-3 rounded-xl border border-primary/25 bg-orange-50/60 p-3 dark:bg-orange-500/10">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold">{text.smartFill}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {text.smartFillHint}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1"
+                    onClick={runSmartFill}
+                    disabled={isSmartFillPending}
+                  >
+                    <Wand2 size={14} />
+                    {isSmartFillPending ? text.smartFillWorking : text.smartFillAction}
+                  </Button>
+                </div>
+
+                {smartFillError && (
+                  <p className="mt-2 text-xs font-medium text-destructive">
+                    {smartFillError}
+                  </p>
+                )}
+
+                {smartSuggestions && hasSmartSuggestions && (
+                  <div className="mt-3 space-y-2">
+                    {smartSuggestions.suggestedTitle && (
+                      <SuggestionRow
+                        label={text.smartTitle}
+                        value={smartSuggestions.suggestedTitle}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          setFormFieldValue("title", smartSuggestions.suggestedTitle || "")
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedCategorySlug && (
+                      <SuggestionRow
+                        label={text.smartCategory}
+                        value={smartSuggestions.suggestedCategorySlug}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          applyCategorySuggestion(
+                            smartSuggestions.suggestedCategorySlug || "",
+                          )
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedBrand && (
+                      <SuggestionRow
+                        label={text.smartBrand}
+                        value={smartSuggestions.suggestedBrand}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          applyDynamicSuggestion(
+                            "brand",
+                            smartSuggestions.suggestedBrand || "",
+                          )
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedModel && (
+                      <SuggestionRow
+                        label={text.smartModel}
+                        value={smartSuggestions.suggestedModel}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          applyDynamicSuggestion(
+                            "model",
+                            smartSuggestions.suggestedModel || "",
+                          )
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedYear && (
+                      <SuggestionRow
+                        label={text.smartYear}
+                        value={smartSuggestions.suggestedYear}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          applyDynamicSuggestion("year", smartSuggestions.suggestedYear || "")
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedCondition && (
+                      <SuggestionRow
+                        label={text.smartCondition}
+                        value={conditionToLabel(smartSuggestions.suggestedCondition)}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          setFormFieldValue(
+                            "condition",
+                            smartSuggestions.suggestedCondition || "",
+                          )
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedDescription && (
+                      <SuggestionRow
+                        label={text.smartDescription}
+                        value={smartSuggestions.suggestedDescription}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          setFormFieldValue(
+                            "description",
+                            smartSuggestions.suggestedDescription || "",
+                          )
+                        }
+                      />
+                    )}
+                  </div>
+                )}
+
+                {smartSuggestions && !hasSmartSuggestions && !smartFillError && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {text.smartFillNoSuggestions}
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
           {initial?.id && (
-            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
+            <div
+              className={`rounded-xl border border-border/70 bg-card/90 p-3 ${
+                wizardEnabled && currentStep !== 2 ? "hidden" : ""
+              }`}
+            >
               <ListingImageUpload
                 listingId={initial.id}
                 existingImages={existingImages}
@@ -638,7 +1096,7 @@ export function ListingForm({
             </div>
           )}
 
-          <label className="space-y-1">
+          <label className={`space-y-1 ${wizardEnabled && currentStep !== 1 ? "hidden" : ""}`}>
             <span className="text-sm font-medium">{text.condition}</span>
             <Select name="condition" defaultValue={restoredCondition}>
               {Object.values(ListingCondition).map((condition) => (
@@ -650,8 +1108,16 @@ export function ListingForm({
           </label>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <div className="space-y-2 rounded-xl border border-primary/30 bg-orange-50/70 p-3 dark:bg-orange-500/10">
+        <div
+          className={`space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4 ${
+            wizardEnabled && currentStep === 2 ? "hidden" : ""
+          }`}
+        >
+          <div
+            className={`space-y-2 rounded-xl border border-primary/30 bg-orange-50/70 p-3 dark:bg-orange-500/10 ${
+              wizardEnabled && currentStep !== 1 ? "hidden" : ""
+            }`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
               <Link
@@ -717,7 +1183,11 @@ export function ListingForm({
 
           </div>
 
-          <div className="space-y-3 rounded-xl border border-border/70 bg-card/90 p-3">
+          <div
+            className={`space-y-3 rounded-xl border border-border/70 bg-card/90 p-3 ${
+              wizardEnabled && currentStep !== 1 ? "hidden" : ""
+            }`}
+          >
             <h3 className="text-sm font-semibold">{text.pricingAndLocation}</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1">
@@ -766,7 +1236,11 @@ export function ListingForm({
             </label>
           </div>
 
-          <div className="space-y-2 rounded-xl border border-border/70 bg-card/90 p-3">
+          <div
+            className={`space-y-2 rounded-xl border border-border/70 bg-card/90 p-3 ${
+              wizardEnabled && currentStep !== 3 ? "hidden" : ""
+            }`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold">{text.sellerPhoneForPost}</p>
               {hasSavedProfilePhone && (
@@ -848,13 +1322,17 @@ export function ListingForm({
             </p>
           </div>
 
-          <details className="rounded-xl border border-border/70 bg-card/90 p-3">
+          <details
+            className={`rounded-xl border border-border/70 bg-card/90 p-3 ${
+              wizardEnabled && currentStep !== 3 ? "hidden" : ""
+            }`}
+          >
             <summary className="cursor-pointer text-sm font-semibold">
               {text.categoryFieldsExpand}
             </summary>
             <div className="mt-3">
               <DynamicFieldsEditor
-                key={selectedCategoryId}
+                key={`${selectedCategoryId}-${dynamicFieldsSeed}`}
                 categoryId={selectedCategoryId}
                 templatesByCategory={templatesByCategory}
                 initialValues={dynamicInitialValues}
@@ -862,10 +1340,84 @@ export function ListingForm({
               />
             </div>
           </details>
+
+          <div
+            className={`rounded-xl border border-secondary/30 bg-blue-50/50 p-3 dark:bg-blue-500/10 ${
+              wizardEnabled && currentStep !== 3 ? "hidden" : ""
+            }`}
+          >
+            <p className="text-sm font-semibold">{text.review}</p>
+            <div className="mt-2 grid gap-1 text-sm">
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewTitle}:</span>{" "}
+                {getFormFieldValue("title", readValue("title", initial?.title ?? "")) || "—"}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewCategory}:</span>{" "}
+                {selectedCategoryId
+                  ? localizeCategoryName(
+                      categoryById[selectedCategoryId] ?? { id: "", name: "—", slug: "" },
+                      locale,
+                    )
+                  : "—"}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewPrice}:</span>{" "}
+                {getFormFieldValue("price", readValue("price", String(initial?.price ?? 0))) || "0"}{" "}
+                {getFormFieldValue("currency", readValue("currency", restoredCurrency))}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewCity}:</span>{" "}
+                {cities.find(
+                  (city) =>
+                    city.id ===
+                    getFormFieldValue("cityId", readValue("cityId", restoredCityId || "")),
+                )?.name ||
+                  "—"}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewCondition}:</span>{" "}
+                {conditionLabelByValue[
+                  (getFormFieldValue(
+                    "condition",
+                    readValue("condition", restoredCondition),
+                  ) as ListingCondition) ||
+                    ListingCondition.USED
+                ] || "—"}
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {showPlanSelector && (
+      {wizardEnabled && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goPrevStep}
+            className={currentStep === 1 ? "invisible" : ""}
+          >
+            <ChevronLeft size={16} />
+            {text.wizardBack}
+          </Button>
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {wizardSteps[currentStep - 1]?.label}
+          </p>
+
+          {currentStep < 3 ? (
+            <Button type="button" onClick={goNextStep}>
+              {text.wizardNext}
+              <ChevronRight size={16} />
+            </Button>
+          ) : (
+            <div className="w-[86px]" />
+          )}
+        </div>
+      )}
+
+      {showPlanSelector && (!wizardEnabled || currentStep === 3) && (
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-lg font-semibold">{text.sellerPackage}</h3>
@@ -923,57 +1475,61 @@ export function ListingForm({
         </section>
       )}
 
-      <div className="flex flex-wrap gap-2 pt-1">
-        {isCreateMode && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={resetCreateDraftAndForm}
-            disabled={showPaymentPanel}
-          >
-            {resetDraftAndFormLabel}
-          </Button>
-        )}
-        {allowDraft && (
-          <Button
-            name="intent"
-            value="draft"
-            type="submit"
-            variant="outline"
-            disabled={showPaymentPanel || Boolean(photoValidationError)}
-            onClick={() => {
-              if (isCreateMode) persistDraft();
-            }}
-          >
-            {text.saveDraft}
-          </Button>
-        )}
-        {requiresDummyPayment ? (
-          <Button
-            type="button"
-            disabled={Boolean(photoValidationError)}
-            onClick={() => setShowPaymentPanel(true)}
-          >
-            {text.payAndPublish}
-            {paymentAmount}
-            {text.publishSuffix}
-          </Button>
-        ) : (
-          <Button
-            name="intent"
-            value="publish"
-            type="submit"
-            disabled={Boolean(photoValidationError)}
-          >
-            {resolvedPublishLabel}
-          </Button>
-        )}
-      </div>
+      {(!wizardEnabled || currentStep === 3) && (
+        <>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {isCreateMode && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetCreateDraftAndForm}
+                disabled={showPaymentPanel}
+              >
+                {resetDraftAndFormLabel}
+              </Button>
+            )}
+            {allowDraft && (
+              <Button
+                name="intent"
+                value="draft"
+                type="submit"
+                variant="outline"
+                disabled={showPaymentPanel || Boolean(photoValidationError)}
+                onClick={() => {
+                  if (isCreateMode) persistDraft();
+                }}
+              >
+                {text.saveDraft}
+              </Button>
+            )}
+            {requiresDummyPayment ? (
+              <Button
+                type="button"
+                disabled={Boolean(photoValidationError)}
+                onClick={() => setShowPaymentPanel(true)}
+              >
+                {text.payAndPublish}
+                {paymentAmount}
+                {text.publishSuffix}
+              </Button>
+            ) : (
+              <Button
+                name="intent"
+                value="publish"
+                type="submit"
+                disabled={Boolean(photoValidationError)}
+              >
+                {resolvedPublishLabel}
+              </Button>
+            )}
+          </div>
 
-      {isCreateMode && showPlanSelector && requiresDummyPayment && (
-        <p className="text-xs text-muted-foreground">
-          {text.stripeValidated}
-        </p>
+          {isCreateMode && showPlanSelector && requiresDummyPayment && (
+            <p className="text-xs text-muted-foreground">
+              {text.stripeValidated}
+            </p>
+          )}
+        </>
       )}
 
       {requiresDummyPayment && (
@@ -1105,6 +1661,33 @@ export function ListingForm({
         </div>
       )}
     </form>
+  );
+}
+
+function SuggestionRow({
+  label,
+  value,
+  applyLabel,
+  onApply,
+}: {
+  label: string;
+  value: string;
+  applyLabel: string;
+  onApply: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-2 rounded-lg border border-border/70 bg-card/90 px-2.5 py-2">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <p className="line-clamp-2 text-sm text-foreground">{value}</p>
+      </div>
+      <Button type="button" size="sm" variant="outline" onClick={onApply} className="shrink-0">
+        <CheckCircle2 size={14} />
+        {applyLabel}
+      </Button>
+    </div>
   );
 }
 

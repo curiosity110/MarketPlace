@@ -37,9 +37,9 @@ type CarMake = {
   }[];
 };
 
-type BrowseSort = "newest" | "price-asc" | "price-desc";
+export type BrowseSort = "newest" | "price-asc" | "price-desc";
 
-type FilterState = {
+export type BrowseFilterState = {
   q: string;
   cat: string;
   sub: string;
@@ -55,6 +55,8 @@ type FilterState = {
   sort: BrowseSort;
 };
 
+type BrowseFiltersMode = "desktop" | "mobile";
+
 type Props = {
   categories: ParentCategory[];
   cities: City[];
@@ -63,6 +65,18 @@ type Props = {
   locale?: "en" | "mk";
   canUseFavoritesFilter?: boolean;
   showActiveChips?: boolean;
+  mode?: BrowseFiltersMode;
+  value?: BrowseFilterState;
+  dynamicValues?: Record<string, string>;
+  onChange?: React.Dispatch<React.SetStateAction<BrowseFilterState>>;
+  onDynamicValuesChange?: React.Dispatch<
+    React.SetStateAction<Record<string, string>>
+  >;
+  onApply?: (
+    nextState: BrowseFilterState,
+    nextDynamicValues: Record<string, string>,
+  ) => void;
+  showResetButton?: boolean;
 };
 
 const TYPING_DEBOUNCE_MS = 320;
@@ -72,13 +86,31 @@ function parseSort(value: string | null): BrowseSort {
   return "newest";
 }
 
+export function getBrowseFilterState(sp: URLSearchParams): BrowseFilterState {
+  return {
+    q: sp.get("q") ?? "",
+    cat: sp.get("cat") ?? "",
+    sub: sp.get("sub") ?? "",
+    city: sp.get("city") ?? "",
+    condition: sp.get("condition") ?? sp.get("cond") ?? "",
+    make: sp.get("make") ?? "",
+    model: sp.get("model") ?? "",
+    yearFrom: sp.get("yearFrom") ?? "",
+    yearTo: sp.get("yearTo") ?? "",
+    fav: sp.get("fav") === "1" ? "1" : "",
+    min: sp.get("min") ?? "",
+    max: sp.get("max") ?? "",
+    sort: parseSort(sp.get("sort")),
+  };
+}
+
 function isCarsSlug(slug: string | undefined) {
   if (!slug) return false;
   const normalized = slug.toLowerCase();
   return normalized === "cars" || normalized.includes("car");
 }
 
-function getInitialDynamicValues(sp: URLSearchParams) {
+export function getBrowseDynamicValues(sp: URLSearchParams) {
   const values: Record<string, string> = {};
   for (const [key, value] of sp.entries()) {
     if (!key.startsWith("df_")) continue;
@@ -129,7 +161,7 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
   return debounced;
 }
 
-function areStatesEqual(a: FilterState, b: FilterState) {
+function areStatesEqual(a: BrowseFilterState, b: BrowseFilterState) {
   return (
     a.q === b.q &&
     a.cat === b.cat &&
@@ -176,11 +208,20 @@ export function BrowseFilters({
   locale = "en",
   canUseFavoritesFilter = false,
   showActiveChips = true,
+  mode = "desktop",
+  value,
+  dynamicValues: controlledDynamicValues,
+  onChange,
+  onDynamicValuesChange,
+  onApply,
+  showResetButton = true,
 }: Props) {
+  const isMobileMode = mode === "mobile";
   const router = useRouter();
   const spReadonly = useSearchParams();
   const spString = spReadonly.toString();
   const sp = React.useMemo(() => new URLSearchParams(spString), [spString]);
+  const fallbackState = React.useMemo(() => getBrowseFilterState(sp), [sp]);
 
   const isMk = locale === "mk";
   const text = isMk
@@ -306,24 +347,48 @@ export function BrowseFilters({
     [text.newest, text.priceAsc, text.priceDesc],
   );
 
-  const [state, setState] = React.useState<FilterState>({
-    q: sp.get("q") ?? "",
-    cat: sp.get("cat") ?? "",
-    sub: sp.get("sub") ?? "",
-    city: sp.get("city") ?? "",
-    condition: sp.get("condition") ?? sp.get("cond") ?? "",
-    make: sp.get("make") ?? "",
-    model: sp.get("model") ?? "",
-    yearFrom: sp.get("yearFrom") ?? "",
-    yearTo: sp.get("yearTo") ?? "",
-    fav: sp.get("fav") === "1" ? "1" : "",
-    min: sp.get("min") ?? "",
-    max: sp.get("max") ?? "",
-    sort: parseSort(sp.get("sort")),
-  });
-
-  const [dynamicValues, setDynamicValues] = React.useState<Record<string, string>>(
-    getInitialDynamicValues(sp),
+  const [desktopState, setDesktopState] = React.useState<BrowseFilterState>(
+    fallbackState,
+  );
+  const [desktopDynamicValues, setDesktopDynamicValues] = React.useState<
+    Record<string, string>
+  >(
+    getBrowseDynamicValues(sp),
+  );
+  const state = React.useMemo(
+    () => (isMobileMode ? value ?? fallbackState : desktopState),
+    [desktopState, fallbackState, isMobileMode, value],
+  );
+  const dynamicValues = React.useMemo(
+    () =>
+      isMobileMode
+        ? controlledDynamicValues ?? {}
+        : desktopDynamicValues,
+    [controlledDynamicValues, desktopDynamicValues, isMobileMode],
+  );
+  const setState = React.useCallback<
+    React.Dispatch<React.SetStateAction<BrowseFilterState>>
+  >(
+    (next) => {
+      if (isMobileMode) {
+        onChange?.(next);
+        return;
+      }
+      setDesktopState(next);
+    },
+    [isMobileMode, onChange],
+  );
+  const setDynamicValues = React.useCallback<
+    React.Dispatch<React.SetStateAction<Record<string, string>>>
+  >(
+    (next) => {
+      if (isMobileMode) {
+        onDynamicValuesChange?.(next);
+        return;
+      }
+      setDesktopDynamicValues(next);
+    },
+    [isMobileMode, onDynamicValuesChange],
   );
 
   const [lastDispatchedQuery, setLastDispatchedQuery] = React.useState<string>(() =>
@@ -331,34 +396,22 @@ export function BrowseFilters({
   );
 
   React.useEffect(() => {
+    if (isMobileMode) return;
     const canonical = canonicalizeQueryString(spString);
     setLastDispatchedQuery((prev) => (prev === canonical ? prev : canonical));
-  }, [spString]);
+  }, [isMobileMode, spString]);
 
   React.useEffect(() => {
+    if (isMobileMode) return;
     const latest = new URLSearchParams(spString);
-    const nextState: FilterState = {
-      q: latest.get("q") ?? "",
-      cat: latest.get("cat") ?? "",
-      sub: latest.get("sub") ?? "",
-      city: latest.get("city") ?? "",
-      condition: latest.get("condition") ?? latest.get("cond") ?? "",
-      make: latest.get("make") ?? "",
-      model: latest.get("model") ?? "",
-      yearFrom: latest.get("yearFrom") ?? "",
-      yearTo: latest.get("yearTo") ?? "",
-      fav: latest.get("fav") === "1" ? "1" : "",
-      min: latest.get("min") ?? "",
-      max: latest.get("max") ?? "",
-      sort: parseSort(latest.get("sort")),
-    };
-    const nextDynamicValues = getInitialDynamicValues(latest);
+    const nextState = getBrowseFilterState(latest);
+    const nextDynamicValues = getBrowseDynamicValues(latest);
 
     setState((prev) => (areStatesEqual(prev, nextState) ? prev : nextState));
     setDynamicValues((prev) =>
       areRecordsEqual(prev, nextDynamicValues) ? prev : nextDynamicValues,
     );
-  }, [spString]);
+  }, [isMobileMode, setDynamicValues, setState, spString]);
 
   const parent = categories.find((category) => category.id === state.cat);
   const subcategories = parent?.children ?? [];
@@ -451,7 +504,12 @@ export function BrowseFilters({
   }, [dynamicValues, state]);
 
   const applyFilters = React.useCallback(
-    (nextState: FilterState, nextDynamicValues: Record<string, string>) => {
+    (nextState: BrowseFilterState, nextDynamicValues: Record<string, string>) => {
+      if (isMobileMode) {
+        onApply?.(nextState, nextDynamicValues);
+        return;
+      }
+
       const normalizedRange = normalizeMinMax(nextState.min, nextState.max);
 
       const params = new URLSearchParams(spString);
@@ -533,7 +591,7 @@ export function BrowseFilters({
       setLastDispatchedQuery(nextCanonical);
       router.replace(query ? `/browse?${query}` : "/browse", { scroll: false });
     },
-    [lastDispatchedQuery, router, spString],
+    [isMobileMode, lastDispatchedQuery, onApply, router, spString],
   );
 
   const debouncedQ = useDebouncedValue(state.q, TYPING_DEBOUNCE_MS);
@@ -543,6 +601,7 @@ export function BrowseFilters({
 
   const didMountRef = React.useRef(false);
   React.useEffect(() => {
+    if (isMobileMode) return;
     if (!didMountRef.current) {
       didMountRef.current = true;
       return;
@@ -556,16 +615,25 @@ export function BrowseFilters({
       },
       dynamicValues,
     );
-  }, [applyFilters, debouncedMax, debouncedMin, debouncedQ, dynamicValues, state]);
+  }, [
+    applyFilters,
+    debouncedMax,
+    debouncedMin,
+    debouncedQ,
+    dynamicValues,
+    isMobileMode,
+    state,
+  ]);
 
   const dynamicDidMountRef = React.useRef(false);
   React.useEffect(() => {
+    if (isMobileMode) return;
     if (!dynamicDidMountRef.current) {
       dynamicDidMountRef.current = true;
       return;
     }
     applyFilters(state, debouncedDynamicValues);
-  }, [applyFilters, debouncedDynamicValues, state]);
+  }, [applyFilters, debouncedDynamicValues, isMobileMode, state]);
 
   React.useEffect(() => {
     setDynamicValues((prev) => {
@@ -575,12 +643,13 @@ export function BrowseFilters({
       );
       return areRecordsEqual(prev, next) ? prev : next;
     });
-  }, [dynamicTemplates]);
+  }, [dynamicTemplates, setDynamicValues]);
 
   React.useEffect(() => {
+    if (isMobileMode) return;
     if (isCarsCategorySelected) return;
     if (!state.make && !state.model && !state.yearFrom && !state.yearTo) return;
-    const nextState: FilterState = {
+    const nextState: BrowseFilterState = {
       ...state,
       make: "",
       model: "",
@@ -592,15 +661,18 @@ export function BrowseFilters({
   }, [
     applyFilters,
     dynamicValues,
+    isMobileMode,
     isCarsCategorySelected,
+    setState,
     state,
   ]);
 
   React.useEffect(() => {
+    if (isMobileMode) return;
     if (!isCarsCategorySelected) return;
     if (!state.model) return;
     if (!state.make) {
-      const nextState: FilterState = { ...state, model: "" };
+      const nextState: BrowseFilterState = { ...state, model: "" };
       setState(nextState);
       applyFilters(nextState, dynamicValues);
       return;
@@ -609,7 +681,7 @@ export function BrowseFilters({
       (model) => model.slug === state.model,
     );
     if (!modelIsValidForMake) {
-      const nextState: FilterState = { ...state, model: "" };
+      const nextState: BrowseFilterState = { ...state, model: "" };
       setState(nextState);
       applyFilters(nextState, dynamicValues);
     }
@@ -617,7 +689,9 @@ export function BrowseFilters({
     applyFilters,
     carModelOptions,
     dynamicValues,
+    isMobileMode,
     isCarsCategorySelected,
+    setState,
     state,
   ]);
 
@@ -628,7 +702,7 @@ export function BrowseFilters({
   }, [state.max, state.min]);
 
   const resetAll = React.useCallback(() => {
-    const clearedState: FilterState = {
+    const clearedState: BrowseFilterState = {
       q: "",
       cat: "",
       sub: "",
@@ -645,8 +719,9 @@ export function BrowseFilters({
     };
     setState(clearedState);
     setDynamicValues({});
+    if (isMobileMode) return;
     applyFilters(clearedState, {});
-  }, [applyFilters]);
+  }, [applyFilters, isMobileMode, setDynamicValues, setState]);
 
   const activeFilterChips = React.useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
@@ -828,6 +903,8 @@ export function BrowseFilters({
     makeLabelBySlug,
     modelLabelBySlug,
     parentLabelById,
+    setDynamicValues,
+    setState,
     state,
     subLabelById,
     text.categoryChip,
@@ -858,7 +935,7 @@ export function BrowseFilters({
       Object.entries(dynamicValues).filter(([key]) => allowedKeys.has(key)),
     );
 
-    const nextState: FilterState = {
+    const nextState: BrowseFilterState = {
       ...state,
       cat: nextCat,
       sub: "",
@@ -870,6 +947,7 @@ export function BrowseFilters({
 
     setState(nextState);
     setDynamicValues(nextDynamicValues);
+    if (isMobileMode) return;
     applyFilters(nextState, nextDynamicValues);
   };
 
@@ -879,7 +957,7 @@ export function BrowseFilters({
       category.children.some((child) => child.id === nextSub),
     );
     const subIsCars = isCarsSlug(nextParent?.slug);
-    const nextState: FilterState = {
+    const nextState: BrowseFilterState = {
       ...state,
       sub: nextSub,
       ...(subIsCars
@@ -892,46 +970,51 @@ export function BrowseFilters({
           }),
     };
     setState(nextState);
+    if (isMobileMode) return;
     applyFilters(nextState, dynamicValues);
   };
 
   const onImmediateSelectChange =
-    (key: keyof Pick<FilterState, "city" | "condition" | "sort">) =>
+    (key: keyof Pick<BrowseFilterState, "city" | "condition" | "sort">) =>
     (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextState: FilterState = {
+      const nextState: BrowseFilterState = {
         ...state,
-        [key]: event.target.value as FilterState[typeof key],
+        [key]: event.target.value as BrowseFilterState[typeof key],
       };
       setState(nextState);
+      if (isMobileMode) return;
       applyFilters(nextState, dynamicValues);
     };
 
   const onMakeChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextState: FilterState = {
+    const nextState: BrowseFilterState = {
       ...state,
       make: event.target.value,
       model: "",
     };
     setState(nextState);
+    if (isMobileMode) return;
     applyFilters(nextState, dynamicValues);
   };
 
   const onModelChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextState: FilterState = {
+    const nextState: BrowseFilterState = {
       ...state,
       model: event.target.value,
     };
     setState(nextState);
+    if (isMobileMode) return;
     applyFilters(nextState, dynamicValues);
   };
 
   const onYearChange =
     (key: "yearFrom" | "yearTo") => (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextState: FilterState = {
+      const nextState: BrowseFilterState = {
         ...state,
         [key]: event.target.value,
       };
       setState(nextState);
+      if (isMobileMode) return;
       applyFilters(nextState, dynamicValues);
     };
 
@@ -947,6 +1030,7 @@ export function BrowseFilters({
           onChange={(event: ChangeEvent<HTMLSelectElement>) => {
             const next = { ...dynamicValues, [template.key]: event.target.value };
             setDynamicValues(next);
+            if (isMobileMode) return;
             applyFilters(state, next);
           }}
           className={commonClasses}
@@ -975,6 +1059,280 @@ export function BrowseFilters({
         placeholder={`${text.any} ${template.label.toLowerCase()}`}
         autoComplete="off"
       />
+    );
+  }
+
+  if (isMobileMode) {
+    return (
+      <div className="space-y-4">
+        <label className="space-y-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.search}
+          </span>
+          <Input
+            name="q"
+            value={state.q}
+            onChange={(event) =>
+              setState((prev) => ({ ...prev, q: event.target.value }))
+            }
+            placeholder={text.searchPlaceholder}
+            autoComplete="off"
+          />
+        </label>
+
+        <details className="group rounded-xl border border-border/70 bg-card/70 p-3" open>
+          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.category}
+          </summary>
+          <div className="mt-3 grid gap-3">
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.category}
+              </span>
+              <Select name="cat" value={state.cat} onChange={onCategoryChange}>
+                <option value="">{text.allCategories}</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.subcategory}
+              </span>
+              <Select
+                name="sub"
+                value={state.sub}
+                disabled={!state.cat}
+                onChange={onSubcategoryChange}
+              >
+                <option value="">
+                  {state.cat ? text.allSubcategories : text.selectCategoryFirst}
+                </option>
+                {subcategories.map((subcategory) => (
+                  <option key={subcategory.id} value={subcategory.id}>
+                    {subcategory.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+        </details>
+
+        <details className="group rounded-xl border border-border/70 bg-card/70 p-3">
+          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.city}
+          </summary>
+          <label className="mt-3 block space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {text.city}
+            </span>
+            <Select name="city" value={state.city} onChange={onImmediateSelectChange("city")}>
+              <option value="">{text.allCities}</option>
+              {cities.map((cityItem) => (
+                <option key={cityItem.id} value={cityItem.id}>
+                  {cityItem.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+        </details>
+
+        <details className="group rounded-xl border border-border/70 bg-card/70 p-3">
+          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.priceRange}
+          </summary>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="relative">
+              <Input
+                name="min"
+                type="text"
+                inputMode="numeric"
+                value={state.min}
+                onChange={(event) =>
+                  setState((prev) => ({
+                    ...prev,
+                    min: normalizeNumericInput(event.target.value),
+                  }))
+                }
+                placeholder={text.minPrice}
+                autoComplete="off"
+                className="pr-12"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
+                {text.mkd}
+              </span>
+            </div>
+            <div className="relative">
+              <Input
+                name="max"
+                type="text"
+                inputMode="numeric"
+                value={state.max}
+                onChange={(event) =>
+                  setState((prev) => ({
+                    ...prev,
+                    max: normalizeNumericInput(event.target.value),
+                  }))
+                }
+                placeholder={text.maxPrice}
+                autoComplete="off"
+                className="pr-12"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
+                {text.mkd}
+              </span>
+            </div>
+          </div>
+        </details>
+
+        <details className="group rounded-xl border border-border/70 bg-card/70 p-3">
+          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.condition}
+          </summary>
+          <div className="mt-3 grid gap-3">
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.condition}
+              </span>
+              <Select
+                name="condition"
+                value={state.condition}
+                onChange={onImmediateSelectChange("condition")}
+              >
+                <option value="">{text.anyCondition}</option>
+                {Object.values(ListingCondition).map((item) => (
+                  <option key={item} value={item}>
+                    {conditionLabelByValue[item]}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.orderBy}
+              </span>
+              <Select
+                name="sort"
+                value={state.sort}
+                onChange={(event) => {
+                  const nextState: BrowseFilterState = {
+                    ...state,
+                    sort: parseSort(event.target.value),
+                  };
+                  setState(nextState);
+                }}
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            {canUseFavoritesFilter && (
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex h-9 w-fit items-center rounded-full border px-3 text-xs font-semibold transition-colors",
+                  state.fav === "1"
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() =>
+                  setState((prev) => ({
+                    ...prev,
+                    fav: prev.fav === "1" ? "" : "1",
+                  }))
+                }
+              >
+                {text.favoritesOnly}
+              </button>
+            )}
+          </div>
+        </details>
+
+        {isCarsCategorySelected && (
+          <details className="group rounded-xl border border-border/70 bg-card/70 p-3">
+            <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {text.carsFilters}
+            </summary>
+            <div className="mt-3 grid gap-3">
+              <label className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.make}
+                </span>
+                <Select name="make" value={state.make} onChange={onMakeChange}>
+                  <option value="">{text.allMakes}</option>
+                  {carMakes.map((make) => (
+                    <option key={make.id} value={make.slug}>
+                      {make.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.model}
+                </span>
+                <Select
+                  name="model"
+                  value={state.model}
+                  onChange={onModelChange}
+                  disabled={!state.make}
+                >
+                  <option value="">
+                    {state.make ? text.allModels : text.selectMakeFirst}
+                  </option>
+                  {carModelOptions.map((model) => (
+                    <option key={model.id} value={model.slug}>
+                      {model.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {text.yearFrom}
+                  </span>
+                  <Select
+                    name="yearFrom"
+                    value={state.yearFrom}
+                    onChange={onYearChange("yearFrom")}
+                  >
+                    <option value="">{text.any}</option>
+                    {carYearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {text.yearTo}
+                  </span>
+                  <Select
+                    name="yearTo"
+                    value={state.yearTo}
+                    onChange={onYearChange("yearTo")}
+                  >
+                    <option value="">{text.any}</option>
+                    {carYearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              </div>
+            </div>
+          </details>
+        )}
+      </div>
     );
   }
 
@@ -1060,7 +1418,10 @@ export function BrowseFilters({
                     : "text-muted-foreground hover:text-foreground",
                 )}
                 onClick={() => {
-                  const nextState: FilterState = { ...state, sort: option.value };
+                  const nextState: BrowseFilterState = {
+                    ...state,
+                    sort: option.value,
+                  };
                   setState(nextState);
                   applyFilters(nextState, dynamicValues);
                 }}
@@ -1079,7 +1440,7 @@ export function BrowseFilters({
                   : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
               )}
               onClick={() => {
-                const nextState: FilterState = {
+                const nextState: BrowseFilterState = {
                   ...state,
                   fav: state.fav === "1" ? "" : "1",
                 };
@@ -1318,11 +1679,13 @@ export function BrowseFilters({
         </div>
       )}
 
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" onClick={resetAll}>
-          {text.resetFilters}
-        </Button>
-      </div>
+      {showResetButton && (
+        <div className="flex justify-end">
+          <Button type="button" variant="outline" onClick={resetAll}>
+            {text.resetFilters}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

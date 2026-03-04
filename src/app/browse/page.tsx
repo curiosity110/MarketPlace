@@ -215,6 +215,7 @@ export default async function BrowsePage({
         yearFrom: "Година од",
         yearTo: "Година до",
         carsFilters: "Филтри за коли",
+        activeFilters: "Активни филтри",
         removeFilter: "Отстрани филтер",
       }
     : {
@@ -257,6 +258,7 @@ export default async function BrowsePage({
         yearFrom: "Year from",
         yearTo: "Year to",
         carsFilters: "Cars filters",
+        activeFilters: "Active filters",
         removeFilter: "Remove filter",
       };
   const sp = await searchParams;
@@ -754,6 +756,19 @@ export default async function BrowsePage({
       href: hrefWithout("yearFrom", "yearTo"),
     });
   }
+  if (sort !== "newest") {
+    const sortLabel =
+      sort === "price-asc"
+        ? text.priceAsc
+        : sort === "price-desc"
+          ? text.priceDesc
+          : text.newest;
+    activeFilterChips.push({
+      key: "sort",
+      label: `${text.orderBy}: ${sortLabel}`,
+      href: hrefWithout("sort"),
+    });
+  }
 
   return (
     <div className="space-y-5">
@@ -801,6 +816,8 @@ export default async function BrowsePage({
           categories={categoryOptions}
           cities={cities}
           carMakes={carMakes}
+          templatesByCategory={templatesByCategory}
+          canUseFavoritesFilter={Boolean(sessionUser)}
         />
       </div>
 
@@ -820,6 +837,9 @@ export default async function BrowsePage({
 
       {activeFilterChips.length > 0 && (
         <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.activeFilters}
+          </p>
           <div className="flex flex-wrap items-center gap-2">
             {activeFilterChips.map((chip) => (
               <Link

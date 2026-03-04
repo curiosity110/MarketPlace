@@ -78,7 +78,7 @@ export function CreateListingPopout({
         openWhenNeeded: "Отвори ја формата кога ти треба.",
         closeCreateListingForm: "Затвори форма за креирање оглас",
         createNewListing: "Креирај нов оглас",
-        fillAndPublish: "Пополни детали и објави кога ќе бидеш спремен.",
+        fillAndPublish: "Пополни во 3 чекори: основи, фотографии и детали.",
         close: "Затвори",
       }
     : {
@@ -86,7 +86,7 @@ export function CreateListingPopout({
         openWhenNeeded: "Open the form only when you need it.",
         closeCreateListingForm: "Close create listing form",
         createNewListing: "Create a new listing",
-        fillAndPublish: "Fill details and publish when ready.",
+        fillAndPublish: "Complete 3 steps: basics, photos, and details.",
         close: "Close",
       };
   const resolvedButtonLabel = buttonLabel ?? (isMk ? "Нов оглас" : "New listing");
