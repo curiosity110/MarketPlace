@@ -13,7 +13,6 @@ import {
 import { ContactSellerPopout } from "@/components/contact-seller-popout";
 import { ListingGallery } from "@/components/listing-gallery";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
-import { PurchaseRequestPopout } from "@/components/purchase-request-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -80,7 +79,6 @@ export default async function ListingDetails({
         edit: "Уреди",
         markSold: "Означи продадено",
         sold: "Продадено",
-        ownerTools: "Твои алатки",
       }
     : {
         dbUnavailable:
@@ -114,7 +112,6 @@ export default async function ListingDetails({
         edit: "Edit",
         markSold: "Mark sold",
         sold: "Sold",
-        ownerTools: "Owner tools",
       };
   const { id } = await params;
   const sp = await searchParams;
@@ -123,7 +120,6 @@ export default async function ListingDetails({
   const msg = sp.msg;
   const soldSaved = sp.sold === "1";
   const contactedSaved = sp.contacted === "1";
-  const requestedSaved = sp.requested === "1";
 
   async function fetchListingDetails() {
     return prisma.listing.findUnique({
@@ -283,7 +279,7 @@ export default async function ListingDetails({
         </div>
       </div>
 
-      {(reportSaved || soldSaved || contactedSaved || requestedSaved || msg) && (
+      {(reportSaved || soldSaved || contactedSaved || msg) && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-3 text-sm text-success">
             {msg || text.reportSubmitted}
@@ -473,14 +469,6 @@ export default async function ListingDetails({
                       className="w-full justify-center"
                     />
                   )}
-
-                  <PurchaseRequestPopout listingId={listing.id} locale={locale} />
-                </div>
-              )}
-
-              {isOwner && (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-                  {text.ownerTools}
                 </div>
               )}
 

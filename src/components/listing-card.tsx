@@ -7,7 +7,6 @@ import type {
 import { ImageOff, MessageCircle, Pencil, Phone } from "lucide-react";
 import { ContactSellerPopout } from "@/components/contact-seller-popout";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
-import { PurchaseRequestPopout } from "@/components/purchase-request-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,13 +50,6 @@ type ListingCardProps = {
   currentAuthUserId?: string | null;
 };
 
-function toWhatsappHref(phone: string | null | undefined) {
-  if (!phone) return null;
-  const digits = phone.replace(/[^\d]/g, "");
-  if (!digits) return null;
-  return `https://wa.me/${digits}`;
-}
-
 export function ListingCard({
   listing,
   locale = "en",
@@ -83,7 +75,6 @@ export function ListingCard({
         listed: "Listed",
         contactSeller: "Contact seller",
         call: "Call",
-        whatsapp: "WhatsApp",
         edit: "Edit",
         sold: "Sold",
       };
@@ -103,7 +94,6 @@ export function ListingCard({
   const conditionLabel = conditionLabelByValue[listing.condition];
   const formattedPrice = formatCurrencyFromCents(listing.priceCents, listing.currency);
   const sellerPhone = listing.seller?.phone || null;
-  const whatsappHref = toWhatsappHref(sellerPhone);
 
   return (
     <Card className="h-full overflow-hidden border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
@@ -184,7 +174,7 @@ export function ListingCard({
 
         {!isOwner && !isSold ? (
           sellerPhone ? (
-            <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+            <div className="grid grid-cols-[1fr_auto] gap-2">
               <a href={`tel:${sellerPhone}`} className="min-w-0">
                 <Button size="sm" className="w-full gap-2">
                   <MessageCircle size={14} />
@@ -196,31 +186,11 @@ export function ListingCard({
                   <Phone size={14} />
                 </Button>
               </a>
-              {whatsappHref ? (
-                <a href={whatsappHref} target="_blank" rel="noreferrer">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-9 w-9 p-0"
-                    aria-label={text.whatsapp}
-                  >
-                    <MessageCircle size={14} />
-                  </Button>
-                </a>
-              ) : (
-                <ContactSellerPopout listingId={listing.id} locale={locale} iconOnly className="h-9 w-9 p-0" />
-              )}
             </div>
           ) : (
             <ContactSellerPopout listingId={listing.id} locale={locale} className="w-full justify-center" />
           )
         ) : null}
-
-        {!isOwner && !isSold && (
-          <div className="pt-0.5">
-            <PurchaseRequestPopout listingId={listing.id} locale={locale} />
-          </div>
-        )}
 
         <p className="border-t border-border/60 pt-2 text-xs text-muted-foreground">
           {text.listed}{" "}
