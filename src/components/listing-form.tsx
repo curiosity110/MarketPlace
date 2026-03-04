@@ -8,9 +8,10 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
 } from "react";
 import { Currency, ListingCondition } from "@prisma/client";
-import { CirclePlus, Sparkles } from "lucide-react";
+import { CirclePlus, Sparkles, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,10 @@ import { localizeCategoryName } from "@/lib/category-label";
 import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
 import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
 import { PHONE_COUNTRIES } from "@/lib/phone";
+import {
+  analyzeListingPhotos,
+  type ListingPhotoSuggestions,
+} from "@/lib/actions/analyze-listing-photos";
 
 type Category = {
   id: string;
@@ -180,6 +185,23 @@ export function ListingForm({
         successFailCards:
           "Успешна картичка: 4242424242424242. Неуспешна: 4000000000000002.",
         cancel: "Откажи",
+        stepBasics: "Чекор 1 · Основи",
+        stepPhotos: "Чекор 2 · Фотографии",
+        stepDetails: "Чекор 3 · Детали",
+        smartFill: "Паметно пополнување од фотографии",
+        smartFillHint: "Добиј предлози од избраните фотографии. Ништо не се зачувува автоматски.",
+        runSmartFill: "Анализирај фотографии",
+        runningSmartFill: "Се анализира...",
+        noSuggestionsYet: "Сè уште нема предлози.",
+        suggestionsReady: "Предлозите се подготвени. Примени ги поединечно.",
+        apply: "Примени",
+        suggestedCategory: "Предложена категорија",
+        suggestedBrand: "Предложена марка",
+        suggestedModel: "Предложен модел",
+        suggestedYear: "Предложена година",
+        nextStep: "Следен чекор",
+        previousStep: "Назад",
+        reviewAndPublish: "Преглед и објавување",
       }
     : {
         subscriptionCharge: "Subscription charge (monthly)",
@@ -250,6 +272,23 @@ export function ListingForm({
         successFailCards:
           "Success card: 4242424242424242. Fail card: 4000000000000002.",
         cancel: "Cancel",
+        stepBasics: "Step 1 · Basics",
+        stepPhotos: "Step 2 · Photos",
+        stepDetails: "Step 3 · Details",
+        smartFill: "Smart Fill from Photos",
+        smartFillHint: "Get optional suggestions from selected photos. Nothing is auto-saved.",
+        runSmartFill: "Analyze photos",
+        runningSmartFill: "Analyzing...",
+        noSuggestionsYet: "No suggestions yet.",
+        suggestionsReady: "Suggestions are ready. Apply them one by one.",
+        apply: "Apply",
+        suggestedCategory: "Suggested category",
+        suggestedBrand: "Suggested brand",
+        suggestedModel: "Suggested model",
+        suggestedYear: "Suggested year",
+        nextStep: "Next step",
+        previousStep: "Back",
+        reviewAndPublish: "Review & publish",
       };
   const resetDraftAndFormLabel = isMk ? "Ресетирај форма" : "Reset form";
   const assistantIncludedLabel = isMk ? "Паметен асистент" : "Smart assistant";
@@ -259,6 +298,9 @@ export function ListingForm({
   const isCreateMode = !initial?.id;
   const formRef = useRef<HTMLFormElement | null>(null);
   const photosInputRef = useRef<HTMLInputElement | null>(null);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const conditionSelectRef = useRef<HTMLSelectElement | null>(null);
 
   const categoryById = useMemo(
     () =>
@@ -311,6 +353,11 @@ export function ListingForm({
   const [photoValidationError, setPhotoValidationError] = useState<string | null>(
     null,
   );
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [smartFillSuggestions, setSmartFillSuggestions] =
+    useState<ListingPhotoSuggestions>({});
+  const [isAnalyzingPhotos, startAnalyzingPhotos] = useTransition();
 
   const paymentAmount = plan === "subscription" ? 30 : 4;
   const paymentLabel =
@@ -350,6 +397,19 @@ export function ListingForm({
     }
 
     return null;
+  }
+
+  function applySuggestionToField(name: string, value: string) {
+    const field = formRef.current?.elements.namedItem(name);
+    if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
+      field.value = value;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  function applySuggestionToDynamicField(key: string, value: string) {
+    applySuggestionToField(`${DYNAMIC_FIELD_PREFIX}${key}`, value);
   }
 
   const dynamicInitialValues = useMemo(() => {
@@ -490,6 +550,10 @@ export function ListingForm({
     setUseSavedPhone(hasSavedProfilePhone);
     setPlan(initial?.plan ?? "pay-per-listing");
     setPhotoValidationError(null);
+    setCurrentStep(1);
+    setSmartFillSuggestions({});
+    photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+    setPhotoPreviews([]);
     setShowPaymentPanel(false);
     if (photosInputRef.current) {
       photosInputRef.current.value = "";
@@ -511,6 +575,12 @@ export function ListingForm({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [showPaymentPanel]);
+
+  useEffect(() => {
+    return () => {
+      photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [photoPreviews]);
 
   return (
     <form
@@ -571,297 +641,447 @@ export function ListingForm({
         </div>
       )}
 
-      <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <h3 className="text-lg font-semibold">{text.listingDetails}</h3>
-
-          <label className="space-y-1">
-            <span className="text-sm font-medium">{text.title}</span>
-            <Input
-              name="title"
-              defaultValue={readValue("title", initial?.title ?? "")}
-              placeholder={text.titlePlaceholder}
-              required
-              minLength={5}
-              maxLength={120}
-              autoComplete="off"
-            />
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-sm font-medium">{text.description}</span>
-            <textarea
-              name="description"
-              defaultValue={readValue("description", initial?.description ?? "")}
-              className="min-h-36 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
-              placeholder={text.descriptionPlaceholder}
-              maxLength={2000}
-              autoComplete="off"
-            />
-          </label>
-
-          {!initial?.id && (
-            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
-              <label className="space-y-1">
-                <span className="text-sm font-medium">{text.photos}</span>
-                <input
-                  ref={photosInputRef}
-                  type="file"
-                  name="photos"
-                  accept="image/jpeg,image/jpg,image/png,image/webp"
-                  multiple
-                  onChange={(event) => {
-                    const nextError = validateCreatePhotos(event.target.files);
-                    setPhotoValidationError(nextError);
-                  }}
-                  className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
-                />
-              </label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {text.photosHint}
-              </p>
-              {photoValidationError && (
-                <p className="mt-1 text-xs font-medium text-destructive">
-                  {photoValidationError}
-                </p>
-              )}
-            </div>
-          )}
-
-          {initial?.id && (
-            <div className="rounded-xl border border-border/70 bg-card/90 p-3">
-              <ListingImageUpload
-                listingId={initial.id}
-                existingImages={existingImages}
-                locale={locale}
-              />
-            </div>
-          )}
-
-          <label className="space-y-1">
-            <span className="text-sm font-medium">{text.condition}</span>
-            <Select name="condition" defaultValue={restoredCondition}>
-              {Object.values(ListingCondition).map((condition) => (
-                <option key={condition} value={condition}>
-                  {conditionLabelByValue[condition]}
-                </option>
-              ))}
-            </Select>
-          </label>
+      <section className="space-y-4">
+        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border/70 bg-muted/20 p-2">
+          {[text.stepBasics, text.stepPhotos, text.stepDetails].map((label, index) => {
+            const step = (index + 1) as 1 | 2 | 3;
+            const isActiveStep = currentStep === step;
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setCurrentStep(step)}
+                className={`rounded-xl px-2 py-2 text-left text-xs font-semibold transition sm:text-sm ${
+                  isActiveStep
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-card/70"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <div className="space-y-2 rounded-xl border border-primary/30 bg-orange-50/70 p-3 dark:bg-orange-500/10">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
-              <Link
-                href="/categories#request-category"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                <CirclePlus size={13} />
-                {text.requestCategory}
-              </Link>
-            </div>
-            <p className="text-xs text-muted-foreground">{text.categoryPriority}</p>
+        <div className={`grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px] ${currentStep === 1 ? "" : "hidden"}`}>
+            <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+              <h3 className="text-lg font-semibold">{text.stepBasics}</h3>
 
-            <input type="hidden" name="categoryId" value={selectedCategoryId} />
-
-            <div className="grid gap-2">
               <label className="space-y-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {text.mainCategory}
-                </span>
-                <Select
-                  name="parentCategoryId"
-                  value={parentCategoryId}
-                  onChange={(event) => {
-                    setParentCategoryId(event.target.value);
-                    setSubcategoryId("");
-                  }}
-                  required
-                >
-                  {parentCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {localizeCategoryName(category, locale)}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-
-              {subcategoriesForSelectedParent.length > 0 ? (
-                <label className="space-y-1">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {text.subcategory}
-                  </span>
-                  <Select
-                    name="subcategoryId"
-                    value={hasValidSubcategory ? subcategoryId : ""}
-                    onChange={(event) => setSubcategoryId(event.target.value)}
-                  >
-                    <option value="">{text.useParentCategory}</option>
-                    {subcategoriesForSelectedParent.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {localizeCategoryName(category, locale)}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              ) : (
-                <p className="text-[11px] text-muted-foreground">
-                  {text.subcategory}: 0
-                </p>
-              )}
-            </div>
-
-          </div>
-
-          <div className="space-y-3 rounded-xl border border-border/70 bg-card/90 p-3">
-            <h3 className="text-sm font-semibold">{text.pricingAndLocation}</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-sm font-medium">{text.price}</span>
+                <span className="text-sm font-medium">{text.title}</span>
                 <Input
-                  type="number"
-                  step="1"
-                  min="1"
-                  name="price"
-                  defaultValue={readValue("price", String(initial?.price ?? 0))}
-                  placeholder={text.pricePlaceholder}
+                  ref={titleInputRef}
+                  name="title"
+                  defaultValue={readValue("title", initial?.title ?? "")}
+                  placeholder={text.titlePlaceholder}
                   required
+                  minLength={5}
+                  maxLength={120}
                   autoComplete="off"
                 />
               </label>
 
-              <label className="space-y-1">
-                <span className="text-sm font-medium">{text.currency}</span>
-                <Select name="currency" defaultValue={restoredCurrency}>
-                  {MARKETPLACE_CURRENCIES.map((currency) => (
-                    <option key={currency} value={currency}>
-                      {currency}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            </div>
-
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.city}
-              </span>
-              <Select name="cityId" defaultValue={restoredCityId} required>
-                {cities.length === 0 ? (
-                  <option value="" disabled>
-                    {text.noCityAvailable}
-                  </option>
-                ) : (
-                  cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {city.name}
-                    </option>
-                  ))
-                )}
-              </Select>
-            </label>
-          </div>
-
-          <div className="space-y-2 rounded-xl border border-border/70 bg-card/90 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold">{text.sellerPhoneForPost}</p>
-              {hasSavedProfilePhone && (
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-primary hover:underline"
-                  onClick={() => setUseSavedPhone((prev) => !prev)}
-                >
-                  {useSavedPhone ? text.useDifferentPhone : text.useSavedPhone}
-                </button>
-              )}
-            </div>
-            <input
-              type="hidden"
-              name="useSavedPhone"
-              value={String(useSavedPhone)}
-            />
-
-            {hasSavedProfilePhone && useSavedPhone ? (
-              <>
-                <input
-                  type="hidden"
-                  name="phoneCountry"
-                  value={initial?.phoneCountry ?? phoneCountry}
-                />
-                <input
-                  type="hidden"
-                  name="phone"
-                  value={initial?.phone ?? ""}
-                />
-                <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-                  <p className="text-xs text-muted-foreground">
-                    {text.usingSavedPhone}
-                  </p>
-                  <p className="text-sm font-semibold leading-none">
-                    {initial?.phoneCountry || "MK"} {initial?.phone}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="grid gap-2 sm:grid-cols-[170px_minmax(0,1fr)]">
-                <label className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {text.country}
-                  </span>
-                  <Select
-                    name="phoneCountry"
-                    value={phoneCountry}
-                    onChange={(event) => setPhoneCountry(event.target.value)}
+              <div className="space-y-2 rounded-xl border border-primary/30 bg-orange-50/70 p-3 dark:bg-orange-500/10">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
+                  <Link
+                    href="/categories#request-category"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                   >
-                    {PHONE_COUNTRIES.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.flag} {country.label} (+{country.dialCode})
+                    <CirclePlus size={13} />
+                    {text.requestCategory}
+                  </Link>
+                </div>
+                <p className="text-xs text-muted-foreground">{text.categoryPriority}</p>
+
+                <input type="hidden" name="categoryId" value={selectedCategoryId} />
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {text.mainCategory}
+                    </span>
+                    <Select
+                      name="parentCategoryId"
+                      value={parentCategoryId}
+                      onChange={(event) => {
+                        setParentCategoryId(event.target.value);
+                        setSubcategoryId("");
+                      }}
+                      required
+                    >
+                      {parentCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {localizeCategoryName(category, locale)}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+
+                  {subcategoriesForSelectedParent.length > 0 ? (
+                    <label className="space-y-1">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {text.subcategory}
+                      </span>
+                      <Select
+                        name="subcategoryId"
+                        value={hasValidSubcategory ? subcategoryId : ""}
+                        onChange={(event) => setSubcategoryId(event.target.value)}
+                      >
+                        <option value="">{text.useParentCategory}</option>
+                        {subcategoriesForSelectedParent.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {localizeCategoryName(category, locale)}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground sm:self-end">
+                      {text.subcategory}: 0
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-1">
+                  <span className="text-sm font-medium">{text.price}</span>
+                  <Input
+                    type="number"
+                    step="1"
+                    min="1"
+                    name="price"
+                    defaultValue={readValue("price", String(initial?.price ?? 0))}
+                    placeholder={text.pricePlaceholder}
+                    required
+                    autoComplete="off"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-sm font-medium">{text.currency}</span>
+                  <Select name="currency" defaultValue={restoredCurrency}>
+                    {MARKETPLACE_CURRENCIES.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
                       </option>
                     ))}
                   </Select>
                 </label>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {text.city}
+                  </span>
+                  <Select name="cityId" defaultValue={restoredCityId} required>
+                    {cities.length === 0 ? (
+                      <option value="" disabled>
+                        {text.noCityAvailable}
+                      </option>
+                    ) : (
+                      cities.map((city) => (
+                        <option key={city.id} value={city.id}>
+                          {city.name}
+                        </option>
+                      ))
+                    )}
+                  </Select>
+                </label>
 
                 <label className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {text.phone}
-                  </span>
-                  <Input
-                    name="phone"
-                    defaultValue={readValue("phone", initial?.phone ?? "")}
-                    placeholder={text.phonePlaceholder}
-                    required
-                    minLength={6}
-                    maxLength={20}
-                    inputMode="tel"
-                    autoComplete="tel"
-                    pattern="[0-9+()\\-\\s]{6,20}"
-                  />
+                  <span className="text-sm font-medium">{text.condition}</span>
+                  <Select ref={conditionSelectRef} name="condition" defaultValue={restoredCondition}>
+                    {Object.values(ListingCondition).map((condition) => (
+                      <option key={condition} value={condition}>
+                        {conditionLabelByValue[condition]}
+                      </option>
+                    ))}
+                  </Select>
                 </label>
               </div>
-            )}
-            <p className="text-[11px] text-muted-foreground">
-              {text.acceptedPhoneFormat}
-            </p>
+            </div>
+
+            <aside className="hidden rounded-2xl border border-border/70 bg-card p-4 lg:block">
+              <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{text.categoryPriority}</p>
+            </aside>
           </div>
 
-          <details className="rounded-xl border border-border/70 bg-card/90 p-3">
-            <summary className="cursor-pointer text-sm font-semibold">
-              {text.categoryFieldsExpand}
-            </summary>
-            <div className="mt-3">
-              <DynamicFieldsEditor
-                key={selectedCategoryId}
-                categoryId={selectedCategoryId}
-                templatesByCategory={templatesByCategory}
-                initialValues={dynamicInitialValues}
-                locale={locale}
-              />
+        {currentStep === 2 && (
+          <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+            <h3 className="text-lg font-semibold">{text.stepPhotos}</h3>
+            {!initial?.id ? (
+              <div className="rounded-xl border border-border/70 bg-card/90 p-3">
+                <label className="space-y-1">
+                  <span className="text-sm font-medium">{text.photos}</span>
+                  <input
+                    ref={photosInputRef}
+                    type="file"
+                    name="photos"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    multiple
+                    onChange={(event) => {
+                      const nextError = validateCreatePhotos(event.target.files);
+                      setPhotoValidationError(nextError);
+                      photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+                      const previews = Array.from(event.target.files ?? []).map((file) =>
+                        URL.createObjectURL(file),
+                      );
+                      setPhotoPreviews(previews);
+                    }}
+                    className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                  />
+                </label>
+                <p className="mt-1 text-xs text-muted-foreground">{text.photosHint}</p>
+                {photoValidationError && (
+                  <p className="mt-1 text-xs font-medium text-destructive">{photoValidationError}</p>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border/70 bg-card/90 p-3">
+                <ListingImageUpload
+                  listingId={initial.id}
+                  existingImages={existingImages}
+                  locale={locale}
+                />
+              </div>
+            )}
+
+            {photoPreviews.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                {photoPreviews.map((preview, index) => (
+                  <img
+                    key={preview}
+                    src={preview}
+                    alt={`Preview ${index + 1}`}
+                    className="aspect-square w-full rounded-xl border border-border/70 object-cover"
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 rounded-xl border border-border/70 bg-card/90 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">{text.smartFill}</p>
+                  <p className="text-xs text-muted-foreground">{text.smartFillHint}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-1"
+                  disabled={isAnalyzingPhotos}
+                  onClick={() => {
+                    startAnalyzingPhotos(async () => {
+                      const files = Array.from(photosInputRef.current?.files ?? []);
+                      const suggestions = await analyzeListingPhotos(files);
+                      setSmartFillSuggestions(suggestions);
+                    });
+                  }}
+                >
+                  <WandSparkles size={14} />
+                  {isAnalyzingPhotos ? text.runningSmartFill : text.runSmartFill}
+                </Button>
+              </div>
+
+              {Object.keys(smartFillSuggestions).length === 0 ? (
+                <p className="text-xs text-muted-foreground">{text.noSuggestionsYet}</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">{text.suggestionsReady}</p>
+                  {smartFillSuggestions.suggestedTitle && (
+                    <SuggestionRow
+                      label={text.title}
+                      value={smartFillSuggestions.suggestedTitle}
+                      onApply={() => applySuggestionToField("title", smartFillSuggestions.suggestedTitle || "")}
+                      applyLabel={text.apply}
+                    />
+                  )}
+                  {smartFillSuggestions.suggestedDescription && (
+                    <SuggestionRow
+                      label={text.description}
+                      value={smartFillSuggestions.suggestedDescription}
+                      onApply={() => {
+                        if (descriptionInputRef.current) {
+                          descriptionInputRef.current.value = smartFillSuggestions.suggestedDescription || "";
+                          descriptionInputRef.current.dispatchEvent(new Event("input", { bubbles: true }));
+                        }
+                      }}
+                      applyLabel={text.apply}
+                    />
+                  )}
+                  {smartFillSuggestions.suggestedCondition && (
+                    <SuggestionRow
+                      label={text.condition}
+                      value={conditionLabelByValue[smartFillSuggestions.suggestedCondition]}
+                      onApply={() =>
+                        applySuggestionToField("condition", smartFillSuggestions.suggestedCondition || "USED")
+                      }
+                      applyLabel={text.apply}
+                    />
+                  )}
+                  {smartFillSuggestions.suggestedCategorySlug && (
+                    <SuggestionRow
+                      label={text.suggestedCategory}
+                      value={smartFillSuggestions.suggestedCategorySlug}
+                      onApply={() => {
+                        const matched = categories.find((category) => category.slug === smartFillSuggestions.suggestedCategorySlug);
+                        if (!matched) return;
+                        if (matched.parentId) {
+                          setParentCategoryId(matched.parentId);
+                          setSubcategoryId(matched.id);
+                        } else {
+                          setParentCategoryId(matched.id);
+                          setSubcategoryId("");
+                        }
+                      }}
+                      applyLabel={text.apply}
+                    />
+                  )}
+                  {smartFillSuggestions.suggestedBrand && (
+                    <SuggestionRow
+                      label={text.suggestedBrand}
+                      value={smartFillSuggestions.suggestedBrand}
+                      onApply={() => applySuggestionToDynamicField("brand", smartFillSuggestions.suggestedBrand || "")}
+                      applyLabel={text.apply}
+                    />
+                  )}
+                  {smartFillSuggestions.suggestedModel && (
+                    <SuggestionRow
+                      label={text.suggestedModel}
+                      value={smartFillSuggestions.suggestedModel}
+                      onApply={() => applySuggestionToDynamicField("model", smartFillSuggestions.suggestedModel || "")}
+                      applyLabel={text.apply}
+                    />
+                  )}
+                  {smartFillSuggestions.suggestedYear && (
+                    <SuggestionRow
+                      label={text.suggestedYear}
+                      value={smartFillSuggestions.suggestedYear}
+                      onApply={() => applySuggestionToDynamicField("year", smartFillSuggestions.suggestedYear || "")}
+                      applyLabel={text.apply}
+                    />
+                  )}
+                </div>
+              )}
             </div>
-          </details>
+          </div>
+        )}
+
+        {currentStep === 3 && (
+          <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+            <h3 className="text-lg font-semibold">{text.reviewAndPublish}</h3>
+
+            <label className="space-y-1">
+              <span className="text-sm font-medium">{text.description}</span>
+              <textarea
+                ref={descriptionInputRef}
+                name="description"
+                defaultValue={readValue("description", initial?.description ?? "")}
+                className="min-h-36 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                placeholder={text.descriptionPlaceholder}
+                maxLength={2000}
+                autoComplete="off"
+              />
+            </label>
+
+            <div className="space-y-2 rounded-xl border border-border/70 bg-card/90 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">{text.sellerPhoneForPost}</p>
+                {hasSavedProfilePhone && (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-primary hover:underline"
+                    onClick={() => setUseSavedPhone((prev) => !prev)}
+                  >
+                    {useSavedPhone ? text.useDifferentPhone : text.useSavedPhone}
+                  </button>
+                )}
+              </div>
+              <input type="hidden" name="useSavedPhone" value={String(useSavedPhone)} />
+
+              {hasSavedProfilePhone && useSavedPhone ? (
+                <>
+                  <input type="hidden" name="phoneCountry" value={initial?.phoneCountry ?? phoneCountry} />
+                  <input type="hidden" name="phone" value={initial?.phone ?? ""} />
+                  <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">{text.usingSavedPhone}</p>
+                    <p className="text-sm font-semibold leading-none">{initial?.phoneCountry || "MK"} {initial?.phone}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-[170px_minmax(0,1fr)]">
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">{text.country}</span>
+                    <Select
+                      name="phoneCountry"
+                      value={phoneCountry}
+                      onChange={(event) => setPhoneCountry(event.target.value)}
+                    >
+                      {PHONE_COUNTRIES.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.flag} {country.label} (+{country.dialCode})
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">{text.phone}</span>
+                    <Input
+                      name="phone"
+                      defaultValue={readValue("phone", initial?.phone ?? "")}
+                      placeholder={text.phonePlaceholder}
+                      required
+                      minLength={6}
+                      maxLength={20}
+                      inputMode="tel"
+                      autoComplete="tel"
+                      pattern="[0-9+()\-\s]{6,20}"
+                    />
+                  </label>
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">{text.acceptedPhoneFormat}</p>
+            </div>
+
+            <details className="rounded-xl border border-border/70 bg-card/90 p-3" open>
+              <summary className="cursor-pointer text-sm font-semibold">{text.categoryFieldsExpand}</summary>
+              <div className="mt-3">
+                <DynamicFieldsEditor
+                  key={selectedCategoryId}
+                  categoryId={selectedCategoryId}
+                  templatesByCategory={templatesByCategory}
+                  initialValues={dynamicInitialValues}
+                  locale={locale}
+                />
+              </div>
+            </details>
+          </div>
+        )}
+
+        <div className="flex flex-wrap justify-between gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={currentStep === 1}
+            onClick={() => setCurrentStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3) : prev))}
+          >
+            {text.previousStep}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={currentStep === 3}
+            onClick={() => setCurrentStep((prev) => (prev < 3 ? ((prev + 1) as 1 | 2 | 3) : prev))}
+          >
+            {text.nextStep}
+          </Button>
         </div>
       </section>
 
@@ -951,7 +1171,7 @@ export function ListingForm({
         {requiresDummyPayment ? (
           <Button
             type="button"
-            disabled={Boolean(photoValidationError)}
+            disabled={Boolean(photoValidationError) || currentStep !== 3}
             onClick={() => setShowPaymentPanel(true)}
           >
             {text.payAndPublish}
@@ -963,7 +1183,7 @@ export function ListingForm({
             name="intent"
             value="publish"
             type="submit"
-            disabled={Boolean(photoValidationError)}
+            disabled={Boolean(photoValidationError) || currentStep !== 3}
           >
             {resolvedPublishLabel}
           </Button>
@@ -1096,7 +1316,7 @@ export function ListingForm({
                 name="intent"
                 value="publish"
                 type="submit"
-                disabled={Boolean(photoValidationError)}
+                disabled={Boolean(photoValidationError) || currentStep !== 3}
               >
                 {resolvedPublishLabel}
               </Button>
@@ -1108,4 +1328,25 @@ export function ListingForm({
   );
 }
 
-
+function SuggestionRow({
+  label,
+  value,
+  onApply,
+  applyLabel,
+}: {
+  label: string;
+  value: string;
+  onApply: () => void;
+  applyLabel: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/30 px-2 py-1.5">
+      <p className="text-xs">
+        <span className="font-semibold">{label}:</span> {value}
+      </p>
+      <Button type="button" size="sm" variant="secondary" onClick={onApply}>
+        {applyLabel}
+      </Button>
+    </div>
+  );
+}
