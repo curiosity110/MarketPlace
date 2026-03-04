@@ -8,6 +8,7 @@ import { CreateListingPopout } from "@/components/create-listing-popout";
 import { ListingCard } from "@/components/listing-card";
 import { SavedSearchesList } from "@/components/saved-searches-list";
 import { DashboardListingsPanel } from "@/components/dashboard-listings-panel";
+import { DashboardStatsBento } from "@/components/dashboard-stats-bento";
 import { createListingFromDashboard } from "@/lib/actions/create-listing";
 import { canAccessControl, canSell, requireSeller, requireUser } from "@/lib/auth";
 import {
@@ -716,7 +717,7 @@ return (
         </Card>
       )}
 
-      {/* <DashboardStatsBento
+      <DashboardStatsBento
         stats={[
           {
             key: "total",
@@ -747,7 +748,7 @@ return (
             tone: "secondary",
           },
         ]}
-      /> */}
+      />
 
       <section className="space-y-4">
         <div>

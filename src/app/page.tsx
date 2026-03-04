@@ -48,8 +48,8 @@ export default async function Home() {
         heroTitleB: "во јасен маркетплејс",
         heroDesc:
           "Удобно на телефон и десктоп, со фокус на читливост и паметна помош низ целиот сајт.",
-        explore: "Пребарај огласи",
-        startSelling: "Започни со продавање",
+        explore: "Пребарај бесплатно огласи",
+        startSelling: "Започни бесплатно со продавање",
         smartAssistance: "Паметна помош",
         smartAssistanceDesc: "Пиши подобри огласи и добиј брз совет.",
         saferTrading: "Побезбедно тргување",
@@ -173,7 +173,7 @@ export default async function Home() {
       {
         id: "cars-cheap",
         label: isMk ? "Авта" : "Cars",
-        hint: isMk ? "до 3k€" : "under €3k",
+        hint: isMk ? "до 3k EUR" : "under 3k EUR",
         href: "/browse?catSlug=cars&max=3000&sort=price_asc",
       },
       {
@@ -191,7 +191,7 @@ export default async function Home() {
       {
         id: "rent-cheap",
         label: isMk ? "Кирија" : "Rent",
-        hint: isMk ? "до 200€" : "under €200",
+        hint: isMk ? "до 200 EUR" : "under 200 EUR",
         href: "/browse?catSlug=real-estate&deal=rent&max=200&sort=price_asc",
       },
       {
@@ -289,8 +289,8 @@ export default async function Home() {
                 </Button>
               </Link>
               <Link href="/sell">
-                <Button size="lg" variant="outline">
-                  {text.startSelling}
+                <Button size="lg" variant="outline" className="gap-2">
+                  {text.startSelling} <ArrowRight size={16} />
                 </Button>
               </Link>
             </div>

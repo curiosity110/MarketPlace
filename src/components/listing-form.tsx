@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   useCallback,
@@ -61,6 +62,10 @@ const CREATE_FORM_STORAGE_KEY = "mkd:create-listing-form:v1";
 const MAX_CREATE_PHOTOS = 10;
 const MAX_CREATE_SINGLE_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const MAX_CREATE_TOTAL_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function readStoredCreateDraft(): PersistedCreateDraft | null {
   if (typeof window === "undefined") return null;
@@ -326,6 +331,7 @@ export function ListingForm({
       };
   const resetDraftAndFormLabel = isMk ? "Ресетирај форма" : "Reset form";
   const assistantIncludedLabel = isMk ? "Паметен асистент" : "Smart assistant";
+  const noValueLabel = isMk ? "\u041D/\u0414" : "N/A";
   const formId = useId();
   const resolvedPublishLabel =
     publishLabel ?? (locale === "mk" ? "Објави оглас" : "Publish listing");
@@ -652,7 +658,17 @@ export function ListingForm({
     const normalized = slug.trim().toLowerCase();
     if (!normalized) return null;
     return (
-      categories.find((category) => category.slug.toLowerCase() === normalized) ?? null
+      categories.find((category) => category.slug.toLowerCase() === normalized) ??
+      categories.find((category) => {
+        const slugValue = category.slug.toLowerCase();
+        const nameValue = category.name.toLowerCase();
+        return (
+          slugValue.includes(normalized) ||
+          normalized.includes(slugValue) ||
+          nameValue.includes(normalized)
+        );
+      }) ??
+      null
     );
   }
 
@@ -672,10 +688,10 @@ export function ListingForm({
     const templates = templatesByCategory[selectedCategoryId] ?? [];
     const matcher =
       intent === "brand"
-        ? /(brand|make|марка)/i
+        ? /(brand|make|manufacturer|marka|\u043c\u0430\u0440\u043a\u0430)/i
         : intent === "model"
-          ? /(model|модел)/i
-          : /(year|година)/i;
+          ? /(model|model_name|\u043c\u043e\u0434\u0435\u043b)/i
+          : /(year|production year|yr|godina|\u0433\u043e\u0434\u0438\u043d\u0430)/i;
     const matched = templates.find((template) =>
       matcher.test(`${template.key} ${template.label}`),
     );
@@ -683,11 +699,33 @@ export function ListingForm({
   }
 
   function applyDynamicSuggestion(intent: "brand" | "model" | "year", value: string) {
-    if (!value.trim()) return;
+    const nextValue = value.trim();
+    if (!nextValue) return;
+
     const templateKey = findTemplateKeyByIntent(intent);
-    if (!templateKey) return;
-    setSmartDynamicValues((prev) => ({ ...prev, [templateKey]: value.trim() }));
-    setDynamicFieldsSeed((prev) => prev + 1);
+    if (templateKey) {
+      setSmartDynamicValues((prev) => ({ ...prev, [templateKey]: nextValue }));
+      setDynamicFieldsSeed((prev) => prev + 1);
+      return;
+    }
+
+    const currentTitle = getFormFieldValue("title").trim();
+    if (!currentTitle) {
+      setFormFieldValue("title", nextValue);
+      return;
+    }
+
+    const alreadyIncluded = new RegExp(`\\b${escapeRegExp(nextValue)}\\b`, "i").test(
+      currentTitle,
+    );
+    if (alreadyIncluded) return;
+
+    if (intent === "brand") {
+      setFormFieldValue("title", `${nextValue} ${currentTitle}`.trim());
+      return;
+    }
+
+    setFormFieldValue("title", `${currentTitle} ${nextValue}`.trim());
   }
 
   function conditionToLabel(condition: ListingCondition) {
@@ -941,9 +979,12 @@ export function ListingForm({
                       key={`${previewUrl}-${index}`}
                       className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border/70 bg-muted/20"
                     >
-                      <img
+                      <Image
                         src={previewUrl}
                         alt={`${text.photos} ${index + 1}`}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 640px) 50vw, 33vw"
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -1350,16 +1391,16 @@ export function ListingForm({
             <div className="mt-2 grid gap-1 text-sm">
               <p className="text-muted-foreground">
                 <span className="font-medium text-foreground">{text.reviewTitle}:</span>{" "}
-                {getFormFieldValue("title", readValue("title", initial?.title ?? "")) || "—"}
+                {getFormFieldValue("title", readValue("title", initial?.title ?? "")) || noValueLabel}
               </p>
               <p className="text-muted-foreground">
                 <span className="font-medium text-foreground">{text.reviewCategory}:</span>{" "}
                 {selectedCategoryId
                   ? localizeCategoryName(
-                      categoryById[selectedCategoryId] ?? { id: "", name: "—", slug: "" },
+                      categoryById[selectedCategoryId] ?? { id: "", name: noValueLabel, slug: "" },
                       locale,
                     )
-                  : "—"}
+                  : noValueLabel}
               </p>
               <p className="text-muted-foreground">
                 <span className="font-medium text-foreground">{text.reviewPrice}:</span>{" "}
@@ -1373,7 +1414,7 @@ export function ListingForm({
                     city.id ===
                     getFormFieldValue("cityId", readValue("cityId", restoredCityId || "")),
                 )?.name ||
-                  "—"}
+                  noValueLabel}
               </p>
               <p className="text-muted-foreground">
                 <span className="font-medium text-foreground">{text.reviewCondition}:</span>{" "}
@@ -1383,7 +1424,7 @@ export function ListingForm({
                     readValue("condition", restoredCondition),
                   ) as ListingCondition) ||
                     ListingCondition.USED
-                ] || "—"}
+                ] || noValueLabel}
               </p>
             </div>
           </div>
