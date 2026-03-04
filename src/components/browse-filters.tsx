@@ -428,7 +428,10 @@ export function BrowseFilters({
     [carMakes],
   );
   const selectedMake = state.make ? makeBySlug.get(state.make) : undefined;
-  const carModelOptions = selectedMake?.models ?? [];
+  const carModelOptions = React.useMemo(
+    () => selectedMake?.models ?? [],
+    [selectedMake],
+  );
   const currentYear = new Date().getFullYear() + 1;
   const carYearOptions = React.useMemo(
     () =>
