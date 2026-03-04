@@ -3,6 +3,12 @@ import { ListingCondition, Role } from "@prisma/client";
 import { z } from "zod";
 import { canSell, getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  buildRateLimitKey,
+  consumeRateLimit,
+  getIpHashFromHeaders,
+  RateLimitExceededError,
+} from "@/lib/rate-limit";
 
 const createListingSchema = z.object({
   title: z.string().trim().min(5).max(120),
@@ -25,6 +31,21 @@ export async function POST(request: Request) {
       { error: "Forbidden. Only sellers and admins can create listings." },
       { status: 403 },
     );
+  }
+
+  try {
+    const ipHash = getIpHashFromHeaders(request.headers);
+    await consumeRateLimit({
+      action: "listing:create",
+      key: buildRateLimitKey({ userId: user.authUserId, ipHash }),
+      limit: 10,
+      locale: "en",
+    });
+  } catch (error) {
+    if (error instanceof RateLimitExceededError) {
+      return NextResponse.json({ error: "Too many requests today." }, { status: 429 });
+    }
+    throw error;
   }
 
   let rawBody: unknown;

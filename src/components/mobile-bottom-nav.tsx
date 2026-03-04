@@ -4,22 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
-  Compass,
+  CircleUserRound,
   FolderKanban,
-  Home,
+  LayoutDashboard,
   LogIn,
-  Settings,
+  Search,
+  ShoppingBag,
 } from "lucide-react";
+import { isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 type Props = {
   isLoggedIn: boolean;
   isAdmin: boolean;
   labels: {
-    home: string;
     browse: string;
     categories: string;
-    admin: string;
+    sell: string;
     dashboard: string;
     login: string;
   };
@@ -45,14 +46,18 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
       : "/browse";
   const loginHref = `/login?next=${encodeURIComponent(safeNextPath)}`;
 
+  const profileOrLoginHref = isLoggedIn ? "/dashboard" : loginHref;
+  const profileOrLoginLabel = isLoggedIn ? labels.dashboard : labels.login;
+  const profileOrLoginIcon = isLoggedIn ? LayoutDashboard : LogIn;
+
   const items: NavItem[] = [
-    { href: "/", label: labels.home, icon: Home, show: true },
-    { href: "/browse", label: labels.browse, icon: Compass, show: true },
+    { href: "/browse", label: labels.browse, icon: Search, show: true },
     { href: "/categories", label: labels.categories, icon: FolderKanban, show: true },
+    { href: "/sell", label: labels.sell, icon: ShoppingBag, show: true },
     {
-      href: isAdmin ? "/admin" : isLoggedIn ? "/dashboard" : loginHref,
-      label: isAdmin ? labels.admin : isLoggedIn ? labels.dashboard : labels.login,
-      icon: isAdmin ? Settings : isLoggedIn ? Compass : LogIn,
+      href: isAdmin ? "/admin" : profileOrLoginHref,
+      label: isAdmin ? labels.dashboard : profileOrLoginLabel,
+      icon: isAdmin ? CircleUserRound : profileOrLoginIcon,
       show: true,
     },
   ];
@@ -64,19 +69,23 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
           .filter((item) => item.show !== false)
           .map((item) => {
             const active =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              item.href === "/admin"
+                ? isActivePath(pathname, "/admin")
+                : item.href === "/dashboard"
+                  ? isActivePath(pathname, "/dashboard") || isActivePath(pathname, "/profile")
+                : item.href.startsWith("/login")
+                  ? isActivePath(pathname, "/profile") || isActivePath(pathname, "/dashboard")
+                  : isActivePath(pathname, item.href);
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-medium transition-colors",
+                  "flex flex-col items-center justify-center gap-1 rounded-full px-2 py-2 text-[11px] transition-all",
                   active
-                    ? "bg-gradient-to-r from-orange-500 to-blue-600 text-white shadow-sm"
-                    : "text-foreground/70 hover:bg-muted/70",
+                    ? "bg-muted font-semibold text-foreground ring-1 ring-border"
+                    : "font-medium text-foreground/70 hover:bg-muted/70",
                 )}
               >
                 <item.icon size={16} />

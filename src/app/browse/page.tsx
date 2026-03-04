@@ -12,6 +12,7 @@ import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getSessionUser } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
@@ -24,6 +25,7 @@ import {
 import { parseTemplateOptions } from "@/lib/listing-fields";
 
 const PAGE_SIZE = 10;
+export const revalidate = 60;
 type BrowseSort = "newest" | "price-asc" | "price-desc";
 type BrowseTemplate = {
   key: string;
@@ -60,6 +62,7 @@ export default async function BrowsePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const locale = await getServerLocale();
+  const sessionUser = await getSessionUser();
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -77,7 +80,9 @@ export default async function BrowsePage({
         dbUnavailable:
           "Пребарувањето е привремено недостапно поради проблем со базата.",
         noMatch: "Нема огласи што одговараат на твоите филтри.",
+        noListingsYet: "\u0421\u0450 \u0443\u0448\u0442\u0435 \u043d\u0435\u043c\u0430 \u043e\u0433\u043b\u0430\u0441\u0438. \u0411\u0438\u0434\u0438 \u043f\u0440\u0432 \u0448\u0442\u043e \u045c\u0435 \u043e\u0431\u0458\u0430\u0432\u0438.",
         firstList: "Биди прв што ќе го објави овој производ",
+        popularCategories: "\u041f\u043e\u043f\u0443\u043b\u0430\u0440\u043d\u0438 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438",
         page: "Страница",
         of: "од",
         previous: "Претходна",
@@ -98,7 +103,9 @@ export default async function BrowsePage({
         dbUnavailable:
           "Browse data is temporarily unavailable because the database is unreachable.",
         noMatch: "No listings match your filters.",
+        noListingsYet: "No listings yet. Be the first to post.",
         firstList: "Be the first to list this item",
+        popularCategories: "Popular categories",
         page: "Page",
         of: "of",
         previous: "Previous",
@@ -196,6 +203,7 @@ export default async function BrowsePage({
 
   const where: Prisma.ListingWhereInput = {
     status: ListingStatus.ACTIVE,
+    sale: null,
     ...(andFilters.length > 0 ? { AND: andFilters } : {}),
   };
 
@@ -203,25 +211,51 @@ export default async function BrowsePage({
     return Promise.all([
       prisma.listing.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          ownerId: true,
+          title: true,
+          description: true,
+          priceCents: true,
+          currency: true,
+          condition: true,
+          createdAt: true,
           seller: {
             select: {
+              id: true,
               name: true,
               email: true,
+              phone: true,
             },
           },
-          city: true,
+          city: {
+            select: { id: true, name: true },
+          },
           category: {
-            include: {
-              parent: true,
-              fieldTemplates: {
-                where: { isActive: true },
-                orderBy: { order: "asc" },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              parent: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
               },
             },
           },
-          images: true,
-          fieldValues: true,
+          images: {
+            select: { url: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
+          sale: {
+            select: {
+              id: true,
+              soldAt: true,
+            },
+          },
         },
         orderBy:
           sort === "price-asc"
@@ -421,16 +455,37 @@ export default async function BrowsePage({
       {listings.length === 0 ? (
         <Card>
           <CardContent className="py-14 text-center">
-            <p className="text-muted-foreground">{text.noMatch}</p>
+            <p className="text-muted-foreground">
+              {hasAppliedFilters ? text.noMatch : text.noListingsYet}
+            </p>
             <Link href="/dashboard?create=1" className="mt-4 inline-block">
               <Button>{text.firstList}</Button>
             </Link>
+            {!hasAppliedFilters && parentCategories.length > 0 && (
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <span className="w-full text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.popularCategories}
+                </span>
+                {parentCategories.slice(0, 6).map((category) => (
+                  <Link key={category.id} href={`/browse?cat=${category.id}`}>
+                    <Button variant="outline" size="sm" className="rounded-full">
+                      {localizeCategoryName(category, locale)}
+                    </Button>
+                  </Link>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} locale={locale} />
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              locale={locale}
+              currentAuthUserId={sessionUser?.authUserId}
+            />
           ))}
         </div>
       )}

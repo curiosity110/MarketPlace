@@ -62,6 +62,20 @@ enum ContactRequestStatus {
   REJECTED
 }
 
+enum SaleMethod {
+  CASH
+  BANK
+  CARD
+  OTHER
+}
+
+enum PurchaseRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
 model User {
   id                      String             @id @default(cuid())
   supabaseAuthId          String?            @unique
@@ -130,6 +144,8 @@ model Listing {
   fieldValues ListingFieldValue[]
   reports     Report[]
   contactRequests ContactRequest[]
+  purchaseRequests PurchaseRequest[]
+  listingReports ListingReport[]
   sale        Sale?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -146,14 +162,52 @@ model Sale {
   sellerId        String
   seller          User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   amountCents     Int
+  soldPriceCents  Int?
   currency        Currency
   platformFeeCents Int     @default(0)
   netAmountCents  Int
+  buyerName       String?
+  buyerPhone      String?
+  buyerAuthUserId String?
+  method          SaleMethod?
+  notes           String?
   soldAt          DateTime @default(now())
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([sellerId, soldAt])
   @@index([soldAt])
+}
+
+model PurchaseRequest {
+  id               String                @id @default(cuid())
+  listingId        String
+  listing          Listing               @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sellerAuthUserId String
+  buyerAuthUserId  String?
+  buyerIpHash      String?
+  buyerName        String?
+  buyerPhone       String?
+  message          String?
+  status           PurchaseRequestStatus @default(PENDING)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([sellerAuthUserId, status, createdAt])
+  @@index([listingId, status, createdAt])
+  @@index([listingId, buyerIpHash, createdAt])
+  @@index([buyerAuthUserId])
+  @@unique([listingId, buyerAuthUserId])
+}
+
+model RateLimitEvent {
+  id        String   @id @default(cuid())
+  key       String
+  action    String
+  createdAt DateTime @default(now())
+
+  @@index([key, action, createdAt])
+  @@index([action, createdAt])
 }
 
 model ContactRequest {
@@ -225,6 +279,21 @@ model Report {
   closedAt       DateTime?
 
   @@index([status, createdAt])
+}
+
+model ListingReport {
+  id                 String   @id @default(cuid())
+  listingId          String
+  listing            Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporterAuthUserId String?
+  reporterIpHash     String
+  reason             String
+  details            String?
+  createdAt          DateTime @default(now())
+
+  @@index([listingId, createdAt])
+  @@index([reporterAuthUserId, createdAt])
+  @@index([reporterIpHash, createdAt])
 }
 
 model AdminAction {

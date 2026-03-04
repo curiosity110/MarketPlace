@@ -1,38 +1,68 @@
 import Image from "next/image";
 import Link from "next/link";
 import type {
-  Category,
-  CategoryFieldTemplate,
-  City,
+  Currency,
   ListingCondition,
-  Listing,
-  ListingFieldValue,
-  ListingImage,
 } from "@prisma/client";
-import { ImageOff } from "lucide-react";
+import { ImageOff, MessageCircle, Pencil, Phone } from "lucide-react";
+import { ContactSellerPopout } from "@/components/contact-seller-popout";
+import { MarkSoldPopout } from "@/components/mark-sold-popout";
+import { PurchaseRequestPopout } from "@/components/purchase-request-popout";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { localizeCategoryPath } from "@/lib/category-label";
 
 type ListingCardProps = {
-  listing: Listing & {
+  listing: {
+    id: string;
+    ownerId: string;
+    title: string;
+    description: string;
+    priceCents: number;
+    currency: Currency;
+    condition: ListingCondition;
+    createdAt: Date | string;
     seller?: {
+      id?: string;
       name: string | null;
       email: string;
+      phone?: string | null;
     };
-    city: City;
-    category: Category & {
-      parent?: Category | null;
-      fieldTemplates?: CategoryFieldTemplate[];
+    city: {
+      id?: string;
+      name: string;
     };
-    images: ListingImage[];
-    fieldValues: ListingFieldValue[];
+    category: {
+      id: string;
+      name: string;
+      slug?: string | null;
+      parent?: {
+        id?: string;
+        name: string;
+        slug?: string | null;
+      } | null;
+    };
+    images: { url: string }[];
+    sale?: { id: string; soldAt: Date | string } | null;
   };
   locale?: "en" | "mk";
+  currentAuthUserId?: string | null;
 };
 
-export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
+function toWhatsappHref(phone: string | null | undefined) {
+  if (!phone) return null;
+  const digits = phone.replace(/[^\d]/g, "");
+  if (!digits) return null;
+  return `https://wa.me/${digits}`;
+}
+
+export function ListingCard({
+  listing,
+  locale = "en",
+  currentAuthUserId,
+}: ListingCardProps) {
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -40,31 +70,30 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
         seller: "Продавач",
         by: "Од",
         listed: "Објавено",
+        contactSeller: "Контактирај",
+        call: "Јави се",
+        whatsapp: "WhatsApp",
+        edit: "Уреди",
+        sold: "Продадено",
       }
     : {
         noImage: "No image",
         seller: "Seller",
         by: "By",
         listed: "Listed",
+        contactSeller: "Contact seller",
+        call: "Call",
+        whatsapp: "WhatsApp",
+        edit: "Edit",
+        sold: "Sold",
       };
   const conditionLabelByValue: Record<ListingCondition, string> = isMk
     ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
     : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" };
+  const isOwner = Boolean(currentAuthUserId && listing.ownerId === currentAuthUserId);
+  const isSold = Boolean(listing.sale);
 
   const firstImage = listing.images[0]?.url;
-  const valuesByKey = Object.fromEntries(
-    listing.fieldValues.map((field) => [field.key, field.value]),
-  );
-
-  const templates = listing.category.fieldTemplates ?? [];
-  const highlights = templates
-    .map((template) => ({
-      label: template.label,
-      value: valuesByKey[template.key],
-    }))
-    .filter((item) => item.value)
-    .slice(0, 2);
-
   const categoryLabel = localizeCategoryPath(listing.category, locale);
   const locationCategoryLine = categoryLabel
     ? `${listing.city.name} • ${categoryLabel}`
@@ -73,66 +102,131 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
     listing.seller?.name || listing.seller?.email?.split("@")[0] || text.seller;
   const conditionLabel = conditionLabelByValue[listing.condition];
   const formattedPrice = formatCurrencyFromCents(listing.priceCents, listing.currency);
+  const sellerPhone = listing.seller?.phone || null;
+  const whatsappHref = toWhatsappHref(sellerPhone);
 
   return (
-    <Link href={`/listing/${listing.id}`} className="group block">
-      <Card className="h-full overflow-hidden border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
-        <div className="relative aspect-video w-full overflow-hidden bg-muted">
-          {firstImage ? (
-            <Image
-              src={firstImage}
-              alt={listing.title}
-              fill
-              unoptimized
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
-              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
-            />
-          ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-100 via-slate-50 to-orange-50/60 text-muted-foreground dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/80">
-                <ImageOff size={16} />
-              </span>
-              <span className="text-xs font-medium">{text.noImage}</span>
-            </div>
-          )}
+    <Card className="h-full overflow-hidden border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
+      <div className="group relative aspect-video w-full overflow-hidden bg-muted">
+        <Link href={`/listing/${listing.id}`} className="absolute inset-0 z-0">
+          <span className="sr-only">{listing.title}</span>
+        </Link>
 
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
-
-          <div className="absolute left-3 top-3">
-            <Badge variant="secondary" className="border-white/50 bg-background/90 shadow-sm">
-              {conditionLabel}
-            </Badge>
+        {firstImage ? (
+          <Image
+            src={firstImage}
+            alt={listing.title}
+            fill
+            unoptimized
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
+          />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-100 via-slate-50 to-orange-50/60 text-muted-foreground dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/80">
+              <ImageOff size={16} />
+            </span>
+            <span className="text-xs font-medium">{text.noImage}</span>
           </div>
+        )}
 
-          <div className="absolute right-3 top-3 rounded-full border border-white/70 bg-white/95 px-3 py-1 text-sm font-bold text-primary shadow-sm dark:border-border dark:bg-background/95">
-            {formattedPrice}
-          </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
+
+        <div className="absolute left-3 top-3 z-10 flex gap-1.5">
+          <Badge variant="secondary" className="border-white/50 bg-background/90 shadow-sm">
+            {conditionLabel}
+          </Badge>
+          {isSold && <Badge variant="secondary">{text.sold}</Badge>}
         </div>
 
-        <CardContent className="space-y-3 p-4">
-          <h3 className="line-clamp-2 min-h-[2.7rem] text-base font-extrabold leading-tight tracking-tight transition-colors group-hover:text-primary">
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+          {isOwner && (
+            <>
+              <Link href={`/sell/${listing.id}/edit`}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 border-white/70 bg-background/90 p-0 backdrop-blur"
+                  aria-label={text.edit}
+                >
+                  <Pencil size={13} />
+                </Button>
+              </Link>
+              {!isSold && (
+                <MarkSoldPopout
+                  listingId={listing.id}
+                  locale={locale}
+                  defaultPriceCents={listing.priceCents}
+                  iconOnly
+                  className="border-white/70 bg-background/90 backdrop-blur"
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="absolute bottom-3 right-3 z-10 rounded-full border border-white/70 bg-white/95 px-3 py-1 text-sm font-bold text-primary shadow-sm dark:border-border dark:bg-background/95">
+          {formattedPrice}
+        </div>
+      </div>
+
+      <CardContent className="space-y-3 p-4">
+        <Link href={`/listing/${listing.id}`}>
+          <h3 className="line-clamp-2 min-h-[2.7rem] text-base font-extrabold leading-tight tracking-tight transition-colors hover:text-primary">
             {listing.title}
           </h3>
+        </Link>
 
-          <p className="text-xs text-muted-foreground">{locationCategoryLine}</p>
-          <p className="text-xs text-muted-foreground">
-            {text.by} {sellerLabel}
-          </p>
+        <p className="text-xs text-muted-foreground">{locationCategoryLine}</p>
+        <p className="text-xs text-muted-foreground">
+          {text.by} {sellerLabel}
+        </p>
 
-          <div className="flex flex-wrap gap-1.5">
-            {highlights.map((item) => (
-              <Badge key={item.label} variant="primary">
-                {item.value}
-              </Badge>
-            ))}
+        {!isOwner && !isSold ? (
+          sellerPhone ? (
+            <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+              <a href={`tel:${sellerPhone}`} className="min-w-0">
+                <Button size="sm" className="w-full gap-2">
+                  <MessageCircle size={14} />
+                  <span className="truncate">{text.contactSeller}</span>
+                </Button>
+              </a>
+              <a href={`tel:${sellerPhone}`}>
+                <Button size="sm" variant="outline" className="h-9 w-9 p-0" aria-label={text.call}>
+                  <Phone size={14} />
+                </Button>
+              </a>
+              {whatsappHref ? (
+                <a href={whatsappHref} target="_blank" rel="noreferrer">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 w-9 p-0"
+                    aria-label={text.whatsapp}
+                  >
+                    <MessageCircle size={14} />
+                  </Button>
+                </a>
+              ) : (
+                <ContactSellerPopout listingId={listing.id} locale={locale} iconOnly className="h-9 w-9 p-0" />
+              )}
+            </div>
+          ) : (
+            <ContactSellerPopout listingId={listing.id} locale={locale} className="w-full justify-center" />
+          )
+        ) : null}
+
+        {!isOwner && !isSold && (
+          <div className="pt-0.5">
+            <PurchaseRequestPopout listingId={listing.id} locale={locale} />
           </div>
+        )}
 
-          <p className="border-t border-border/60 pt-2 text-xs text-muted-foreground">
-            {text.listed}{" "}
-            {new Date(listing.createdAt).toLocaleDateString(isMk ? "mk-MK" : "en-US")}
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
+        <p className="border-t border-border/60 pt-2 text-xs text-muted-foreground">
+          {text.listed}{" "}
+          {new Date(listing.createdAt).toLocaleDateString(isMk ? "mk-MK" : "en-US")}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

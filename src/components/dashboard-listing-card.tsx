@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MarkSoldPopout } from "@/components/mark-sold-popout";
 import { localizeCategoryName } from "@/lib/category-label";
 import { cn } from "@/lib/utils";
 
@@ -139,13 +141,32 @@ export function DashboardListingCard({
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-900/25 to-transparent" />
 
-        <div className="absolute right-3 top-3">
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
           <Badge variant={getStatusVariant(listing)} className="bg-background/90">
             <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               {text.status}
             </span>
             {statusLabel}
           </Badge>
+          <Link href={`/sell/${listing.id}/edit`}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 border-white/70 bg-background/90 p-0 backdrop-blur"
+              aria-label={text.edit}
+            >
+              <Pencil size={13} />
+            </Button>
+          </Link>
+          {!isSold && (
+            <MarkSoldPopout
+              listingId={listing.id}
+              locale={locale}
+              defaultPriceCents={listing.priceCents}
+              iconOnly
+              className="border-white/70 bg-background/90 backdrop-blur"
+            />
+          )}
         </div>
 
         <div className="absolute inset-x-0 bottom-0 p-3 text-white">

@@ -1,7 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ListingCondition, ListingStatus } from "@prisma/client";
-import { MapPin, ShieldAlert, UserRound } from "lucide-react";
+import {
+  BadgeCheck,
+  MapPin,
+  MessageCircle,
+  Pencil,
+  Phone,
+  ShieldAlert,
+  UserRound,
+} from "lucide-react";
+import { ContactSellerPopout } from "@/components/contact-seller-popout";
+import { ListingGallery } from "@/components/listing-gallery";
+import { MarkSoldPopout } from "@/components/mark-sold-popout";
+import { PurchaseRequestPopout } from "@/components/purchase-request-popout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { getSessionUser } from "@/lib/auth";
+import { localizeCategoryPath } from "@/lib/category-label";
+import { formatCurrencyFromCents } from "@/lib/currency";
+import { getServerLocale } from "@/lib/i18n";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import {
@@ -9,12 +28,13 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { ListingGallery } from "@/components/listing-gallery";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { localizeCategoryPath } from "@/lib/category-label";
-import { formatCurrencyFromCents } from "@/lib/currency";
-import { getServerLocale } from "@/lib/i18n";
+
+function toWhatsappHref(phone: string | null | undefined) {
+  if (!phone) return null;
+  const digits = phone.replace(/[^\d]/g, "");
+  if (!digits) return null;
+  return `https://wa.me/${digits}`;
+}
 
 export default async function ListingDetails({
   params,
@@ -24,6 +44,7 @@ export default async function ListingDetails({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const locale = await getServerLocale();
+  const sessionUser = await getSessionUser();
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -41,13 +62,25 @@ export default async function ListingDetails({
         reportListing: "Пријави го овој оглас",
         reportHelp:
           "Ако нешто изгледа небезбедно или лажно, пријави за проверка.",
-        reportPlaceholder: "Објасни зошто овој оглас треба да се провери",
+        reportReason: "Причина",
+        reportReasonFake: "Лажен оглас",
+        reportReasonScam: "Измама",
+        reportReasonSpam: "Спам",
+        reportReasonOther: "Друго",
+        reportDetails: "Детали (опционално)",
         submitReport: "Поднеси пријава",
         sellerProfile: "Профил на продавач",
         sellerContact: "Контакт од продавач",
         phone: "Телефон",
         phoneNotSet: "Сè уште нема телефон",
         viewProfile: "Погледни профил",
+        contactSeller: "Контактирај",
+        call: "Јави се",
+        whatsapp: "WhatsApp",
+        edit: "Уреди",
+        markSold: "Означи продадено",
+        sold: "Продадено",
+        ownerTools: "Твои алатки",
       }
     : {
         dbUnavailable:
@@ -62,24 +95,39 @@ export default async function ListingDetails({
         seller: "Seller",
         report: "Report",
         reportListing: "Report this listing",
-        reportHelp:
-          "If something looks unsafe or fake, report it for review.",
-        reportPlaceholder: "Explain why this listing should be reviewed",
+        reportHelp: "If something looks unsafe or fake, report it for review.",
+        reportReason: "Reason",
+        reportReasonFake: "Fake listing",
+        reportReasonScam: "Scam",
+        reportReasonSpam: "Spam",
+        reportReasonOther: "Other",
+        reportDetails: "Details (optional)",
         submitReport: "Submit report",
         sellerProfile: "Seller profile",
         sellerContact: "Seller contact",
         phone: "Phone",
         phoneNotSet: "Phone not set yet",
         viewProfile: "View profile",
+        contactSeller: "Contact seller",
+        call: "Call",
+        whatsapp: "WhatsApp",
+        edit: "Edit",
+        markSold: "Mark sold",
+        sold: "Sold",
+        ownerTools: "Owner tools",
       };
   const { id } = await params;
   const sp = await searchParams;
   const reportSaved = sp.reported === "1";
   const reportError = sp.error;
+  const msg = sp.msg;
+  const soldSaved = sp.sold === "1";
+  const contactedSaved = sp.contacted === "1";
+  const requestedSaved = sp.requested === "1";
 
   async function fetchListingDetails() {
-    return prisma.listing.findFirst({
-      where: { id, status: ListingStatus.ACTIVE },
+    return prisma.listing.findUnique({
+      where: { id },
       include: {
         city: true,
         category: {
@@ -101,6 +149,12 @@ export default async function ListingDetails({
           },
         },
         fieldValues: true,
+        sale: {
+          select: {
+            id: true,
+            soldAt: true,
+          },
+        },
       },
     });
   }
@@ -141,6 +195,12 @@ export default async function ListingDetails({
 
   if (!listing) notFound();
 
+  const isOwner = Boolean(sessionUser?.authUserId === listing.ownerId);
+  const isPublicVisible = listing.status === ListingStatus.ACTIVE && !listing.sale;
+  if (!isOwner && !isPublicVisible) {
+    notFound();
+  }
+
   const valuesByKey = Object.fromEntries(
     listing.fieldValues.map((field) => [field.key, field.value]),
   );
@@ -162,6 +222,7 @@ export default async function ListingDetails({
   const conditionLabelByValue: Record<ListingCondition, string> = isMk
     ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
     : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" };
+  const whatsappHref = toWhatsappHref(listing.seller.phone);
 
   return (
     <div className="space-y-6">
@@ -177,23 +238,55 @@ export default async function ListingDetails({
             <span>{categoryLabel}</span>
             <span>|</span>
             <span>{conditionLabelByValue[listing.condition]}</span>
+            {listing.sale && (
+              <>
+                <span>|</span>
+                <Badge variant="secondary" className="gap-1">
+                  <BadgeCheck size={12} />
+                  {text.sold}
+                </Badge>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-primary/30 bg-orange-50/70 px-4 py-2 text-right dark:bg-orange-950/20">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {text.price}
-          </p>
-          <p className="text-3xl font-black text-primary">
-            {formatCurrencyFromCents(listing.priceCents, listing.currency)}
-          </p>
+        <div className="space-y-2">
+          <div className="rounded-2xl border border-primary/30 bg-orange-50/70 px-4 py-2 text-right dark:bg-orange-950/20">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {text.price}
+            </p>
+            <p className="text-3xl font-black text-primary">
+              {formatCurrencyFromCents(listing.priceCents, listing.currency)}
+            </p>
+          </div>
+          {isOwner && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <Link href={`/sell/${listing.id}/edit`}>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Pencil size={14} />
+                  {text.edit}
+                </Button>
+              </Link>
+              {!listing.sale ? (
+                <MarkSoldPopout
+                  listingId={listing.id}
+                  locale={locale}
+                  defaultPriceCents={listing.priceCents}
+                />
+              ) : (
+                <Badge variant="secondary" className="h-9 px-3">
+                  {text.sold}
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {reportSaved && (
+      {(reportSaved || soldSaved || contactedSaved || requestedSaved || msg) && (
         <Card className="border-success/30 bg-success/10">
           <CardContent className="py-3 text-sm text-success">
-            {text.reportSubmitted}
+            {msg || text.reportSubmitted}
           </CardContent>
         </Card>
       )}
@@ -260,81 +353,136 @@ export default async function ListingDetails({
             <CardContent className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-lg font-semibold">{text.seller}</h2>
-                <details className="relative">
-                  <summary className="list-none">
-                    <span className="inline-flex h-9 cursor-pointer items-center rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs hover:bg-accent hover:text-accent-foreground">
-                      <ShieldAlert size={14} className="mr-1" />
-                      {text.report}
-                    </span>
-                  </summary>
-                  <div className="absolute right-0 top-11 z-20 w-[min(92vw,360px)] rounded-xl border border-border/80 bg-background p-3 shadow-xl">
-                    <p className="text-sm font-semibold">{text.reportListing}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {text.reportHelp}
-                    </p>
-                    <form
-                      action="/api/reports"
-                      method="post"
-                      className="mt-2 space-y-2"
-                    >
-                      <input type="hidden" name="targetType" value="LISTING" />
-                      <input type="hidden" name="targetId" value={listing.id} />
-                      <input
-                        type="hidden"
-                        name="listingId"
-                        value={listing.id}
-                      />
-                      <input
-                        type="hidden"
-                        name="returnTo"
-                        value={`/listing/${listing.id}`}
-                      />
-                      <textarea
-                        name="reason"
-                        required
-                        minLength={8}
-                        maxLength={500}
-                        className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
-                        placeholder={text.reportPlaceholder}
-                      />
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        className="w-full justify-center gap-2"
+                {!isOwner && (
+                  <details className="relative">
+                    <summary className="list-none">
+                      <span className="inline-flex h-9 cursor-pointer items-center rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs hover:bg-accent hover:text-accent-foreground">
+                        <ShieldAlert size={14} className="mr-1" />
+                        {text.report}
+                      </span>
+                    </summary>
+                    <div className="absolute right-0 top-11 z-20 w-[min(92vw,360px)] rounded-xl border border-border/80 bg-background p-3 shadow-xl">
+                      <p className="text-sm font-semibold">{text.reportListing}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {text.reportHelp}
+                      </p>
+                      <form
+                        action="/api/reports"
+                        method="post"
+                        className="mt-2 space-y-2"
                       >
-                        <ShieldAlert size={16} />
-                        {text.submitReport}
-                      </Button>
-                    </form>
-                  </div>
-                </details>
+                        <input type="hidden" name="targetType" value="LISTING" />
+                        <input type="hidden" name="targetId" value={listing.id} />
+                        <input type="hidden" name="listingId" value={listing.id} />
+                        <input type="hidden" name="locale" value={locale} />
+                        <input type="hidden" name="returnTo" value={`/listing/${listing.id}`} />
+                        <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                          <span>{text.reportReason}</span>
+                          <select
+                            name="reasonCode"
+                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                            defaultValue="fake"
+                          >
+                            <option value="fake">{text.reportReasonFake}</option>
+                            <option value="scam">{text.reportReasonScam}</option>
+                            <option value="spam">{text.reportReasonSpam}</option>
+                            <option value="other">{text.reportReasonOther}</option>
+                          </select>
+                        </label>
+                        <textarea
+                          name="details"
+                          maxLength={500}
+                          className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
+                          placeholder={text.reportDetails}
+                        />
+                        <Button
+                          type="submit"
+                          variant="outline"
+                          className="w-full justify-center gap-2"
+                        >
+                          <ShieldAlert size={16} />
+                          {text.submitReport}
+                        </Button>
+                      </form>
+                    </div>
+                  </details>
+                )}
               </div>
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                <details>
-                  <summary className="list-none">
-                    <span className="inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs hover:bg-accent hover:text-accent-foreground">
-                      {text.sellerProfile}
-                    </span>
-                  </summary>
-                  <div className="mt-3 space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {text.sellerContact}
-                    </p>
-                    <p className="inline-flex items-center gap-2 text-sm font-semibold">
-                      <UserRound size={16} className="text-muted-foreground" />
-                      {listing.seller.name || listing.seller.email}
-                    </p>
-                    <div className="rounded-lg border border-success/35 bg-success/10 px-3 py-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-success">
-                        {text.phone}
-                      </p>
-                      <p className="text-lg font-bold">
-                        {listing.seller.phone || text.phoneNotSet}
-                      </p>
-                    </div>
-                  </div>
-                </details>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.sellerContact}
+                </p>
+                <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold">
+                  <UserRound size={16} className="text-muted-foreground" />
+                  {listing.seller.name || listing.seller.email}
+                </p>
+                <div className="mt-2 rounded-lg border border-success/35 bg-success/10 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-success">
+                    {text.phone}
+                  </p>
+                  <p className="text-lg font-bold">
+                    {listing.seller.phone || text.phoneNotSet}
+                  </p>
+                </div>
               </div>
+
+              {!isOwner && !listing.sale && (
+                <div className="space-y-2">
+                  {listing.seller.phone ? (
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+                      <a href={`tel:${listing.seller.phone}`} className="min-w-0">
+                        <Button className="w-full gap-2">
+                          <MessageCircle size={15} />
+                          <span className="truncate">{text.contactSeller}</span>
+                        </Button>
+                      </a>
+                      <a href={`tel:${listing.seller.phone}`}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 w-10 p-0"
+                          aria-label={text.call}
+                        >
+                          <Phone size={15} />
+                        </Button>
+                      </a>
+                      {whatsappHref ? (
+                        <a href={whatsappHref} target="_blank" rel="noreferrer">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 w-10 p-0"
+                            aria-label={text.whatsapp}
+                          >
+                            <MessageCircle size={15} />
+                          </Button>
+                        </a>
+                      ) : (
+                        <ContactSellerPopout
+                          listingId={listing.id}
+                          locale={locale}
+                          iconOnly
+                          className="h-10 w-10 p-0"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <ContactSellerPopout
+                      listingId={listing.id}
+                      locale={locale}
+                      className="w-full justify-center"
+                    />
+                  )}
+
+                  <PurchaseRequestPopout listingId={listing.id} locale={locale} />
+                </div>
+              )}
+
+              {isOwner && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  {text.ownerTools}
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-2">
                 <Link href={`/seller/${listing.seller.id}`} className="flex-1 min-w-[160px]">

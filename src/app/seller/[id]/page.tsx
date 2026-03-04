@@ -5,6 +5,7 @@ import { ListingCard } from "@/components/listing-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getServerLocale } from "@/lib/i18n";
+import { getSessionUser } from "@/lib/auth";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import {
@@ -23,6 +24,7 @@ export default async function SellerProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const locale = await getServerLocale();
+  const sessionUser = await getSessionUser();
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -83,11 +85,15 @@ export default async function SellerProfilePage({
             },
           },
           images: true,
-          fieldValues: true,
+          sale: {
+            select: { id: true, soldAt: true },
+          },
           seller: {
             select: {
+              id: true,
               name: true,
               email: true,
+              phone: true,
             },
           },
         },
@@ -168,7 +174,12 @@ export default async function SellerProfilePage({
       ) : (
         <div className="responsive-grid gap-4">
           {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} locale={locale} />
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              locale={locale}
+              currentAuthUserId={sessionUser?.authUserId}
+            />
           ))}
         </div>
       )}

@@ -14,6 +14,12 @@ import {
   statusFromIntent,
   validatePublishInputs,
 } from "@/lib/listing-fields";
+import {
+  buildRateLimitKey,
+  consumeRateLimit,
+  getIpHashFromServerActionHeaders,
+  RateLimitExceededError,
+} from "@/lib/rate-limit";
 import { isMarketplaceCurrency } from "@/lib/currency";
 import { normalizePhoneInput } from "@/lib/phone";
 import { validateDummyStripePayment } from "@/lib/billing/dummy-stripe";
@@ -45,6 +51,7 @@ function getActionMessages(locale: ActionLocale) {
       paymentRequired:
         "Потребно е плаќање пред активација. Нацртот е зачуван за да платиш и објавиш од уредување.",
       draftSaveFailed: "Зачувувањето на нацрт не успеа",
+      tooManyRequests: "\u041f\u0440\u0435\u043c\u043d\u043e\u0433\u0443 \u043e\u0431\u0438\u0434\u0438 \u0434\u0435\u043d\u0435\u0441.",
     };
   }
 
@@ -59,6 +66,7 @@ function getActionMessages(locale: ActionLocale) {
     paymentRequired:
       "Payment is required before activation. Draft saved so you can pay and publish from edit.",
     draftSaveFailed: "Draft save failed",
+    tooManyRequests: "Too many requests today.",
   };
 }
 
@@ -176,6 +184,21 @@ async function createListingWithBase(
   const user = await requireSeller();
   if (shouldSkipPrismaCalls()) {
     redirectWithError(basePath, msg.dbUnavailable);
+  }
+
+  try {
+    const ipHash = await getIpHashFromServerActionHeaders();
+    await consumeRateLimit({
+      action: "listing:create",
+      key: buildRateLimitKey({ userId: user.authUserId, ipHash }),
+      limit: 10,
+      locale,
+    });
+  } catch (error) {
+    if (error instanceof RateLimitExceededError) {
+      redirectWithError(basePath, msg.tooManyRequests);
+    }
+    throw error;
   }
 
   const intent = String(formData.get("intent") || "draft");

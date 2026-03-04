@@ -14,16 +14,18 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
+import { getSessionUser } from "@/lib/auth";
 import { ListingCard } from "@/components/listing-card";
-import { HomeCategoryShortcuts } from "@/components/home-category-shortcuts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
+import { HomeQuickCircles } from "@/components/HomeQuickCircles";
 
 export default async function Home() {
   const locale = await getServerLocale();
+  const sessionUser = await getSessionUser();
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -152,23 +154,93 @@ export default async function Home() {
         },
       ];
 
+  const quickTitle = isMk ? "Брзо пребарување" : "Hot right now";
+  const quickItems = [
+      {
+        id: "cars-cheap",
+        label: isMk ? "Авта" : "Cars",
+        hint: isMk ? "до 3k€" : "under €3k",
+        href: "/browse?catSlug=cars&max=3000&sort=price_asc",
+      },
+      {
+        id: "cars-new",
+        label: isMk ? "Авта" : "Cars",
+        hint: isMk ? "денес" : "new today",
+        href: "/browse?catSlug=cars&sort=new",
+      },
+      {
+        id: "jobs-remote",
+        label: isMk ? "Работа" : "Jobs",
+        hint: isMk ? "remote" : "remote",
+        href: "/browse?catSlug=jobs&work=remote&sort=new",
+      },
+      {
+        id: "rent-cheap",
+        label: isMk ? "Кирија" : "Rent",
+        hint: isMk ? "до 200€" : "under €200",
+        href: "/browse?catSlug=real-estate&deal=rent&max=200&sort=price_asc",
+      },
+      {
+        id: "phones-iphone",
+        label: isMk ? "Телефони" : "Phones",
+        hint: "iPhone",
+        href: "/browse?catSlug=phones&q=iphone&sort=new",
+      },
+      {
+        id: "gaming",
+        label: isMk ? "Гејминг" : "Gaming",
+        hint: isMk ? "PC/PS" : "PC/PS",
+        href: "/browse?catSlug=electronics&q=gaming&sort=new",
+      },
+      {
+        id: "most-viewed",
+        label: isMk ? "Тренд" : "Trending",
+        hint: isMk ? "најгледано" : "most viewed",
+        href: "/browse?sort=views",
+      },
+    ];
+
   async function fetchHomeData() {
     return Promise.all([
       prisma.listing.findMany({
-        where: { status: ListingStatus.ACTIVE },
-        include: {
+        where: { status: ListingStatus.ACTIVE, sale: null },
+        select: {
+          id: true,
+          ownerId: true,
+          title: true,
+          description: true,
+          priceCents: true,
+          currency: true,
+          condition: true,
+          createdAt: true,
           city: true,
           category: {
-            include: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
               parent: true,
-              fieldTemplates: {
-                where: { isActive: true },
-                orderBy: { order: "asc" },
-              },
             },
           },
-          images: true,
-          fieldValues: true,
+          seller: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          images: {
+            select: { url: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
+          sale: {
+            select: {
+              id: true,
+              soldAt: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
         take: 9,
@@ -206,15 +278,6 @@ export default async function Home() {
       throw error;
     }
   }
-
-  const categoryShortcutItems = categoryHighlights.map((category) => ({
-    id: category.id,
-    label: localizeCategoryName(category, locale),
-    count: category._count.listings,
-  }));
-  const shortcutsTitle = isMk
-    ? "\u041f\u0440\u0435\u0431\u0430\u0440\u0430\u0458 \u043f\u043e\u043f\u0443\u043b\u0430\u0440\u043d\u0438 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438"
-    : "Browse popular categories";
 
   return (
     <div className="space-y-12 md:space-y-16">
@@ -304,11 +367,11 @@ export default async function Home() {
         </div>
       </section>
 
-      <HomeCategoryShortcuts
-        title={shortcutsTitle}
-        browseAllLabel={text.browseAll}
-        items={categoryShortcutItems}
-      />
+<HomeQuickCircles
+  title={quickTitle}
+  browseAllLabel={text.browseAll}
+  items={quickItems}
+/>
 
       {dbUnavailable && (
         <Card className="border-warning/30 bg-warning/10">
@@ -341,7 +404,12 @@ export default async function Home() {
           <>
             <div className="responsive-grid gap-4">
               {latestListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} locale={locale} />
+                <ListingCard
+                  key={listing.id}
+                  listing={listing}
+                  locale={locale}
+                  currentAuthUserId={sessionUser?.authUserId}
+                />
               ))}
             </div>
             <div className="text-center">
