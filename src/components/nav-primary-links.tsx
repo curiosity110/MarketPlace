@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -13,18 +14,16 @@ type Props = {
     dashboard: string;
   };
   isLoggedIn: boolean;
-  canCreateListings: boolean;
 };
 
 export function NavPrimaryLinks({
   labels,
   isLoggedIn,
-  canCreateListings,
 }: Props) {
   const pathname = usePathname();
   const dashboardHref = isLoggedIn ? "/dashboard" : "/login?next=%2Fdashboard";
-  const sellHref = canCreateListings ? "?create=1" : "/sell";
-  const sellPrefix = canCreateListings ? "" : "/sell";
+  const sellHref = buildCreateListingHref();
+  const sellPrefix = "/sell";
   const links = [
     { href: "/browse", prefix: "/browse", label: labels.browse },
     { href: "/categories", prefix: "/categories", label: labels.categories },

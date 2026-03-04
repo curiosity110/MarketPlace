@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { canSell, requireUser } from "@/lib/auth";
+import { buildCreateListingHref } from "@/lib/create-listing-href";
 import {
   DUMMY_STRIPE_FAIL_CARDS,
   DUMMY_STRIPE_SUCCESS_CARDS,
@@ -627,7 +628,12 @@ export default async function ProfilePage({
               <p className="mt-1 text-xs text-muted-foreground">
                 {text.activeWithPlan}: {payPerListingActive}
               </p>
-              <Link href="?create=1&plan=pay-per-listing" className="mt-2 block">
+              <Link
+                href={buildCreateListingHref({
+                  plan: "pay-per-listing",
+                })}
+                className="mt-2 block"
+              >
                 <Button className="w-full">{text.postWith4}</Button>
               </Link>
             </div>
@@ -639,7 +645,12 @@ export default async function ProfilePage({
               <p className="mt-1 text-xs text-muted-foreground">
                 {text.activeWithSubscription}: {subscriptionActive}
               </p>
-              <Link href="?create=1&plan=subscription" className="mt-2 block">
+              <Link
+                href={buildCreateListingHref({
+                  plan: "subscription",
+                })}
+                className="mt-2 block"
+              >
                 <Button variant="outline" className="w-full">
                   {text.startSubscriptionFlow}
                 </Button>

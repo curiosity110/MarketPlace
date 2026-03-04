@@ -80,4 +80,15 @@
     publish: "Publish",
     close: "Close",
   },
+  browseSimilarity: {
+    moreLikeThis: "More like this",
+    excludeLikeThis: "Exclude like this",
+    becauseClicked: "Because you clicked:",
+    clearSimilarity: "Clear similar/exclude",
+    similarityFilters: "Similar/exclude filters",
+    modeSimilar: "Mode: similar",
+    fuel: "Fuel",
+    transmission: "Transmission",
+    exclude: "Exclude",
+  },
 };

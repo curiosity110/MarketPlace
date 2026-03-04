@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { canSell, getSessionUser, requireSeller } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
+import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { getServerLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import {
@@ -340,7 +341,10 @@ export default async function CategoriesPage({
   requestLinkParams.set("request", "1");
   const requestPopupHref = `/categories?${requestLinkParams.toString()}`;
   const requestLoginHref = `/login?next=${encodeURIComponent(requestPopupHref)}`;
-  const createLoginHref = `/login?next=${encodeURIComponent("/categories?create=1")}`;
+  const createNowHref = buildCreateListingHref({
+    cat: selectedCreateCategoryId,
+  });
+  const createLoginHref = `/login?next=${encodeURIComponent(createNowHref)}`;
 
   return (
     <div className="space-y-7">
@@ -409,13 +413,7 @@ export default async function CategoriesPage({
 
           <div className="flex flex-wrap gap-2">
             {createReady ? (
-              <Link
-                href={
-                  selectedCreateCategoryId
-                    ? `?create=1&cat=${selectedCreateCategoryId}`
-                    : "?create=1"
-                }
-              >
+              <Link href={createNowHref}>
                 <Button className="h-9 rounded-full px-4">{text.createNow}</Button>
               </Link>
             ) : canCreateListings ? (
@@ -480,9 +478,10 @@ export default async function CategoriesPage({
           const createHereParams = new URLSearchParams(
             createLinkBaseParams.toString(),
           );
-          createHereParams.set("create", "1");
           createHereParams.set("cat", category.id);
-          const createHereHref = `/categories?${createHereParams.toString()}`;
+          const createHereHref = buildCreateListingHref(
+            Object.fromEntries(createHereParams),
+          );
 
           return (
             <Card

@@ -15,12 +15,13 @@ import {
   markPrismaUnavailable,
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
-import { canSell, getSessionUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { ListingCard } from "@/components/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { localizeCategoryName } from "@/lib/category-label";
+import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { getServerLocale } from "@/lib/i18n";
 import { listingCardSelect } from "@/lib/listing-card-select";
 import { HomeQuickCircles } from "@/components/HomeQuickCircles";
@@ -40,14 +41,13 @@ const getCachedHomeLatestListings = unstable_cache(
 export default async function Home() {
   const locale = await getServerLocale();
   const sessionUser = await getSessionUser();
-  const canCreateListings = Boolean(sessionUser && canSell(sessionUser.role));
-  const createHref = canCreateListings ? "?create=1" : "/sell";
-  const createPayPerHref = canCreateListings
-    ? "?create=1&plan=pay-per-listing"
-    : "/sell?plan=pay-per-listing";
-  const createSubscriptionHref = canCreateListings
-    ? "?create=1&plan=subscription"
-    : "/sell?plan=subscription";
+  const createHref = buildCreateListingHref();
+  const createPayPerHref = buildCreateListingHref({
+    plan: "pay-per-listing",
+  });
+  const createSubscriptionHref = buildCreateListingHref({
+    plan: "subscription",
+  });
   const isMk = locale === "mk";
   const text = isMk
     ? {

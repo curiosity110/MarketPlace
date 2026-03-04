@@ -40,6 +40,7 @@ type Props = {
     dynamicValues?: Record<string, string>;
     plan?: ListingPlan;
   };
+  forceOpen?: boolean;
 };
 
 function resolvePlan(value: string | null): ListingPlan | undefined {
@@ -57,11 +58,14 @@ export function CreateListingGlobal({
   showPlanSelector,
   locale,
   initial,
+  forceOpen = false,
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const createRequested = searchParams.get("create") === "1";
+  const createRequested =
+    forceOpen || searchParams.get("create") === "1";
+  const shouldDisableOnSell = pathname === "/sell" && !forceOpen;
 
   const mergedInitial = useMemo(() => {
     const categoryFromQuery = searchParams.get("cat");
@@ -80,13 +84,16 @@ export function CreateListingGlobal({
   function closeAndCleanQuery() {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("create");
+    if (pathname === "/sell") {
+      nextParams.set("closed", "1");
+    }
     const nextQuery = nextParams.toString();
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
       scroll: false,
     });
   }
 
-  if (!createRequested) return null;
+  if (shouldDisableOnSell || !createRequested) return null;
 
   return (
     <CreateListingPopout
@@ -108,4 +115,3 @@ export function CreateListingGlobal({
     />
   );
 }
-

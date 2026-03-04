@@ -81,4 +81,15 @@
     publish: "Објави",
     close: "Затвори",
   },
+  browseSimilarity: {
+    moreLikeThis: "Слични",
+    excludeLikeThis: "Исклучи слични",
+    becauseClicked: "Затоа што кликна:",
+    clearSimilarity: "Исчисти слично/исклучи",
+    similarityFilters: "Слично/исклучи филтри",
+    modeSimilar: "Режим: слични",
+    fuel: "Гориво",
+    transmission: "Менувач",
+    exclude: "Исклучи",
+  },
 };

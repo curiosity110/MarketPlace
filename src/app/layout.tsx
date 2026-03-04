@@ -23,7 +23,11 @@ export default async function RootLayout({
   const locale = await getServerLocale();
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html
+      lang={locale}
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+    >
       <body
         className={`${geistSans.variable} min-h-screen bg-background text-foreground antialiased`}
       >

@@ -22,6 +22,13 @@ if (!supaHost) {
   );
 }
 
+const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
+  {
+    protocol: "https" as const,
+    hostname: "**",
+  },
+];
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
@@ -43,7 +50,7 @@ const nextConfig: NextConfig = {
   ],
 
   images: {
-    remotePatterns: supaHost ? [{ protocol: "https", hostname: supaHost }] : [],
+    remotePatterns,
   },
 };
 

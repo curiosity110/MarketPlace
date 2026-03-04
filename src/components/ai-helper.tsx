@@ -41,7 +41,7 @@ function resolveQuickRoute(question: string): string | null {
     return "/dashboard";
   }
   if (q.includes("create") || q.includes("sell") || q.includes("post") || q.includes("објав")) {
-    return "?create=1";
+    return "/sell";
   }
   if (q.includes("category") || q.includes("категор")) {
     return "/categories";

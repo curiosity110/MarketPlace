@@ -295,7 +295,7 @@ export function CreateListingWizardForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [selectedCategoryId, setSelectedCategoryId] = useState(
-    initial?.categoryId ?? categories[0]?.id ?? "",
+    initial?.categoryId ?? "",
   );
   const [categorySearch, setCategorySearch] = useState("");
   const [cityId, setCityId] = useState(initial?.cityId ?? cities[0]?.id ?? "");
@@ -314,16 +314,21 @@ export function CreateListingWizardForm({
 
   const paymentAmount = plan === "subscription" ? 30 : 4;
   const paymentLabel = plan === "subscription" ? text.subscription : text.payPerListing;
+  const categoriesWithTemplates = useMemo(
+    () =>
+      categories.filter(
+        (category) => (templatesByCategory[category.id]?.length ?? 0) > 0,
+      ),
+    [categories, templatesByCategory],
+  );
   const resolvedSelectedCategoryId = useMemo(() => {
-    if (!categories.length) return "";
-    if (
-      selectedCategoryId &&
-      categories.some((category) => category.id === selectedCategoryId)
-    ) {
-      return selectedCategoryId;
-    }
-    return categories[0]?.id ?? "";
-  }, [categories, selectedCategoryId]);
+    if (!selectedCategoryId) return "";
+    return categoriesWithTemplates.some(
+      (category) => category.id === selectedCategoryId,
+    )
+      ? selectedCategoryId
+      : "";
+  }, [categoriesWithTemplates, selectedCategoryId]);
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === resolvedSelectedCategoryId),
@@ -340,7 +345,7 @@ export function CreateListingWizardForm({
   };
   const categorySearchEntries = useMemo(
     () =>
-      categories.map((category) => {
+      categoriesWithTemplates.map((category) => {
         const localizedName = localizeCategoryName(category, locale);
         return {
           category,
@@ -350,11 +355,11 @@ export function CreateListingWizardForm({
           normalizedSlug: normalizeSearchText(category.slug),
         };
       }),
-    [categories, locale],
+    [categoriesWithTemplates, locale],
   );
   const filteredCategories = useMemo(() => {
     const normalizedQuery = normalizeSearchText(categorySearch);
-    if (!normalizedQuery) return categories;
+    if (!normalizedQuery) return categoriesWithTemplates;
 
     const queryTokens = normalizedQuery.split(" ").filter(Boolean);
     return categorySearchEntries
@@ -385,7 +390,7 @@ export function CreateListingWizardForm({
         return a.localizedName.localeCompare(b.localizedName, locale);
       })
       .map((entry) => entry.category);
-  }, [categories, categorySearch, categorySearchEntries, locale]);
+  }, [categoriesWithTemplates, categorySearch, categorySearchEntries, locale]);
   const hasSmartSuggestions = useMemo(
     () =>
       Boolean(
@@ -725,6 +730,9 @@ export function CreateListingWizardForm({
               onChange={(event) => setSelectedCategoryId(event.target.value)}
               required
             >
+              <option value="" disabled>
+                {text.categoryRequired}
+              </option>
               {filteredCategories.length === 0 ? (
                 <option value="" disabled>
                   {text.noCategoryMatch}
@@ -872,13 +880,17 @@ export function CreateListingWizardForm({
 
         <div className="space-y-2 rounded-2xl border border-border/70 bg-card p-4">
           <p className="text-sm font-semibold">{text.categoryFields}</p>
-          <DynamicFieldsEditor
-            key={resolvedSelectedCategoryId}
-            categoryId={resolvedSelectedCategoryId}
-            templatesByCategory={templatesByCategory}
-            initialValues={initial?.dynamicValues}
-            locale={locale}
-          />
+          {resolvedSelectedCategoryId ? (
+            <DynamicFieldsEditor
+              key={resolvedSelectedCategoryId}
+              categoryId={resolvedSelectedCategoryId}
+              templatesByCategory={templatesByCategory}
+              initialValues={initial?.dynamicValues}
+              locale={locale}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">{text.categoryRequired}</p>
+          )}
         </div>
 
         <div className="space-y-2 rounded-2xl border border-secondary/30 bg-blue-50/40 p-4 dark:bg-blue-500/10">

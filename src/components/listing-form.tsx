@@ -332,6 +332,11 @@ export function ListingForm({
   const resetDraftAndFormLabel = isMk ? "Ресетирај форма" : "Reset form";
   const assistantIncludedLabel = isMk ? "Паметен асистент" : "Smart assistant";
   const noValueLabel = isMk ? "\u041D/\u0414" : "N/A";
+  const selectCategoryToContinueLabel =
+    "Select a category with templates to continue.";
+  const categoryTemplateMissingLabel =
+    "This category has no templates yet. Select another category.";
+  const chooseMainCategoryLabel = "Select main category";
   const formId = useId();
   const resolvedPublishLabel =
     publishLabel ?? (locale === "mk" ? "Објави оглас" : "Publish listing");
@@ -360,11 +365,11 @@ export function ListingForm({
     return grouped;
   }, [categories]);
 
-  const initialCategory = initial?.categoryId ?? categories[0]?.id ?? "";
+  const initialCategory = initial?.categoryId ?? "";
   const initialCategoryRecord = categoryById[initialCategory];
   const defaultParentCategoryId = initialCategoryRecord?.parentId
     ? initialCategoryRecord.parentId
-    : initialCategoryRecord?.id || parentCategories[0]?.id || "";
+    : initialCategoryRecord?.id || "";
   const defaultSubcategoryId = initialCategoryRecord?.parentId
     ? initialCategoryRecord.id
     : "";
@@ -446,6 +451,10 @@ export function ListingForm({
     Boolean(subcategoryId) &&
     subcategoriesForSelectedParent.some((item) => item.id === subcategoryId);
   const selectedCategoryId = (hasValidSubcategory ? subcategoryId : "") || parentCategoryId;
+  const selectedCategoryTemplates = templatesByCategory[selectedCategoryId] ?? [];
+  const hasTemplatesForSelectedCategory = selectedCategoryTemplates.length > 0;
+  const needsCategorySelection =
+    isCreateMode && (!selectedCategoryId || !hasTemplatesForSelectedCategory);
   const conditionLabelByValue: Record<ListingCondition, string> = {
     NEW: text.conditionNew,
     USED: text.conditionUsed,
@@ -739,6 +748,7 @@ export function ListingForm({
   }
 
   function goNextStep() {
+    if (needsCategorySelection) return;
     goToStep(currentStep + 1);
   }
 
@@ -827,6 +837,13 @@ export function ListingForm({
     };
   }, [photoPreviewUrls]);
 
+  useEffect(() => {
+    if (!wizardEnabled || !needsCategorySelection) return;
+    if (currentStep !== 1) {
+      setCurrentStep(1);
+    }
+  }, [currentStep, needsCategorySelection, wizardEnabled]);
+
   return (
     <form
       id={formId}
@@ -896,14 +913,22 @@ export function ListingForm({
                 <button
                   key={step.id}
                   type="button"
-                  onClick={() => goToStep(step.id)}
+                  onClick={() => {
+                    if (needsCategorySelection && step.id !== 1) return;
+                    goToStep(step.id);
+                  }}
                   aria-label={`${text.wizardGoTo} ${step.id}`}
+                  disabled={needsCategorySelection && step.id !== 1}
                   className={`rounded-xl border px-3 py-2 text-left transition-colors ${
                     isActive
                       ? "border-primary/45 bg-primary/10"
                       : isCompleted
                         ? "border-secondary/30 bg-secondary/10"
                         : "border-border/70 bg-background hover:border-primary/25"
+                  } ${
+                    needsCategorySelection && step.id !== 1
+                      ? "cursor-not-allowed opacity-50"
+                      : ""
                   }`}
                 >
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1181,6 +1206,13 @@ export function ListingForm({
               </Link>
             </div>
             <p className="text-xs text-muted-foreground">{text.categoryPriority}</p>
+            {needsCategorySelection && (
+              <p className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-xs font-medium text-foreground">
+                {selectedCategoryId
+                  ? categoryTemplateMissingLabel
+                  : selectCategoryToContinueLabel}
+              </p>
+            )}
 
             <input type="hidden" name="categoryId" value={selectedCategoryId} />
 
@@ -1198,6 +1230,9 @@ export function ListingForm({
                   }}
                   required
                 >
+                  <option value="" disabled>
+                    {chooseMainCategoryLabel}
+                  </option>
                   {parentCategories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {localizeCategoryName(category, locale)}
@@ -1381,13 +1416,19 @@ export function ListingForm({
               {text.categoryFieldsExpand}
             </summary>
             <div className="mt-3">
-              <DynamicFieldsEditor
-                key={`${selectedCategoryId}-${dynamicFieldsSeed}`}
-                categoryId={selectedCategoryId}
-                templatesByCategory={templatesByCategory}
-                initialValues={dynamicInitialValues}
-                locale={locale}
-              />
+              {hasTemplatesForSelectedCategory ? (
+                <DynamicFieldsEditor
+                  key={`${selectedCategoryId}-${dynamicFieldsSeed}`}
+                  categoryId={selectedCategoryId}
+                  templatesByCategory={templatesByCategory}
+                  initialValues={dynamicInitialValues}
+                  locale={locale}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {categoryTemplateMissingLabel}
+                </p>
+              )}
             </div>
           </details>
 

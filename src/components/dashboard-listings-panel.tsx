@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { localizeCategoryName } from "@/lib/category-label";
+import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { DashboardEmptyState } from "@/components/dashboard-empty-state";
 import { DashboardFilterBar } from "@/components/dashboard-filter-bar";
 import {
@@ -254,7 +255,7 @@ export function DashboardListingsPanel({
           title={text.noCategoryActivity}
           description={text.emptyListingsHint}
           ctaLabel={text.createFirstListing}
-          ctaHref="?create=1"
+          ctaHref={buildCreateListingHref()}
         />
       ) : (
         <>
@@ -303,11 +304,9 @@ export function DashboardListingsPanel({
                   title={text.emptyListingsTitle}
                   description={text.emptyListingsHint}
                   ctaLabel={text.createNow}
-                  ctaHref={
-                    selectedCategory
-                      ? `?create=1&cat=${selectedCategory.id}`
-                      : "?create=1"
-                  }
+                  ctaHref={buildCreateListingHref({
+                    cat: selectedCategory?.id,
+                  })}
                 />
               ) : (
                 <div

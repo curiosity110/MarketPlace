@@ -8,15 +8,35 @@ import { MarkSoldPopout } from "@/components/mark-sold-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrencyFromCents } from "@/lib/currency";
+import {
+  BROWSE_SIMILARITY_CLEAR_KEYS,
+  patchBrowseParams,
+} from "@/lib/browse/params";
+import {
+  buildExclusionParams,
+  buildSimilarityParams,
+} from "@/lib/browse/similarity";
 import { localizeCategoryPath } from "@/lib/category-label";
+import { formatCurrencyFromCents } from "@/lib/currency";
 import type { ListingCardDTO } from "@/lib/listing-card-select";
+
+type SimilarityData = {
+  id: string;
+  city: { id: string };
+  carMake: { slug: string } | null;
+  carModel: { slug: string } | null;
+  carYear: number | null;
+  priceCents: number;
+  fieldValues: { key: string; value: string }[];
+};
 
 type ListingCardProps = {
   listing: ListingCardDTO;
   locale?: "en" | "mk";
   currentAuthUserId?: string | null;
   isFavorited?: boolean;
+  browseQuery?: string;
+  similarityData?: SimilarityData;
 };
 
 export function ListingCard({
@@ -24,6 +44,8 @@ export function ListingCard({
   locale = "en",
   currentAuthUserId,
   isFavorited = false,
+  browseQuery,
+  similarityData,
 }: ListingCardProps) {
   const isMk = locale === "mk";
   const text = isMk
@@ -37,6 +59,8 @@ export function ListingCard({
         whatsapp: "WhatsApp",
         edit: "Уреди",
         sold: "Продадено",
+        moreLikeThis: "Слични",
+        excludeLikeThis: "Исклучи слични",
       }
     : {
         noImage: "No image",
@@ -47,11 +71,15 @@ export function ListingCard({
         call: "Call",
         edit: "Edit",
         sold: "Sold",
+        moreLikeThis: "More like this",
+        excludeLikeThis: "Exclude like this",
       };
   const conditionLabelByValue: Record<ListingCondition, string> = isMk
     ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
     : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" };
-  const isOwner = Boolean(currentAuthUserId && listing.ownerId === currentAuthUserId);
+  const isOwner = Boolean(
+    currentAuthUserId && listing.ownerId === currentAuthUserId,
+  );
   const isSold = Boolean(listing.sale);
 
   const firstImage = listing.images[0]?.url;
@@ -63,6 +91,23 @@ export function ListingCard({
   const conditionLabel = conditionLabelByValue[listing.condition];
   const formattedPrice = formatCurrencyFromCents(listing.priceCents, listing.currency);
   const sellerPhone = listing.seller?.phone || null;
+
+  const moreLikeHref = browseQuery && similarityData
+    ? patchBrowseParams(browseQuery, {
+        clear: BROWSE_SIMILARITY_CLEAR_KEYS,
+        set: buildSimilarityParams(similarityData),
+      })
+    : null;
+
+  const exclusionParams = similarityData
+    ? buildExclusionParams(similarityData)
+    : {};
+  const excludeLikeHref =
+    browseQuery && Object.keys(exclusionParams).length > 0
+      ? patchBrowseParams(browseQuery, {
+          set: exclusionParams,
+        })
+      : null;
 
   return (
     <Card className="h-full min-w-0 overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
@@ -97,7 +142,11 @@ export function ListingCard({
           >
             {conditionLabel}
           </Badge>
-          {isSold && <Badge variant="secondary" className="h-7 px-2.5 text-xs">{text.sold}</Badge>}
+          {isSold && (
+            <Badge variant="secondary" className="h-7 px-2.5 text-xs">
+              {text.sold}
+            </Badge>
+          )}
         </div>
 
         <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
@@ -153,6 +202,25 @@ export function ListingCard({
           {text.by} {sellerLabel}
         </p>
 
+        {moreLikeHref && (
+          <div className="grid grid-cols-2 gap-2">
+            <Link href={moreLikeHref} className="min-w-0">
+              <Button size="sm" variant="outline" className="w-full">
+                <span className="truncate">{text.moreLikeThis}</span>
+              </Button>
+            </Link>
+            {excludeLikeHref ? (
+              <Link href={excludeLikeHref} className="min-w-0">
+                <Button size="sm" variant="outline" className="w-full">
+                  <span className="truncate">{text.excludeLikeThis}</span>
+                </Button>
+              </Link>
+            ) : (
+              <div />
+            )}
+          </div>
+        )}
+
         {!isOwner && !isSold ? (
           sellerPhone ? (
             <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -163,13 +231,22 @@ export function ListingCard({
                 </Button>
               </a>
               <a href={`tel:${sellerPhone}`}>
-                <Button size="sm" variant="outline" className="h-9 w-9 p-0" aria-label={text.call}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 w-9 p-0"
+                  aria-label={text.call}
+                >
                   <Phone size={14} />
                 </Button>
               </a>
             </div>
           ) : (
-            <ContactSellerPopout listingId={listing.id} locale={locale} className="w-full justify-center" />
+            <ContactSellerPopout
+              listingId={listing.id}
+              locale={locale}
+              className="w-full justify-center"
+            />
           )
         ) : null}
 

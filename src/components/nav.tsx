@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { canAccessControl, canSell, getSessionUser } from "@/lib/auth";
+import { canAccessControl, getSessionUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/actions/notifications";
 import { AuthCtaLinks } from "@/components/auth-cta-links";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -16,7 +16,6 @@ export async function Nav() {
   const locale = await getServerLocale();
   const messages = getMessages(locale);
   const isAdmin = user ? canAccessControl(user.role) : false;
-  const canCreateListings = Boolean(user && canSell(user.role));
   const notifications = user
     ? await listNotifications({ limit: 8 })
     : { items: [], unreadCount: 0 };
@@ -35,7 +34,6 @@ export async function Nav() {
 
             <NavPrimaryLinks
               isLoggedIn={Boolean(user)}
-              canCreateListings={canCreateListings}
               labels={{
                 browse: messages.nav.browse,
                 categories: messages.nav.categories,
@@ -83,6 +81,7 @@ export async function Nav() {
         labels={{
           home: messages.nav.home,
           browse: messages.nav.browse,
+          sell: messages.nav.sell,
           dashboard: messages.nav.dashboard,
           login: messages.nav.login,
         }}

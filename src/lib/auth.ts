@@ -24,6 +24,7 @@ export type SessionUser = {
 };
 
 const SELL_ACCESS_ROLES = new Set<Role>([
+  Role.BUYER,
   Role.SELLER,
   Role.ADMIN,
   Role.STAFF,

@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { PlusCircle, X } from "lucide-react";
 import { Currency, ListingCondition } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { CreateListingWizardForm } from "@/components/create-listing-wizard-form";
 import { ListingForm } from "@/components/listing-form";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { localizeCategoryName } from "@/lib/category-label";
 
 type Category = { id: string; name: string; slug: string; parentId?: string | null };
 type City = { id: string; name: string };
@@ -76,6 +80,8 @@ export function CreateListingPopout({
   initial,
   locale = "en",
 }: Props) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -97,10 +103,102 @@ export function CreateListingPopout({
   const resolvedButtonLabel = buttonLabel ?? (isMk ? "Нов оглас" : "New listing");
   const resolvedPublishLabel =
     publishLabel ?? (isMk ? "Објави оглас" : "Publish listing");
+  const chooseCategoryTitle = isMk
+    ? "Choose category for this listing"
+    : "Choose category for this listing";
+  const chooseCategoryHint = isMk
+    ? "Pick a category first, then the form will load with the correct fields."
+    : "Pick a category first, then the form will load with the correct fields.";
+  const categoryLabel = isMk ? "Category" : "Category";
+  const categorySearchLabel = isMk ? "Search category" : "Search category";
+  const categorySearchPlaceholder = isMk
+    ? "Ex. Cars, Phones..."
+    : "Ex. Cars, Phones...";
+  const chooseCategoryOption = isMk ? "Select category" : "Select category";
+  const noCategoriesAvailable = isMk
+    ? "No categories are currently available for posting."
+    : "No categories are currently available for posting.";
+  const noCategoryMatch = isMk
+    ? "No categories match this search."
+    : "No categories match this search.";
+  const noTemplatesForCategory = isMk
+    ? "This category has no templates yet. Choose another category."
+    : "This category has no templates yet. Choose another category.";
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
   const autoOpenDoneRef = useRef(false);
+  const [categorySearch, setCategorySearch] = useState("");
+
+  const queryCategoryId = searchParams.get("cat");
+  const queryHasValidCategory = useMemo(
+    () =>
+      Boolean(
+        queryCategoryId &&
+          categories.some((category) => category.id === queryCategoryId),
+      ),
+    [categories, queryCategoryId],
+  );
+  const requiresExplicitCategorySelection =
+    !initial?.id && pathname === "/sell" && !queryHasValidCategory;
+  const [selectedCreateCategoryId, setSelectedCreateCategoryId] = useState(
+    () => {
+      if (initial?.id || requiresExplicitCategorySelection) return "";
+      const initialCategoryId = initial?.categoryId;
+      if (
+        initialCategoryId &&
+        categories.some((category) => category.id === initialCategoryId)
+      ) {
+        return initialCategoryId;
+      }
+      return "";
+    },
+  );
+
+  const categoriesWithTemplates = useMemo(
+    () =>
+      categories.filter(
+        (category) => (templatesByCategory[category.id]?.length ?? 0) > 0,
+      ),
+    [categories, templatesByCategory],
+  );
+  const filteredCategories = useMemo(() => {
+    const normalizedQuery = categorySearch.trim().toLowerCase();
+    if (!normalizedQuery) return categoriesWithTemplates;
+    return categoriesWithTemplates.filter((category) => {
+      const localizedName = localizeCategoryName(category, locale).toLowerCase();
+      return (
+        localizedName.includes(normalizedQuery) ||
+        category.name.toLowerCase().includes(normalizedQuery) ||
+        category.slug.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [categoriesWithTemplates, categorySearch, locale]);
+  const resolvedCreateCategoryId = useMemo(() => {
+    if (!selectedCreateCategoryId) return "";
+    return categoriesWithTemplates.some(
+      (category) => category.id === selectedCreateCategoryId,
+    )
+      ? selectedCreateCategoryId
+      : "";
+  }, [categoriesWithTemplates, selectedCreateCategoryId]);
+  const selectedCategoryTemplates = useMemo(
+    () =>
+      resolvedCreateCategoryId
+        ? templatesByCategory[resolvedCreateCategoryId] ?? []
+        : [],
+    [resolvedCreateCategoryId, templatesByCategory],
+  );
+  const shouldShowCreateCategoryGate =
+    !initial?.id &&
+    (!resolvedCreateCategoryId || selectedCategoryTemplates.length === 0);
+  const createInitial = useMemo(() => {
+    if (initial?.id) return initial;
+    return {
+      ...initial,
+      categoryId: resolvedCreateCategoryId || undefined,
+    };
+  }, [initial, resolvedCreateCategoryId]);
 
   const openPopout = useCallback(() => {
     setIsOpen(true);
@@ -229,6 +327,64 @@ export function CreateListingPopout({
                   initial={initial}
                   locale={locale}
                 />
+              ) : shouldShowCreateCategoryGate ? (
+                <section className="mx-auto w-full max-w-xl space-y-4 rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5">
+                  <div className="space-y-1">
+                    <p className="text-base font-bold">{chooseCategoryTitle}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {chooseCategoryHint}
+                    </p>
+                  </div>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {categorySearchLabel}
+                    </span>
+                    <Input
+                      value={categorySearch}
+                      onChange={(event) => setCategorySearch(event.target.value)}
+                      placeholder={categorySearchPlaceholder}
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {categoryLabel}
+                    </span>
+                    <Select
+                      value={resolvedCreateCategoryId}
+                      onChange={(event) =>
+                        setSelectedCreateCategoryId(event.target.value)
+                      }
+                    >
+                      <option value="" disabled>
+                        {chooseCategoryOption}
+                      </option>
+                      {filteredCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {localizeCategoryName(category, locale)}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+
+                  {categoriesWithTemplates.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {noCategoriesAvailable}
+                    </p>
+                  ) : filteredCategories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {noCategoryMatch}
+                    </p>
+                  ) : null}
+
+                  {resolvedCreateCategoryId &&
+                  selectedCategoryTemplates.length === 0 ? (
+                    <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                      {noTemplatesForCategory}
+                    </p>
+                  ) : null}
+                </section>
               ) : (
                 <CreateListingWizardForm
                   action={action}
@@ -239,7 +395,7 @@ export function CreateListingPopout({
                   showPlanSelector={showPlanSelector}
                   publishLabel={resolvedPublishLabel}
                   paymentProvider={paymentProvider}
-                  initial={initial}
+                  initial={createInitial}
                   locale={locale}
                 />
               )}

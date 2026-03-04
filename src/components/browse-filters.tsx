@@ -4,7 +4,7 @@ import type { ChangeEvent } from "react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CategoryFieldType, ListingCondition } from "@prisma/client";
-import { CircleDollarSign, Filter, Search, X } from "lucide-react";
+import { Filter, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -108,6 +108,23 @@ function isCarsSlug(slug: string | undefined) {
   if (!slug) return false;
   const normalized = slug.toLowerCase();
   return normalized === "cars" || normalized.includes("car");
+}
+
+function isCarCoreTemplate(template: Template) {
+  const source = `${template.key} ${template.label}`.toLowerCase();
+  return /(brand|make|manufacturer|model|year|fuel|transmission|gearbox|km|mileage|kilomet)/.test(
+    source,
+  );
+}
+
+function isCarExtraTemplate(template: Template) {
+  const source = `${template.key} ${template.label}`.toLowerCase();
+  return /(fuel|transmission|gearbox|km|mileage|kilomet)/.test(source);
+}
+
+function isCarIdentityTemplate(template: Template) {
+  const source = `${template.key} ${template.label}`.toLowerCase();
+  return /(brand|make|manufacturer|model|year)/.test(source);
 }
 
 export function getBrowseDynamicValues(sp: URLSearchParams) {
@@ -329,6 +346,13 @@ export function BrowseFilters({
         priceAutoFixed: "Min/max were aligned automatically.",
         favoritesOnly: "Favorites only",
       };
+  const filtersLabel = isMk ? "Филтри" : "Filters";
+  const clearAllLabel = isMk ? "Исчисти сè" : "Clear all";
+  const resetLabel = isMk ? "Ресетирај" : "Reset";
+  const moreFiltersLabel = isMk ? "Повеќе филтри" : "More filters";
+  const priceLabel = isMk ? "Цена" : "Price";
+  const vehicleDetailsLabel = isMk ? "Детали за возило" : "Vehicle details";
+  const basicsLabel = isMk ? "Основни филтри" : "Basic filters";
 
   const conditionLabelByValue = React.useMemo<Record<ListingCondition, string>>(
     () =>
@@ -391,16 +415,6 @@ export function BrowseFilters({
     [isMobileMode, onDynamicValuesChange],
   );
 
-  const [lastDispatchedQuery, setLastDispatchedQuery] = React.useState<string>(() =>
-    canonicalizeQueryString(spString),
-  );
-
-  React.useEffect(() => {
-    if (isMobileMode) return;
-    const canonical = canonicalizeQueryString(spString);
-    setLastDispatchedQuery((prev) => (prev === canonical ? prev : canonical));
-  }, [isMobileMode, spString]);
-
   React.useEffect(() => {
     if (isMobileMode) return;
     const latest = new URLSearchParams(spString);
@@ -444,6 +458,12 @@ export function BrowseFilters({
     () => templatesByCategory[selectedCategoryId] ?? [],
     [selectedCategoryId, templatesByCategory],
   );
+  const carExtraTemplates = isCarsCategorySelected
+    ? dynamicTemplates.filter((template) => isCarExtraTemplate(template))
+    : [];
+  const visibleDynamicTemplates = isCarsCategorySelected
+    ? dynamicTemplates.filter((template) => !isCarCoreTemplate(template))
+    : dynamicTemplates;
 
   const allTemplateLabels = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -584,17 +604,13 @@ export function BrowseFilters({
       const nextCanonical = canonicalizeQueryString(query);
       const currentCanonical = canonicalizeQueryString(spString);
 
-      if (
-        nextCanonical === currentCanonical ||
-        nextCanonical === lastDispatchedQuery
-      ) {
+      if (nextCanonical === currentCanonical) {
         return;
       }
 
-      setLastDispatchedQuery(nextCanonical);
       router.replace(query ? `/browse?${query}` : "/browse", { scroll: false });
     },
-    [isMobileMode, lastDispatchedQuery, onApply, router, spString],
+    [isMobileMode, onApply, router, spString],
   );
 
   const debouncedQ = useDebouncedValue(state.q, TYPING_DEBOUNCE_MS);
@@ -640,13 +656,19 @@ export function BrowseFilters({
 
   React.useEffect(() => {
     setDynamicValues((prev) => {
-      const allowedKeys = new Set(dynamicTemplates.map((template) => template.key));
+      const allowedTemplates = dynamicTemplates.filter(
+        (template) =>
+          !isCarsCategorySelected || !isCarIdentityTemplate(template),
+      );
+      const allowedKeys = new Set(
+        allowedTemplates.map((template) => template.key),
+      );
       const next = Object.fromEntries(
         Object.entries(prev).filter(([key]) => allowedKeys.has(key)),
       );
       return areRecordsEqual(prev, next) ? prev : next;
     });
-  }, [dynamicTemplates, setDynamicValues]);
+  }, [dynamicTemplates, isCarsCategorySelected, setDynamicValues]);
 
   React.useEffect(() => {
     if (isMobileMode) return;
@@ -703,6 +725,21 @@ export function BrowseFilters({
     const maxValue = toPositiveInteger(state.max);
     return minValue !== undefined && maxValue !== undefined && minValue > maxValue;
   }, [state.max, state.min]);
+  const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isDrawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsDrawerOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isDrawerOpen]);
 
   const resetAll = React.useCallback(() => {
     const clearedState: BrowseFilterState = {
@@ -722,6 +759,7 @@ export function BrowseFilters({
     };
     setState(clearedState);
     setDynamicValues({});
+    setIsDrawerOpen(false);
     if (isMobileMode) return;
     applyFilters(clearedState, {});
   }, [applyFilters, isMobileMode, setDynamicValues, setState]);
@@ -1357,13 +1395,13 @@ export function BrowseFilters({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {text.activeFilters}
             </p>
-            <button
-              type="button"
-              className="text-xs font-semibold text-primary hover:underline"
-              onClick={resetAll}
-            >
-              {text.clearAll}
-            </button>
+              <button
+                type="button"
+                className="text-xs font-semibold text-primary hover:underline"
+                onClick={resetAll}
+              >
+                {clearAllLabel}
+              </button>
           </div>
           <div className="flex flex-wrap gap-2">
             {activeFilterChips.map((chip) => (
@@ -1382,8 +1420,8 @@ export function BrowseFilters({
         </div>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-12">
-        <label className="space-y-1 lg:col-span-8">
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.search}
           </span>
@@ -1405,11 +1443,11 @@ export function BrowseFilters({
           </div>
         </label>
 
-        <div className="space-y-1 lg:col-span-4">
+        <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.orderBy}
           </p>
-          <div className="inline-flex w-full rounded-xl border border-border/80 bg-muted/20 p-1">
+          <div className="inline-flex rounded-xl border border-border/80 bg-muted/20 p-1">
             {sortOptions.map((option) => (
               <button
                 key={option.value}
@@ -1433,260 +1471,327 @@ export function BrowseFilters({
               </button>
             ))}
           </div>
-          {canUseFavoritesFilter && (
-            <button
-              type="button"
-              className={cn(
-                "mt-2 inline-flex h-8 items-center rounded-full border px-3 text-xs font-semibold transition-colors",
-                state.fav === "1"
-                  ? "border-primary/40 bg-primary/10 text-primary"
-                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => {
-                const nextState: BrowseFilterState = {
-                  ...state,
-                  fav: state.fav === "1" ? "" : "1",
-                };
-                setState(nextState);
-                applyFilters(nextState, dynamicValues);
-              }}
-            >
-              {text.favoritesOnly}
-            </button>
-          )}
         </div>
-      </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <label className="space-y-1">
+        <div className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.category}
+            {filtersLabel}
           </span>
-          <Select name="cat" value={state.cat} onChange={onCategoryChange}>
-            <option value="">{text.allCategories}</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.subcategory}
-          </span>
-          <Select
-            name="sub"
-            value={state.sub}
-            disabled={!state.cat}
-            onChange={onSubcategoryChange}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-xl px-3"
+            onClick={() => setIsDrawerOpen(true)}
           >
-            <option value="">
-              {state.cat ? text.allSubcategories : text.selectCategoryFirst}
-            </option>
-            {subcategories.map((subcategory) => (
-              <option key={subcategory.id} value={subcategory.id}>
-                {subcategory.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.city}
-          </span>
-          <Select
-            name="city"
-            value={state.city}
-            onChange={onImmediateSelectChange("city")}
-          >
-            <option value="">{text.allCities}</option>
-            {cities.map((cityItem) => (
-              <option key={cityItem.id} value={cityItem.id}>
-                {cityItem.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.condition}
-          </span>
-          <Select
-            name="condition"
-            value={state.condition}
-            onChange={onImmediateSelectChange("condition")}
-          >
-            <option value="">{text.anyCondition}</option>
-            {Object.values(ListingCondition).map((item) => (
-              <option key={item} value={item}>
-                {conditionLabelByValue[item]}
-              </option>
-            ))}
-          </Select>
-        </label>
-      </div>
-
-      {isCarsCategorySelected && (
-        <div className="rounded-2xl border border-secondary/20 bg-blue-50/40 p-3 dark:bg-blue-500/5">
-          <p className="mb-3 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Filter size={14} />
-            {text.carsFilters}
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.make}
-              </span>
-              <Select name="make" value={state.make} onChange={onMakeChange}>
-                <option value="">{text.allMakes}</option>
-                {carMakes.map((make) => (
-                  <option key={make.id} value={make.slug}>
-                    {make.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.model}
-              </span>
-              <Select
-                name="model"
-                value={state.model}
-                onChange={onModelChange}
-                disabled={!state.make}
-              >
-                <option value="">
-                  {state.make ? text.allModels : text.selectMakeFirst}
-                </option>
-                {carModelOptions.map((model) => (
-                  <option key={model.id} value={model.slug}>
-                    {model.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.yearFrom}
-              </span>
-              <Select
-                name="yearFrom"
-                value={state.yearFrom}
-                onChange={onYearChange("yearFrom")}
-              >
-                <option value="">{text.any}</option>
-                {carYearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </Select>
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.yearTo}
-              </span>
-              <Select
-                name="yearTo"
-                value={state.yearTo}
-                onChange={onYearChange("yearTo")}
-              >
-                <option value="">{text.any}</option>
-                {carYearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </div>
-        </div>
-      )}
-
-      <div className="rounded-2xl border border-dashed border-primary/25 bg-orange-50/40 p-3 dark:bg-orange-500/5">
-        <p className="mb-2 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <CircleDollarSign size={14} />
-          {text.priceRange}
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="relative">
-            <Input
-              name="min"
-              type="text"
-              inputMode="numeric"
-              value={state.min}
-              onChange={(event) =>
-                setState((prev) => ({
-                  ...prev,
-                  min: normalizeNumericInput(event.target.value),
-                }))
-              }
-              placeholder={text.minPrice}
-              autoComplete="off"
-              className="pr-12"
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
-              {text.mkd}
-            </span>
-          </div>
-          <div className="relative">
-            <Input
-              name="max"
-              type="text"
-              inputMode="numeric"
-              value={state.max}
-              onChange={(event) =>
-                setState((prev) => ({
-                  ...prev,
-                  max: normalizeNumericInput(event.target.value),
-                }))
-              }
-              placeholder={text.maxPrice}
-              autoComplete="off"
-              className="pr-12"
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
-              {text.mkd}
-            </span>
-          </div>
-        </div>
-        {hasPriceSwap && (
-          <p className="mt-2 text-xs text-warning">{text.priceAutoFixed}</p>
-        )}
-      </div>
-
-      {dynamicTemplates.length > 0 && (
-        <div className="rounded-2xl border border-secondary/20 bg-blue-50/40 p-3 dark:bg-blue-500/5">
-          <p className="mb-3 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Filter size={14} />
-            {state.cat || state.sub ? text.categoryFilters : text.extraFilters}
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {dynamicTemplates.map((template) => (
-              <label key={template.key} className="space-y-1">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {template.label}
-                </span>
-                {renderDynamicInput(template)}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {showResetButton && (
-        <div className="flex justify-end">
-          <Button type="button" variant="outline" onClick={resetAll}>
-            {text.resetFilters}
+            <Filter size={14} className="mr-1.5" />
+            {filtersLabel}
+            {activeFilterChips.length > 0 ? ` (${activeFilterChips.length})` : ""}
           </Button>
+        </div>
+      </div>
+
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-[95]">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45"
+            aria-label={filtersLabel}
+            onClick={() => setIsDrawerOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-[430px] md:rounded-none md:border-y-0 md:border-r-0 md:border-l">
+            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+              <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                {filtersLabel}
+              </p>
+              <div className="flex items-center gap-3">
+                {showResetButton && (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-primary hover:underline"
+                    onClick={resetAll}
+                  >
+                    {resetLabel}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsDrawerOpen(false)}
+                  aria-label={text.clear}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto p-4">
+              <section className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {basicsLabel}
+                </p>
+                <div className="grid gap-3">
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {text.category}
+                    </span>
+                    <Select name="cat" value={state.cat} onChange={onCategoryChange}>
+                      <option value="">{text.allCategories}</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {text.subcategory}
+                    </span>
+                    <Select
+                      name="sub"
+                      value={state.sub}
+                      disabled={!state.cat}
+                      onChange={onSubcategoryChange}
+                    >
+                      <option value="">
+                        {state.cat ? text.allSubcategories : text.selectCategoryFirst}
+                      </option>
+                      {subcategories.map((subcategory) => (
+                        <option key={subcategory.id} value={subcategory.id}>
+                          {subcategory.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {text.city}
+                    </span>
+                    <Select
+                      name="city"
+                      value={state.city}
+                      onChange={onImmediateSelectChange("city")}
+                    >
+                      <option value="">{text.allCities}</option>
+                      {cities.map((cityItem) => (
+                        <option key={cityItem.id} value={cityItem.id}>
+                          {cityItem.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {text.condition}
+                    </span>
+                    <Select
+                      name="condition"
+                      value={state.condition}
+                      onChange={onImmediateSelectChange("condition")}
+                    >
+                      <option value="">{text.anyCondition}</option>
+                      {Object.values(ListingCondition).map((item) => (
+                        <option key={item} value={item}>
+                          {conditionLabelByValue[item]}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                </div>
+
+                {canUseFavoritesFilter && (
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex h-8 items-center rounded-full border px-3 text-xs font-semibold transition-colors",
+                      state.fav === "1"
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
+                    )}
+                    onClick={() => {
+                      const nextState: BrowseFilterState = {
+                        ...state,
+                        fav: state.fav === "1" ? "" : "1",
+                      };
+                      setState(nextState);
+                      applyFilters(nextState, dynamicValues);
+                    }}
+                  >
+                    {text.favoritesOnly}
+                  </button>
+                )}
+              </section>
+
+              <section className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {priceLabel}
+                </p>
+                <div className="grid gap-2">
+                  <div className="relative">
+                    <Input
+                      name="min"
+                      type="text"
+                      inputMode="numeric"
+                      value={state.min}
+                      onChange={(event) =>
+                        setState((prev) => ({
+                          ...prev,
+                          min: normalizeNumericInput(event.target.value),
+                        }))
+                      }
+                      placeholder={text.minPrice}
+                      autoComplete="off"
+                      className="pr-12"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
+                      {text.mkd}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      name="max"
+                      type="text"
+                      inputMode="numeric"
+                      value={state.max}
+                      onChange={(event) =>
+                        setState((prev) => ({
+                          ...prev,
+                          max: normalizeNumericInput(event.target.value),
+                        }))
+                      }
+                      placeholder={text.maxPrice}
+                      autoComplete="off"
+                      className="pr-12"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
+                      {text.mkd}
+                    </span>
+                  </div>
+                </div>
+                {hasPriceSwap && (
+                  <p className="text-xs text-warning">{text.priceAutoFixed}</p>
+                )}
+              </section>
+
+              {isCarsCategorySelected && (
+                <section className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {vehicleDetailsLabel}
+                  </p>
+                  <div className="grid gap-3">
+                    <label className="space-y-1">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {text.make}
+                      </span>
+                      <Select name="make" value={state.make} onChange={onMakeChange}>
+                        <option value="">{text.allMakes}</option>
+                        {carMakes.map((make) => (
+                          <option key={make.id} value={make.slug}>
+                            {make.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {text.model}
+                      </span>
+                      <Select
+                        name="model"
+                        value={state.model}
+                        onChange={onModelChange}
+                        disabled={!state.make}
+                      >
+                        <option value="">
+                          {state.make ? text.allModels : text.selectMakeFirst}
+                        </option>
+                        {carModelOptions.map((model) => (
+                          <option key={model.id} value={model.slug}>
+                            {model.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="space-y-1">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {text.yearFrom}
+                        </span>
+                        <Select
+                          name="yearFrom"
+                          value={state.yearFrom}
+                          onChange={onYearChange("yearFrom")}
+                        >
+                          <option value="">{text.any}</option>
+                          {carYearOptions.map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+
+                      <label className="space-y-1">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {text.yearTo}
+                        </span>
+                        <Select
+                          name="yearTo"
+                          value={state.yearTo}
+                          onChange={onYearChange("yearTo")}
+                        >
+                          <option value="">{text.any}</option>
+                          {carYearOptions.map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+                    </div>
+
+                    {carExtraTemplates.map((template) => (
+                      <label key={`car-${template.key}`} className="space-y-1">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {template.label}
+                        </span>
+                        {renderDynamicInput(template)}
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {visibleDynamicTemplates.length > 0 && (
+                <details className="rounded-xl border border-border/70 bg-card/60 p-3">
+                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {moreFiltersLabel}
+                  </summary>
+                  <div className="mt-3 grid gap-3">
+                    {visibleDynamicTemplates.map((template) => (
+                      <label key={template.key} className="space-y-1">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {template.label}
+                        </span>
+                        {renderDynamicInput(template)}
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+
+            <div className="border-t border-border/70 p-4">
+              <Button type="button" className="w-full" onClick={() => setIsDrawerOpen(false)}>
+                {text.apply}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </form>

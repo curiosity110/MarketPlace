@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ListingCondition, Role } from "@prisma/client";
+import { ListingCondition } from "@prisma/client";
 import { z } from "zod";
 import { canSell, getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -26,9 +26,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!canSell(user.role) || (user.role !== Role.SELLER && user.role !== Role.ADMIN)) {
+  if (!canSell(user.role)) {
     return NextResponse.json(
-      { error: "Forbidden. Only sellers and admins can create listings." },
+      { error: "Forbidden. You do not have create access." },
       { status: 403 },
     );
   }

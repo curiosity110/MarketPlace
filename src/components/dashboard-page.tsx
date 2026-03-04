@@ -9,6 +9,7 @@ import { SavedSearchesList } from "@/components/saved-searches-list";
 import { DashboardListingsPanel } from "@/components/dashboard-listings-panel";
 import { DashboardStatsBento } from "@/components/dashboard-stats-bento";
 import { canAccessControl, canSell, requireSeller, requireUser } from "@/lib/auth";
+import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { prisma } from "@/lib/prisma";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { listingCardSelect } from "@/lib/listing-card-select";
@@ -578,11 +579,9 @@ return (
           <div className="flex flex-wrap gap-2">
             {canCreateListings && categories.length > 0 ? (
               <Link
-                href={
-                  selectedCategoryIdFromQuery
-                    ? `?create=1&cat=${selectedCategoryIdFromQuery}`
-                    : "?create=1"
-                }
+                href={buildCreateListingHref({
+                  cat: selectedCategoryIdFromQuery,
+                })}
               >
                 <Button>{text.createNow}</Button>
               </Link>

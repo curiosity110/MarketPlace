@@ -9,15 +9,24 @@ import {
   Prisma,
 } from "@prisma/client";
 import { SlidersHorizontal } from "lucide-react";
-import { MobileFilterSheet } from "@/components/browse/mobile-filter-sheet";
 import { BrowseFilters } from "@/components/browse-filters";
 import { ListingCard } from "@/components/listing-card";
 import { SaveSearchPopout } from "@/components/save-search-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { canSell, getSessionUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
+import {
+  BROWSE_SIMILARITY_CLEAR_KEYS,
+  patchBrowseParams,
+  parseBrowseSimilarityQuery,
+} from "@/lib/browse/params";
+import {
+  CAR_FUEL_FIELD_KEYS,
+  CAR_TRANSMISSION_FIELD_KEYS,
+} from "@/lib/browse/similarity";
 import { localizeCategoryName } from "@/lib/category-label";
+import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { getServerLocale } from "@/lib/i18n";
 import { listingCardSelect } from "@/lib/listing-card-select";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
@@ -53,6 +62,15 @@ type ActiveFilterChip = {
   key: string;
   label: string;
   href: string;
+};
+type ListingSimilarityData = {
+  id: string;
+  city: { id: string };
+  carMake: { slug: string } | null;
+  carModel: { slug: string } | null;
+  carYear: number | null;
+  priceCents: number;
+  fieldValues: { key: string; value: string }[];
 };
 
 const getCachedBrowseParentCategories = unstable_cache(
@@ -173,8 +191,7 @@ export default async function BrowsePage({
 }) {
   const locale = await getServerLocale();
   const sessionUser = await getSessionUser();
-  const canCreateListings = Boolean(sessionUser && canSell(sessionUser.role));
-  const createHref = canCreateListings ? "?create=1" : "/sell";
+  const createHref = buildCreateListingHref();
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -263,7 +280,29 @@ export default async function BrowsePage({
         activeFilters: "Active filters",
         removeFilter: "Remove filter",
       };
+  const similarityText = isMk
+    ? {
+        becauseClicked: "Затоа што кликна:",
+        unknownListing: "избран оглас",
+        clearSimilarity: "Исчисти слично/исклучи",
+        similarityFilters: "Слично/исклучи филтри",
+        similarityModeChip: "Режим: слични",
+        fuelChip: "Гориво",
+        transmissionChip: "Менувач",
+        excludePrefix: "Исклучи",
+      }
+    : {
+        becauseClicked: "Because you clicked:",
+        unknownListing: "selected listing",
+        clearSimilarity: "Clear similar/exclude",
+        similarityFilters: "Similar/exclude filters",
+        similarityModeChip: "Mode: similar",
+        fuelChip: "Fuel",
+        transmissionChip: "Transmission",
+        excludePrefix: "Exclude",
+      };
   const sp = await searchParams;
+  const similarityQuery = parseBrowseSimilarityQuery(sp);
   const search = getParam(sp, "q")?.trim();
   const cat = getParam(sp, "cat");
   const sub = getParam(sp, "sub");
@@ -307,6 +346,7 @@ export default async function BrowsePage({
   let cities: Awaited<ReturnType<typeof getCachedBrowseCities>> = [];
   let carMakes: CarMakeOption[] = [];
   const favoriteListingIdSet = new Set<string>();
+  const similarityDataByListingId = new Map<string, ListingSimilarityData>();
   let dbUnavailable = false;
 
   let safeCat = cat || "";
@@ -318,7 +358,16 @@ export default async function BrowsePage({
   let safeModelId = "";
   let safeYearFrom: number | undefined;
   let safeYearTo: number | undefined;
+  const safeFuel = similarityQuery.fuel || "";
+  const safeTransmission = similarityQuery.transmission || "";
+  let safeNotMakeSlug = similarityQuery.notMake || "";
+  let safeNotModelSlug = similarityQuery.notModel || "";
+  let safeNotModelId = "";
+  const safeNotFuel = similarityQuery.notFuel || "";
+  const safeNotTransmission = similarityQuery.notTransmission || "";
+  let safeNotCity = similarityQuery.notCity || "";
   let isCarsCategorySelected = false;
+  let seedListingTitle: string | null = null;
 
   let selectedCategoryLabel: string | null = null;
   let selectedCategoryId = "";
@@ -334,14 +383,30 @@ export default async function BrowsePage({
   let hasInvalidYearTo = false;
   let hasYearSwap = false;
   let hasCarsParamsOutsideCars = false;
+  let hasInvalidNotMake = false;
+  let hasInvalidNotModel = false;
+  let hasInvalidNotCity = false;
 
   try {
     if (!shouldSkipPrismaCalls()) {
-      [parentCategories, cities, carMakes] = await Promise.all([
-        getCachedBrowseParentCategories(),
-        getCachedBrowseCities(),
-        getCachedCarMakesWithModels(),
-      ]);
+      const seedListingPromise = similarityQuery.seed
+        ? prisma.listing.findUnique({
+            where: { id: similarityQuery.seed },
+            select: { id: true, title: true },
+          })
+        : Promise.resolve(null);
+
+      const [nextParentCategories, nextCities, nextCarMakes, seedListing] =
+        await Promise.all([
+          getCachedBrowseParentCategories(),
+          getCachedBrowseCities(),
+          getCachedCarMakesWithModels(),
+          seedListingPromise,
+        ]);
+      parentCategories = nextParentCategories;
+      cities = nextCities;
+      carMakes = nextCarMakes;
+      seedListingTitle = seedListing?.title || null;
 
       const validParentCategoryIds = new Set(
         parentCategories.map((category) => category.id),
@@ -437,6 +502,30 @@ export default async function BrowsePage({
         }
       }
 
+      const safeNotMake = safeNotMakeSlug
+        ? makeBySlug.get(safeNotMakeSlug)
+        : undefined;
+      hasInvalidNotMake = Boolean(safeNotMakeSlug && !safeNotMake);
+      safeNotMakeSlug = safeNotMake?.slug || "";
+
+      if (safeNotModelSlug) {
+        const candidates = modelsWithMake.filter(
+          (model) =>
+            model.slug === safeNotModelSlug &&
+            (!safeNotMake || model.makeId === safeNotMake.id),
+        );
+        if (candidates.length === 1) {
+          safeNotModelSlug = candidates[0].slug;
+          safeNotModelId = candidates[0].id;
+        } else {
+          hasInvalidNotModel = true;
+          safeNotModelSlug = "";
+        }
+      }
+
+      hasInvalidNotCity = Boolean(safeNotCity && !validCityIds.has(safeNotCity));
+      safeNotCity = hasInvalidNotCity ? "" : safeNotCity;
+
       hasCarsParamsOutsideCars = Boolean(
         !isCarsCategorySelected &&
           (makeSlugParam || modelSlugParam || yearFromParam || yearToParam),
@@ -461,7 +550,10 @@ export default async function BrowsePage({
             hasInvalidModel ||
             hasInvalidYearFrom ||
             hasInvalidYearTo ||
-            hasYearSwap));
+            hasYearSwap)) ||
+        hasInvalidNotMake ||
+        hasInvalidNotModel ||
+        hasInvalidNotCity;
 
       if (shouldRedirectForInvalidParams) {
         const sanitized = new URLSearchParams();
@@ -477,6 +569,9 @@ export default async function BrowsePage({
           if (key === "model" && (hasCarsParamsOutsideCars || hasInvalidModel)) return;
           if (key === "yearFrom" && (hasCarsParamsOutsideCars || hasInvalidYearFrom)) return;
           if (key === "yearTo" && (hasCarsParamsOutsideCars || hasInvalidYearTo)) return;
+          if (key === "notMake" && hasInvalidNotMake) return;
+          if (key === "notModel" && hasInvalidNotModel) return;
+          if (key === "notCity" && hasInvalidNotCity) return;
           sanitized.set(key, single);
         });
 
@@ -542,6 +637,87 @@ export default async function BrowsePage({
         }
       }
 
+      if (similarityQuery.mode === "similar" && similarityQuery.seed) {
+        andFilters.push({ id: { not: similarityQuery.seed } });
+      }
+
+      if (safeFuel) {
+        andFilters.push({
+          OR: CAR_FUEL_FIELD_KEYS.map((key) => ({
+            fieldValues: {
+              some: {
+                key,
+                value: { contains: safeFuel, mode: "insensitive" },
+              },
+            },
+          })),
+        });
+      }
+
+      if (safeTransmission) {
+        andFilters.push({
+          OR: CAR_TRANSMISSION_FIELD_KEYS.map((key) => ({
+            fieldValues: {
+              some: {
+                key,
+                value: { contains: safeTransmission, mode: "insensitive" },
+              },
+            },
+          })),
+        });
+      }
+
+      if (safeNotMakeSlug) {
+        const notMake = makeBySlug.get(safeNotMakeSlug);
+        if (notMake) {
+          andFilters.push({
+            NOT: { carMakeId: notMake.id },
+          });
+        }
+      }
+
+      if (safeNotModelSlug && safeNotModelId) {
+        andFilters.push({
+          NOT: { carModelId: safeNotModelId },
+        });
+      }
+
+      if (safeNotCity) {
+        andFilters.push({
+          NOT: { cityId: safeNotCity },
+        });
+      }
+
+      if (safeNotFuel) {
+        andFilters.push({
+          NOT: {
+            OR: CAR_FUEL_FIELD_KEYS.map((key) => ({
+              fieldValues: {
+                some: {
+                  key,
+                  value: { contains: safeNotFuel, mode: "insensitive" },
+                },
+              },
+            })),
+          },
+        });
+      }
+
+      if (safeNotTransmission) {
+        andFilters.push({
+          NOT: {
+            OR: CAR_TRANSMISSION_FIELD_KEYS.map((key) => ({
+              fieldValues: {
+                some: {
+                  key,
+                  value: { contains: safeNotTransmission, mode: "insensitive" },
+                },
+              },
+            })),
+          },
+        });
+      }
+
       dynamicFilters.forEach((entry) => {
         andFilters.push({
           fieldValues: {
@@ -575,6 +751,40 @@ export default async function BrowsePage({
         prisma.listing.count({ where }),
       ]);
 
+      if (listings.length > 0) {
+        const similarityRows = await prisma.listing.findMany({
+          where: { id: { in: listings.map((listing) => listing.id) } },
+          select: {
+            id: true,
+            city: {
+              select: { id: true },
+            },
+            carMake: {
+              select: { slug: true },
+            },
+            carModel: {
+              select: { slug: true },
+            },
+            carYear: true,
+            priceCents: true,
+            fieldValues: {
+              where: {
+                key: {
+                  in: [...CAR_FUEL_FIELD_KEYS, ...CAR_TRANSMISSION_FIELD_KEYS],
+                },
+              },
+              select: {
+                key: true,
+                value: true,
+              },
+            },
+          },
+        });
+        similarityRows.forEach((row) => {
+          similarityDataByListingId.set(row.id, row);
+        });
+      }
+
       if (sessionUser && listings.length > 0) {
         const favoriteRows = await prisma.favorite.findMany({
           where: {
@@ -601,6 +811,13 @@ export default async function BrowsePage({
         Boolean(safeModelSlug) ||
         safeYearFrom !== undefined ||
         safeYearTo !== undefined ||
+        Boolean(safeFuel) ||
+        Boolean(safeTransmission) ||
+        Boolean(safeNotMakeSlug) ||
+        Boolean(safeNotModelSlug) ||
+        Boolean(safeNotFuel) ||
+        Boolean(safeNotTransmission) ||
+        Boolean(safeNotCity) ||
         dynamicFilters.length > 0;
 
       markPrismaHealthy();
@@ -772,6 +989,137 @@ export default async function BrowsePage({
     });
   }
 
+  if (safeFuel) {
+    activeFilterChips.push({
+      key: "fuel",
+      label: `${similarityText.fuelChip}: ${safeFuel}`,
+      href: hrefWithout("fuel"),
+    });
+  }
+  if (safeTransmission) {
+    activeFilterChips.push({
+      key: "transmission",
+      label: `${similarityText.transmissionChip}: ${safeTransmission}`,
+      href: hrefWithout("transmission"),
+    });
+  }
+  const hasFilterChips = activeFilterChips.length > 0;
+
+  const hasSimilarityExplainBar =
+    similarityQuery.mode === "similar" ||
+    Boolean(similarityQuery.seed) ||
+    Boolean(safeNotMakeSlug) ||
+    Boolean(safeNotModelSlug) ||
+    Boolean(safeNotFuel) ||
+    Boolean(safeNotTransmission) ||
+    Boolean(safeNotCity);
+  const clearSimilarityHref = patchBrowseParams(params, {
+    clear: BROWSE_SIMILARITY_CLEAR_KEYS,
+  });
+  const similarityChips: ActiveFilterChip[] = [];
+
+  if (similarityQuery.mode === "similar") {
+    similarityChips.push({
+      key: "mode",
+      label: similarityText.similarityModeChip,
+      href: patchBrowseParams(params, { clear: ["mode", "seed"] }),
+    });
+  }
+  if (safeMakeSlug) {
+    similarityChips.push({
+      key: "sim-make",
+      label: `${text.makeChip}: ${makeLabelBySlug.get(safeMakeSlug) || safeMakeSlug}`,
+      href: patchBrowseParams(params, { clear: ["make", "model"] }),
+    });
+  }
+  if (safeModelSlug) {
+    similarityChips.push({
+      key: "sim-model",
+      label: `${text.modelChip}: ${modelLabelBySlug.get(safeModelSlug) || safeModelSlug}`,
+      href: patchBrowseParams(params, { clear: ["model"] }),
+    });
+  }
+  if (safeYearFrom !== undefined || safeYearTo !== undefined) {
+    const yearLabel =
+      safeYearFrom !== undefined && safeYearTo !== undefined
+        ? `${safeYearFrom} - ${safeYearTo}`
+        : safeYearFrom !== undefined
+          ? `${text.yearFrom}: ${safeYearFrom}`
+          : `${text.yearTo}: ${safeYearTo}`;
+    similarityChips.push({
+      key: "sim-year",
+      label: `${text.yearChip}: ${yearLabel}`,
+      href: patchBrowseParams(params, { clear: ["yearFrom", "yearTo"] }),
+    });
+  }
+  if (safeMinCents !== undefined || safeMaxCents !== undefined) {
+    similarityChips.push({
+      key: "sim-price",
+      label: `${text.priceChip}: ${
+        safeMinCents !== undefined ? Math.round(safeMinCents / 100) : "min"
+      } - ${
+        safeMaxCents !== undefined ? Math.round(safeMaxCents / 100) : "max"
+      } MKD`,
+      href: patchBrowseParams(params, { clear: ["min", "max"] }),
+    });
+  }
+  if (safeCity) {
+    similarityChips.push({
+      key: "sim-city",
+      label: `${text.cityChip}: ${cityLabelById.get(safeCity) || safeCity}`,
+      href: patchBrowseParams(params, { clear: ["city"] }),
+    });
+  }
+  if (safeFuel) {
+    similarityChips.push({
+      key: "sim-fuel",
+      label: `${similarityText.fuelChip}: ${safeFuel}`,
+      href: patchBrowseParams(params, { clear: ["fuel"] }),
+    });
+  }
+  if (safeTransmission) {
+    similarityChips.push({
+      key: "sim-transmission",
+      label: `${similarityText.transmissionChip}: ${safeTransmission}`,
+      href: patchBrowseParams(params, { clear: ["transmission"] }),
+    });
+  }
+  if (safeNotMakeSlug) {
+    similarityChips.push({
+      key: "not-make",
+      label: `${similarityText.excludePrefix} ${text.makeChip}: ${makeLabelBySlug.get(safeNotMakeSlug) || safeNotMakeSlug}`,
+      href: patchBrowseParams(params, { clear: ["notMake", "notModel"] }),
+    });
+  }
+  if (safeNotModelSlug) {
+    similarityChips.push({
+      key: "not-model",
+      label: `${similarityText.excludePrefix} ${text.modelChip}: ${modelLabelBySlug.get(safeNotModelSlug) || safeNotModelSlug}`,
+      href: patchBrowseParams(params, { clear: ["notModel"] }),
+    });
+  }
+  if (safeNotFuel) {
+    similarityChips.push({
+      key: "not-fuel",
+      label: `${similarityText.excludePrefix} ${similarityText.fuelChip}: ${safeNotFuel}`,
+      href: patchBrowseParams(params, { clear: ["notFuel"] }),
+    });
+  }
+  if (safeNotTransmission) {
+    similarityChips.push({
+      key: "not-transmission",
+      label: `${similarityText.excludePrefix} ${similarityText.transmissionChip}: ${safeNotTransmission}`,
+      href: patchBrowseParams(params, { clear: ["notTransmission"] }),
+    });
+  }
+  if (safeNotCity) {
+    similarityChips.push({
+      key: "not-city",
+      label: `${similarityText.excludePrefix} ${text.cityChip}: ${cityLabelById.get(safeNotCity) || safeNotCity}`,
+      href: patchBrowseParams(params, { clear: ["notCity"] }),
+    });
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -799,10 +1147,10 @@ export default async function BrowsePage({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {Boolean(sessionUser) && hasAppliedFilters && (
+          {Boolean(sessionUser) && hasFilterChips && (
             <SaveSearchPopout locale={locale} query={saveSearchQuery} />
           )}
-          {hasAppliedFilters && (
+          {hasFilterChips && (
             <Link href="/browse">
               <Button variant="outline" type="button">
                 {text.resetFilters}
@@ -812,38 +1160,27 @@ export default async function BrowsePage({
         </div>
       </div>
 
-      <div className="md:hidden">
-        <MobileFilterSheet
-          locale={locale}
-          categories={categoryOptions}
-          cities={cities}
-          carMakes={carMakes}
-          templatesByCategory={templatesByCategory}
-          canUseFavoritesFilter={Boolean(sessionUser)}
-        />
-      </div>
-
-      <Card className="hidden border-primary/15 bg-card/90 md:block">
-        <CardContent className="p-4 sm:p-5">
-          <BrowseFilters
-            categories={categoryOptions}
-            cities={cities}
-            templatesByCategory={templatesByCategory}
-            carMakes={carMakes}
-            locale={locale}
-            canUseFavoritesFilter={Boolean(sessionUser)}
-            showActiveChips={false}
-          />
-        </CardContent>
-      </Card>
-
-      {activeFilterChips.length > 0 && (
-        <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.activeFilters}
-          </p>
+      {hasSimilarityExplainBar && (
+        <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-foreground">
+              {similarityText.becauseClicked}{" "}
+              <span className="text-primary">
+                {seedListingTitle || similarityText.unknownListing}
+              </span>
+            </p>
+            <Link
+              href={clearSimilarityHref}
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              {similarityText.clearSimilarity}
+            </Link>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            {activeFilterChips.map((chip) => (
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {similarityText.similarityFilters}
+            </span>
+            {similarityChips.map((chip) => (
               <Link
                 key={chip.key}
                 href={chip.href}
@@ -854,15 +1191,18 @@ export default async function BrowsePage({
                 <span aria-hidden>×</span>
               </Link>
             ))}
-            <Link
-              href="/browse"
-              className="ml-auto inline-flex items-center rounded-full px-2 text-xs font-semibold text-primary hover:underline"
-            >
-              {text.clearAll}
-            </Link>
           </div>
         </div>
       )}
+
+      <BrowseFilters
+        categories={categoryOptions}
+        cities={cities}
+        templatesByCategory={templatesByCategory}
+        carMakes={carMakes}
+        locale={locale}
+        canUseFavoritesFilter={Boolean(sessionUser)}
+      />
 
       {dbUnavailable && (
         <Card className="border-warning/30 bg-warning/10">
@@ -906,6 +1246,8 @@ export default async function BrowsePage({
               locale={locale}
               currentAuthUserId={sessionUser?.authUserId}
               isFavorited={favoriteListingIdSet.has(listing.id)}
+              browseQuery={params.toString()}
+              similarityData={similarityDataByListingId.get(listing.id)}
             />
           ))}
         </div>
@@ -954,3 +1296,4 @@ export default async function BrowsePage({
     </div>
   );
 }
+
