@@ -1,9 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type {
-  Currency,
-  ListingCondition,
-} from "@prisma/client";
+import type { ListingCondition } from "@prisma/client";
 import { ImageOff, MessageCircle, Pencil, Phone } from "lucide-react";
 import { ContactSellerPopout } from "@/components/contact-seller-popout";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
@@ -12,40 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { localizeCategoryPath } from "@/lib/category-label";
+import type { ListingCardDTO } from "@/lib/listing-card-select";
 
 type ListingCardProps = {
-  listing: {
-    id: string;
-    ownerId: string;
-    title: string;
-    description: string;
-    priceCents: number;
-    currency: Currency;
-    condition: ListingCondition;
-    createdAt: Date | string;
-    seller?: {
-      id?: string;
-      name: string | null;
-      email: string;
-      phone?: string | null;
-    };
-    city: {
-      id?: string;
-      name: string;
-    };
-    category: {
-      id: string;
-      name: string;
-      slug?: string | null;
-      parent?: {
-        id?: string;
-        name: string;
-        slug?: string | null;
-      } | null;
-    };
-    images: { url: string }[];
-    sale?: { id: string; soldAt: Date | string } | null;
-  };
+  listing: ListingCardDTO;
   locale?: "en" | "mk";
   currentAuthUserId?: string | null;
 };
@@ -89,8 +56,7 @@ export function ListingCard({
   const locationCategoryLine = categoryLabel
     ? `${listing.city.name} • ${categoryLabel}`
     : listing.city.name;
-  const sellerLabel =
-    listing.seller?.name || listing.seller?.email?.split("@")[0] || text.seller;
+  const sellerLabel = listing.seller?.name || text.seller;
   const conditionLabel = conditionLabelByValue[listing.condition];
   const formattedPrice = formatCurrencyFromCents(listing.priceCents, listing.currency);
   const sellerPhone = listing.seller?.phone || null;

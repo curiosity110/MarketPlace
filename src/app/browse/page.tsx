@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   CategoryFieldType,
@@ -15,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getSessionUser } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
+import { listingCardSelect } from "@/lib/listing-card-select";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import {
@@ -33,6 +35,38 @@ type BrowseTemplate = {
   type: CategoryFieldType;
   options: string[];
 };
+
+const getCachedBrowseParentCategories = unstable_cache(
+  async () =>
+    prisma.category.findMany({
+      where: { isActive: true, parentId: null },
+      include: {
+        fieldTemplates: {
+          where: { isActive: true },
+          orderBy: { order: "asc" },
+        },
+        children: {
+          where: { isActive: true },
+          orderBy: { name: "asc" },
+          include: {
+            fieldTemplates: {
+              where: { isActive: true },
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ["browse-parent-categories-v1"],
+  { revalidate: 300 },
+);
+
+const getCachedBrowseCities = unstable_cache(
+  async () => prisma.city.findMany({ orderBy: { name: "asc" } }),
+  ["browse-cities-v1"],
+  { revalidate: 300 },
+);
 
 function getParam(
   params: Record<string, string | string[] | undefined>,
@@ -211,52 +245,7 @@ export default async function BrowsePage({
     return Promise.all([
       prisma.listing.findMany({
         where,
-        select: {
-          id: true,
-          ownerId: true,
-          title: true,
-          description: true,
-          priceCents: true,
-          currency: true,
-          condition: true,
-          createdAt: true,
-          seller: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            },
-          },
-          city: {
-            select: { id: true, name: true },
-          },
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              parent: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                },
-              },
-            },
-          },
-          images: {
-            select: { url: true },
-            orderBy: { createdAt: "asc" },
-            take: 1,
-          },
-          sale: {
-            select: {
-              id: true,
-              soldAt: true,
-            },
-          },
-        },
+        select: listingCardSelect,
         orderBy:
           sort === "price-asc"
             ? { priceCents: "asc" }
@@ -267,27 +256,8 @@ export default async function BrowsePage({
         take: PAGE_SIZE,
       }),
       prisma.listing.count({ where }),
-      prisma.category.findMany({
-        where: { isActive: true, parentId: null },
-        include: {
-          fieldTemplates: {
-            where: { isActive: true },
-            orderBy: { order: "asc" },
-          },
-          children: {
-            where: { isActive: true },
-            orderBy: { name: "asc" },
-            include: {
-              fieldTemplates: {
-                where: { isActive: true },
-                orderBy: { order: "asc" },
-              },
-            },
-          },
-        },
-        orderBy: { name: "asc" },
-      }),
-      prisma.city.findMany({ orderBy: { name: "asc" } }),
+      getCachedBrowseParentCategories(),
+      getCachedBrowseCities(),
     ]);
   }
 

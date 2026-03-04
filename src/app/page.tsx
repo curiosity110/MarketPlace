@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { ListingStatus } from "@prisma/client";
 import {
   ArrowRight,
@@ -21,7 +22,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
+import { listingCardSelect } from "@/lib/listing-card-select";
 import { HomeQuickCircles } from "@/components/HomeQuickCircles";
+
+const getCachedHomeLatestListings = unstable_cache(
+  async () =>
+    prisma.listing.findMany({
+      where: { status: ListingStatus.ACTIVE, sale: null },
+      select: listingCardSelect,
+      orderBy: { createdAt: "desc" },
+      take: 9,
+    }),
+  ["home-latest-listings-v1"],
+  { revalidate: 30 },
+);
 
 export default async function Home() {
   const locale = await getServerLocale();
@@ -202,49 +216,7 @@ export default async function Home() {
 
   async function fetchHomeData() {
     return Promise.all([
-      prisma.listing.findMany({
-        where: { status: ListingStatus.ACTIVE, sale: null },
-        select: {
-          id: true,
-          ownerId: true,
-          title: true,
-          description: true,
-          priceCents: true,
-          currency: true,
-          condition: true,
-          createdAt: true,
-          city: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              parent: true,
-            },
-          },
-          seller: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            },
-          },
-          images: {
-            select: { url: true },
-            orderBy: { createdAt: "asc" },
-            take: 1,
-          },
-          sale: {
-            select: {
-              id: true,
-              soldAt: true,
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 9,
-      }),
+      getCachedHomeLatestListings(),
       prisma.category.findMany({
         where: { isActive: true },
         select: {
@@ -486,5 +458,3 @@ export default async function Home() {
     </div>
   );
 }
-
-
