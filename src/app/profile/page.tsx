@@ -328,7 +328,7 @@ export default async function ProfilePage({
           id: true,
           createdAt: true,
           listing: {
-            select: listingCardSelect,
+            ...listingCardSelect,
           },
         },
       }),

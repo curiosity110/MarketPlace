@@ -19,11 +19,23 @@ type Template = {
 
 type ParentCategory = {
   id: string;
+  slug: string;
   name: string;
-  children: { id: string; name: string }[];
+  children: { id: string; slug: string; name: string }[];
 };
 
 type City = { id: string; name: string };
+type CarMake = {
+  id: string;
+  name: string;
+  slug: string;
+  models: {
+    id: string;
+    name: string;
+    slug: string;
+    makeId: string;
+  }[];
+};
 
 type BrowseSort = "newest" | "price-asc" | "price-desc";
 
@@ -33,6 +45,10 @@ type FilterState = {
   sub: string;
   city: string;
   condition: string;
+  make: string;
+  model: string;
+  yearFrom: string;
+  yearTo: string;
   fav: string;
   min: string;
   max: string;
@@ -43,8 +59,10 @@ type Props = {
   categories: ParentCategory[];
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
+  carMakes: CarMake[];
   locale?: "en" | "mk";
   canUseFavoritesFilter?: boolean;
+  showActiveChips?: boolean;
 };
 
 const TYPING_DEBOUNCE_MS = 320;
@@ -52,6 +70,12 @@ const TYPING_DEBOUNCE_MS = 320;
 function parseSort(value: string | null): BrowseSort {
   if (value === "price-asc" || value === "price-desc") return value;
   return "newest";
+}
+
+function isCarsSlug(slug: string | undefined) {
+  if (!slug) return false;
+  const normalized = slug.toLowerCase();
+  return normalized === "cars" || normalized.includes("car");
 }
 
 function getInitialDynamicValues(sp: URLSearchParams) {
@@ -112,6 +136,10 @@ function areStatesEqual(a: FilterState, b: FilterState) {
     a.sub === b.sub &&
     a.city === b.city &&
     a.condition === b.condition &&
+    a.make === b.make &&
+    a.model === b.model &&
+    a.yearFrom === b.yearFrom &&
+    a.yearTo === b.yearTo &&
     a.fav === b.fav &&
     a.min === b.min &&
     a.max === b.max &&
@@ -144,8 +172,10 @@ export function BrowseFilters({
   categories,
   cities,
   templatesByCategory,
+  carMakes,
   locale = "en",
   canUseFavoritesFilter = false,
+  showActiveChips = true,
 }: Props) {
   const router = useRouter();
   const spReadonly = useSearchParams();
@@ -188,6 +218,17 @@ export function BrowseFilters({
         cityChip: "Град",
         conditionChip: "Состојба",
         priceChip: "Цена",
+        makeChip: "Марка",
+        modelChip: "Модел",
+        yearChip: "Година",
+        make: "Марка",
+        model: "Модел",
+        allMakes: "Сите марки",
+        allModels: "Сите модели",
+        yearFrom: "Година од",
+        yearTo: "Година до",
+        carsFilters: "Филтри за коли",
+        selectMakeFirst: "Прво избери марка",
         favoritesChip: "Омилени",
         minLabel: "мин",
         maxLabel: "макс",
@@ -229,6 +270,17 @@ export function BrowseFilters({
         cityChip: "City",
         conditionChip: "Condition",
         priceChip: "Price",
+        makeChip: "Make",
+        modelChip: "Model",
+        yearChip: "Year",
+        make: "Make",
+        model: "Model",
+        allMakes: "All makes",
+        allModels: "All models",
+        yearFrom: "Year from",
+        yearTo: "Year to",
+        carsFilters: "Cars filters",
+        selectMakeFirst: "Select make first",
         favoritesChip: "Favorites",
         minLabel: "min",
         maxLabel: "max",
@@ -260,6 +312,10 @@ export function BrowseFilters({
     sub: sp.get("sub") ?? "",
     city: sp.get("city") ?? "",
     condition: sp.get("condition") ?? sp.get("cond") ?? "",
+    make: sp.get("make") ?? "",
+    model: sp.get("model") ?? "",
+    yearFrom: sp.get("yearFrom") ?? "",
+    yearTo: sp.get("yearTo") ?? "",
     fav: sp.get("fav") === "1" ? "1" : "",
     min: sp.get("min") ?? "",
     max: sp.get("max") ?? "",
@@ -287,6 +343,10 @@ export function BrowseFilters({
       sub: latest.get("sub") ?? "",
       city: latest.get("city") ?? "",
       condition: latest.get("condition") ?? latest.get("cond") ?? "",
+      make: latest.get("make") ?? "",
+      model: latest.get("model") ?? "",
+      yearFrom: latest.get("yearFrom") ?? "",
+      yearTo: latest.get("yearTo") ?? "",
       fav: latest.get("fav") === "1" ? "1" : "",
       min: latest.get("min") ?? "",
       max: latest.get("max") ?? "",
@@ -303,6 +363,27 @@ export function BrowseFilters({
   const parent = categories.find((category) => category.id === state.cat);
   const subcategories = parent?.children ?? [];
   const selectedCategoryId = state.sub || state.cat;
+  const selectedSubParent = state.sub
+    ? categories.find((category) =>
+        category.children.some((child) => child.id === state.sub),
+      )
+    : null;
+  const carsRootSlug = state.sub ? selectedSubParent?.slug : parent?.slug;
+  const isCarsCategorySelected = isCarsSlug(carsRootSlug);
+  const makeBySlug = React.useMemo(
+    () => new Map(carMakes.map((make) => [make.slug, make])),
+    [carMakes],
+  );
+  const selectedMake = state.make ? makeBySlug.get(state.make) : undefined;
+  const carModelOptions = selectedMake?.models ?? [];
+  const currentYear = new Date().getFullYear() + 1;
+  const carYearOptions = React.useMemo(
+    () =>
+      Array.from({ length: currentYear - 1980 + 1 }, (_, index) =>
+        String(currentYear - index),
+      ),
+    [currentYear],
+  );
   const dynamicTemplates = React.useMemo(
     () => templatesByCategory[selectedCategoryId] ?? [],
     [selectedCategoryId, templatesByCategory],
@@ -335,6 +416,19 @@ export function BrowseFilters({
     () => new Map(cities.map((cityItem) => [cityItem.id, cityItem.name])),
     [cities],
   );
+  const makeLabelBySlug = React.useMemo(
+    () => new Map(carMakes.map((make) => [make.slug, make.name] as const)),
+    [carMakes],
+  );
+  const modelLabelBySlug = React.useMemo(
+    () =>
+      new Map(
+        carMakes.flatMap((make) =>
+          make.models.map((model) => [model.slug, model.name] as const),
+        ),
+      ),
+    [carMakes],
+  );
 
   const hasAnyFilter = React.useMemo(() => {
     const dynamicHasValue = Object.values(dynamicValues).some((value) => value.trim().length > 0);
@@ -344,6 +438,10 @@ export function BrowseFilters({
       Boolean(state.sub) ||
       Boolean(state.city) ||
       Boolean(state.condition) ||
+      Boolean(state.make) ||
+      Boolean(state.model) ||
+      Boolean(state.yearFrom) ||
+      Boolean(state.yearTo) ||
       state.fav === "1" ||
       Boolean(state.min.trim()) ||
       Boolean(state.max.trim()) ||
@@ -364,6 +462,10 @@ export function BrowseFilters({
         "city",
         "condition",
         "cond",
+        "make",
+        "model",
+        "yearFrom",
+        "yearTo",
         "fav",
         "min",
         "max",
@@ -382,6 +484,10 @@ export function BrowseFilters({
       if (nextState.sub) params.set("sub", nextState.sub);
       if (nextState.city) params.set("city", nextState.city);
       if (nextState.condition) params.set("condition", nextState.condition);
+      if (nextState.make) params.set("make", nextState.make);
+      if (nextState.model) params.set("model", nextState.model);
+      if (nextState.yearFrom) params.set("yearFrom", nextState.yearFrom);
+      if (nextState.yearTo) params.set("yearTo", nextState.yearTo);
       if (nextState.fav === "1") params.set("fav", "1");
       if (normalizedRange.min) params.set("min", normalizedRange.min);
       if (normalizedRange.max) params.set("max", normalizedRange.max);
@@ -399,6 +505,10 @@ export function BrowseFilters({
         Boolean(nextState.sub) ||
         Boolean(nextState.city) ||
         Boolean(nextState.condition) ||
+        Boolean(nextState.make) ||
+        Boolean(nextState.model) ||
+        Boolean(nextState.yearFrom) ||
+        Boolean(nextState.yearTo) ||
         nextState.fav === "1" ||
         Boolean(normalizedRange.min) ||
         Boolean(normalizedRange.max) ||
@@ -467,6 +577,50 @@ export function BrowseFilters({
     });
   }, [dynamicTemplates]);
 
+  React.useEffect(() => {
+    if (isCarsCategorySelected) return;
+    if (!state.make && !state.model && !state.yearFrom && !state.yearTo) return;
+    const nextState: FilterState = {
+      ...state,
+      make: "",
+      model: "",
+      yearFrom: "",
+      yearTo: "",
+    };
+    setState(nextState);
+    applyFilters(nextState, dynamicValues);
+  }, [
+    applyFilters,
+    dynamicValues,
+    isCarsCategorySelected,
+    state,
+  ]);
+
+  React.useEffect(() => {
+    if (!isCarsCategorySelected) return;
+    if (!state.model) return;
+    if (!state.make) {
+      const nextState: FilterState = { ...state, model: "" };
+      setState(nextState);
+      applyFilters(nextState, dynamicValues);
+      return;
+    }
+    const modelIsValidForMake = carModelOptions.some(
+      (model) => model.slug === state.model,
+    );
+    if (!modelIsValidForMake) {
+      const nextState: FilterState = { ...state, model: "" };
+      setState(nextState);
+      applyFilters(nextState, dynamicValues);
+    }
+  }, [
+    applyFilters,
+    carModelOptions,
+    dynamicValues,
+    isCarsCategorySelected,
+    state,
+  ]);
+
   const hasPriceSwap = React.useMemo(() => {
     const minValue = toPositiveInteger(state.min);
     const maxValue = toPositiveInteger(state.max);
@@ -480,6 +634,10 @@ export function BrowseFilters({
       sub: "",
       city: "",
       condition: "",
+      make: "",
+      model: "",
+      yearFrom: "",
+      yearTo: "",
       fav: "",
       min: "",
       max: "",
@@ -558,6 +716,51 @@ export function BrowseFilters({
       });
     }
 
+    if (state.make) {
+      const label = makeLabelBySlug.get(state.make) || state.make;
+      chips.push({
+        key: "make",
+        label: `${text.makeChip}: ${label}`,
+        onRemove: () => {
+          const nextState = { ...state, make: "", model: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
+    if (state.model) {
+      const label = modelLabelBySlug.get(state.model) || state.model;
+      chips.push({
+        key: "model",
+        label: `${text.modelChip}: ${label}`,
+        onRemove: () => {
+          const nextState = { ...state, model: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
+    if (state.yearFrom.trim() || state.yearTo.trim()) {
+      const yearLabel =
+        state.yearFrom.trim() && state.yearTo.trim()
+          ? `${state.yearFrom.trim()} - ${state.yearTo.trim()}`
+          : state.yearFrom.trim()
+            ? `${text.yearFrom}: ${state.yearFrom.trim()}`
+            : `${text.yearTo}: ${state.yearTo.trim()}`;
+
+      chips.push({
+        key: "year",
+        label: `${text.yearChip}: ${yearLabel}`,
+        onRemove: () => {
+          const nextState = { ...state, yearFrom: "", yearTo: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
     if (state.fav === "1") {
       chips.push({
         key: "fav",
@@ -622,6 +825,8 @@ export function BrowseFilters({
     cityLabelById,
     conditionLabelByValue,
     dynamicValues,
+    makeLabelBySlug,
+    modelLabelBySlug,
     parentLabelById,
     state,
     subLabelById,
@@ -632,9 +837,14 @@ export function BrowseFilters({
     text.maxLabel,
     text.minLabel,
     text.mkd,
+    text.makeChip,
+    text.modelChip,
     text.priceChip,
     text.searchChip,
     text.subcategoryChip,
+    text.yearChip,
+    text.yearFrom,
+    text.yearTo,
     text.orderBy,
     sortOptions,
   ]);
@@ -652,6 +862,10 @@ export function BrowseFilters({
       ...state,
       cat: nextCat,
       sub: "",
+      make: "",
+      model: "",
+      yearFrom: "",
+      yearTo: "",
     };
 
     setState(nextState);
@@ -660,9 +874,22 @@ export function BrowseFilters({
   };
 
   const onSubcategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextSub = event.target.value;
+    const nextParent = categories.find((category) =>
+      category.children.some((child) => child.id === nextSub),
+    );
+    const subIsCars = isCarsSlug(nextParent?.slug);
     const nextState: FilterState = {
       ...state,
-      sub: event.target.value,
+      sub: nextSub,
+      ...(subIsCars
+        ? {}
+        : {
+            make: "",
+            model: "",
+            yearFrom: "",
+            yearTo: "",
+          }),
     };
     setState(nextState);
     applyFilters(nextState, dynamicValues);
@@ -674,6 +901,35 @@ export function BrowseFilters({
       const nextState: FilterState = {
         ...state,
         [key]: event.target.value as FilterState[typeof key],
+      };
+      setState(nextState);
+      applyFilters(nextState, dynamicValues);
+    };
+
+  const onMakeChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextState: FilterState = {
+      ...state,
+      make: event.target.value,
+      model: "",
+    };
+    setState(nextState);
+    applyFilters(nextState, dynamicValues);
+  };
+
+  const onModelChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextState: FilterState = {
+      ...state,
+      model: event.target.value,
+    };
+    setState(nextState);
+    applyFilters(nextState, dynamicValues);
+  };
+
+  const onYearChange =
+    (key: "yearFrom" | "yearTo") => (event: ChangeEvent<HTMLSelectElement>) => {
+      const nextState: FilterState = {
+        ...state,
+        [key]: event.target.value,
       };
       setState(nextState);
       applyFilters(nextState, dynamicValues);
@@ -734,7 +990,7 @@ export function BrowseFilters({
         {text.apply}
       </button>
 
-      {(hasAnyFilter || activeFilterChips.length > 0) && (
+      {showActiveChips && (hasAnyFilter || activeFilterChips.length > 0) && (
         <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -909,6 +1165,87 @@ export function BrowseFilters({
           </Select>
         </label>
       </div>
+
+      {isCarsCategorySelected && (
+        <div className="rounded-2xl border border-secondary/20 bg-blue-50/40 p-3 dark:bg-blue-500/5">
+          <p className="mb-3 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Filter size={14} />
+            {text.carsFilters}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.make}
+              </span>
+              <Select name="make" value={state.make} onChange={onMakeChange}>
+                <option value="">{text.allMakes}</option>
+                {carMakes.map((make) => (
+                  <option key={make.id} value={make.slug}>
+                    {make.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.model}
+              </span>
+              <Select
+                name="model"
+                value={state.model}
+                onChange={onModelChange}
+                disabled={!state.make}
+              >
+                <option value="">
+                  {state.make ? text.allModels : text.selectMakeFirst}
+                </option>
+                {carModelOptions.map((model) => (
+                  <option key={model.id} value={model.slug}>
+                    {model.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.yearFrom}
+              </span>
+              <Select
+                name="yearFrom"
+                value={state.yearFrom}
+                onChange={onYearChange("yearFrom")}
+              >
+                <option value="">{text.any}</option>
+                {carYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </Select>
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.yearTo}
+              </span>
+              <Select
+                name="yearTo"
+                value={state.yearTo}
+                onChange={onYearChange("yearTo")}
+              >
+                <option value="">{text.any}</option>
+                {carYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-dashed border-primary/25 bg-orange-50/40 p-3 dark:bg-orange-500/5">
         <p className="mb-2 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

@@ -304,7 +304,7 @@ export async function DashboardPageContent({
         select: {
           id: true,
           listing: {
-            select: listingCardSelect,
+            ...listingCardSelect,
           },
         },
       }),

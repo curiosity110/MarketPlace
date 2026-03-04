@@ -199,7 +199,7 @@ export async function listFavorites(options?: { limit?: number }) {
         id: true,
         createdAt: true,
         listing: {
-          select: listingCardSelect,
+          ...listingCardSelect,
         },
       },
     });

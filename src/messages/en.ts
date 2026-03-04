@@ -61,5 +61,13 @@
     removedFromFavorites: "Removed from favorites",
     searchSaved: "Search saved",
     favoritesOnly: "Favorites only",
+    filters: "Filters",
+    apply: "Apply",
+    clear: "Clear",
+    make: "Make",
+    model: "Model",
+    yearFrom: "Year from",
+    yearTo: "Year to",
+    carsFilters: "Cars filters",
   },
 };

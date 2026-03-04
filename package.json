@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "pnpm prisma generate",
     "dev": "next dev",
+    "postinstall": "pnpm prisma generate",
     "build": "pnpm prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,6 +13,7 @@
     "backfill:owner": "tsx scripts/backfill-owner-ids.ts",
     "bootstrap:subcategories": "tsx scripts/bootstrap-subcategories.ts",
     "seed:demo": "tsx scripts/seed-demo-listings.ts",
+    "seed:cars": "tsx prisma/seed-cars.ts",
     "prisma:generate": "prisma generate",
     "prisma:seed": "node prisma/seed.js",
     "db:migrate": "prisma migrate deploy"

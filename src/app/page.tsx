@@ -29,7 +29,7 @@ const getCachedHomeLatestListings = unstable_cache(
   async () =>
     prisma.listing.findMany({
       where: { status: ListingStatus.ACTIVE, sale: null },
-      select: listingCardSelect,
+      ...listingCardSelect,
       orderBy: { createdAt: "desc" },
       take: 9,
     }),

@@ -62,5 +62,13 @@
     removedFromFavorites: "Отстрането од омилени",
     searchSaved: "Пребарувањето е зачувано",
     favoritesOnly: "Само омилени",
+    filters: "Филтри",
+    apply: "Примени",
+    clear: "Исчисти",
+    make: "Марка",
+    model: "Модел",
+    yearFrom: "Година од",
+    yearTo: "Година до",
+    carsFilters: "Филтри за коли",
   },
 };

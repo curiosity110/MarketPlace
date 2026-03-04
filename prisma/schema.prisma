@@ -133,6 +133,32 @@ model City {
   createdAt DateTime  @default(now())
 }
 
+model CarMake {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  isActive  Boolean    @default(true)
+  models    CarModel[]
+  listings  Listing[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CarModel {
+  id        String    @id @default(cuid())
+  makeId    String
+  make      CarMake   @relation(fields: [makeId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  isActive  Boolean   @default(true)
+  listings  Listing[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([makeId, slug])
+  @@index([makeId, name])
+}
+
 model Listing {
   id          String           @id @default(cuid())
   ownerId     String
@@ -146,6 +172,11 @@ model Listing {
   category    Category         @relation(fields: [categoryId], references: [id])
   cityId      String
   city        City             @relation(fields: [cityId], references: [id])
+  carMakeId   String?
+  carMake     CarMake?         @relation(fields: [carMakeId], references: [id], onDelete: SetNull)
+  carModelId  String?
+  carModel    CarModel?        @relation(fields: [carModelId], references: [id], onDelete: SetNull)
+  carYear     Int?
   condition   ListingCondition
   status      ListingStatus    @default(DRAFT)
   activeUntil DateTime?
@@ -163,6 +194,9 @@ model Listing {
   @@index([status, activeUntil])
   @@index([title])
   @@index([ownerId])
+  @@index([carMakeId])
+  @@index([carModelId])
+  @@index([carYear])
 }
 
 model Sale {

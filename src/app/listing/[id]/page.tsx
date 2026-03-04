@@ -341,7 +341,7 @@ export default async function ListingDetails({
         </Card>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-4">
           <Card>
             <CardContent className="space-y-4">
@@ -355,12 +355,19 @@ export default async function ListingDetails({
 
         <div className="space-y-4">
           <Card>
-            <CardContent className="space-y-4 p-4 sm:p-5">
+            <CardContent className="space-y-3">
               <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
                 <h2 className="text-xl font-semibold">{text.description}</h2>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/90">
                   {listing.description}
                 </p>
+              </div>
+
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-lg font-semibold">{text.categoryDetails}</h2>
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                  {categoryDetails.length}
+                </span>
               </div>
 
               {isCarCategory ? (
