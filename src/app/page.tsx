@@ -57,7 +57,7 @@ export default async function Home() {
         localGlobal: "Локално + глобално",
         localGlobalDesc: "Продавај во Македонија и објавувај глобално.",
         popularCategories: "Популарни категории",
-        whatBuyNow: "Што се купува сега",
+        whatBuyNow: "Популарни категории",
         listings: "огласи",
         viewAllCategories: "Види ги сите категории",
         dbUnavailable:
@@ -87,7 +87,7 @@ export default async function Home() {
         localGlobal: "Local + Global",
         localGlobalDesc: "Sell in Macedonia and publish globally.",
         popularCategories: "Popular categories",
-        whatBuyNow: "What people buy now",
+        whatBuyNow: "Popular Categories",
         listings: "listings",
         viewAllCategories: "View all categories",
         dbUnavailable:
@@ -309,9 +309,7 @@ export default async function Home() {
 
           <Card className="border-primary/20 bg-card/80">
             <CardHeader className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {text.popularCategories}
-              </p>
+        
               <CardTitle className="text-2xl">{text.whatBuyNow}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
