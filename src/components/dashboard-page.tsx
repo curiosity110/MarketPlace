@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Currency, ListingStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -6,10 +5,10 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateListingPopout } from "@/components/create-listing-popout";
+import { DashboardListingsPanel } from "@/components/dashboard-listings-panel";
+import { DashboardStatsBento } from "@/components/dashboard-stats-bento";
 import { createListingFromDashboard } from "@/lib/actions/create-listing";
 import { canAccessControl, canSell, requireSeller, requireUser } from "@/lib/auth";
-import { localizeCategoryName } from "@/lib/category-label";
-import { formatCurrencyFromCents } from "@/lib/currency";
 import {
   groupTemplatesByCategory,
   normalizeTemplates,
@@ -28,6 +27,8 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 type ListingView = "all" | "active" | "draft" | "expired" | "sold";
 type ListingPlan = "pay-per-listing" | "subscription";
+type ListingSort = "newest" | "price-asc" | "price-desc";
+type ListingLayout = "grid" | "list";
 
 function parseView(value: string | undefined): ListingView {
   if (value === "active" || value === "draft" || value === "expired" || value === "sold") {
@@ -41,6 +42,16 @@ function parsePlan(value: string | undefined): ListingPlan | undefined {
   return undefined;
 }
 
+function parseSort(value: string | undefined): ListingSort {
+  if (value === "price-asc" || value === "price-desc") return value;
+  return "newest";
+}
+
+function parseLayout(value: string | undefined): ListingLayout {
+  if (value === "list") return "list";
+  return "grid";
+}
+
 export async function DashboardPageContent({
   searchParams,
 }: {
@@ -48,7 +59,7 @@ export async function DashboardPageContent({
 }) {
   const locale = await getServerLocale();
   const isMk = locale === "mk";
-  const text = isMk
+  const baseText = isMk
     ? {
         dbUnavailable: "Базата е привремено недостапна. Обиди се повторно наскоро.",
         sellerDashboard: "Контролна табла за продавач",
@@ -151,6 +162,55 @@ export async function DashboardPageContent({
         subscriptionPublishHint:
           "You have an active subscription, so this publish does not require extra payment.",
       };
+  const dashboardUiText = isMk
+    ? {
+        filtersTitle: "\u0424\u0438\u043b\u0442\u0440\u0438",
+        categoriesLabel: "\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438",
+        statusLabel: "\u0421\u0442\u0430\u0442\u0443\u0441",
+        searchLabel: "\u041f\u0440\u0435\u0431\u0430\u0440\u0443\u0432\u0430\u045a\u0435",
+        searchPlaceholder: "\u041f\u0440\u0435\u0431\u0430\u0440\u0430\u0458 \u043e\u0433\u043b\u0430\u0441\u0438...",
+        clearSearch: "\u0418\u0441\u0447\u0438\u0441\u0442\u0438",
+        sortLabel: "\u041f\u043e\u0434\u0440\u0435\u0434\u0438 \u043f\u043e",
+        sortNewest: "\u041d\u0430\u0458\u043d\u043e\u0432\u0438",
+        sortPriceLowHigh: "\u0426\u0435\u043d\u0430: \u043d\u0438\u0441\u043a\u0430 \u043a\u043e\u043d \u0432\u0438\u0441\u043e\u043a\u0430",
+        sortPriceHighLow: "\u0426\u0435\u043d\u0430: \u0432\u0438\u0441\u043e\u043a\u0430 \u043a\u043e\u043d \u043d\u0438\u0441\u043a\u0430",
+        viewMode: "\u041f\u0440\u0438\u043a\u0430\u0437",
+        gridView: "\u041c\u0440\u0435\u0436\u0430",
+        listView: "\u041b\u0438\u0441\u0442\u0430",
+        results: "\u0440\u0435\u0437\u0443\u043b\u0442\u0430\u0442\u0438",
+        createFirstListing: "\u041a\u0440\u0435\u0438\u0440\u0430\u0458 \u043f\u0440\u0432 \u043e\u0433\u043b\u0430\u0441",
+        emptyListingsTitle: "\u041d\u0435\u043c\u0430 \u043e\u0433\u043b\u0430\u0441\u0438 \u0437\u0430 \u043e\u0432\u0438\u0435 \u0444\u0438\u043b\u0442\u0440\u0438",
+        emptyListingsHint:
+          "\u041f\u0440\u043e\u043c\u0435\u043d\u0438 \u0433\u0438 \u0444\u0438\u043b\u0442\u0440\u0438\u0442\u0435 \u0438\u043b\u0438 \u043a\u0440\u0435\u0438\u0440\u0430\u0458 \u043d\u043e\u0432 \u043e\u0433\u043b\u0430\u0441.",
+        totalDesc: "\u0412\u043a\u0443\u043f\u0435\u043d \u0431\u0440\u043e\u0458 \u043e\u0433\u043b\u0430\u0441\u0438",
+        activeDesc: "\u0416\u0438\u0432\u0438 \u0438 \u0432\u0438\u0434\u043b\u0438\u0432\u0438 \u043e\u0433\u043b\u0430\u0441\u0438",
+        draftDesc: "\u0417\u0430\u0447\u0443\u0432\u0430\u043d\u0438 \u043d\u0435\u043e\u0431\u0458\u0430\u0432\u0435\u043d\u0438 \u043e\u0433\u043b\u0430\u0441\u0438",
+        soldDesc: "\u041e\u0437\u043d\u0430\u0447\u0435\u043d\u0438 \u043a\u0430\u043a\u043e \u043f\u0440\u043e\u0434\u0430\u0434\u0435\u043d\u0438",
+      }
+    : {
+        filtersTitle: "Filters",
+        categoriesLabel: "Categories",
+        statusLabel: "Status",
+        searchLabel: "Search",
+        searchPlaceholder: "Search listings...",
+        clearSearch: "Clear",
+        sortLabel: "Sort by",
+        sortNewest: "Newest",
+        sortPriceLowHigh: "Price: low to high",
+        sortPriceHighLow: "Price: high to low",
+        viewMode: "View",
+        gridView: "Grid",
+        listView: "List",
+        results: "results",
+        createFirstListing: "Create your first listing",
+        emptyListingsTitle: "No listings for these filters",
+        emptyListingsHint: "Try a different filter or create a new listing.",
+        totalDesc: "Total listings in your account",
+        activeDesc: "Listings currently visible to buyers",
+        draftDesc: "Saved but not yet published",
+        soldDesc: "Marked as sold",
+      };
+  const text = { ...baseText, ...dashboardUiText };
   const user = await requireUser();
   const canCreateListings = canSell(user.role);
   const showAdminTools = canAccessControl(user.role);
@@ -162,6 +222,9 @@ export async function DashboardPageContent({
   const paidActivated = sp.paid === "1";
   const createRequested = sp.create === "1";
   const selectedView = parseView(sp.view);
+  const selectedSort = parseSort(sp.sort);
+  const selectedLayout = parseLayout(sp.layout);
+  const searchQuery = (sp.q || "").trim();
   const selectedPlan = parsePlan(sp.plan);
   const dbUnavailableError = text.dbUnavailable;
 
@@ -214,7 +277,7 @@ export async function DashboardPageContent({
 
   if (!analyticsData) {
     return (
-      <div className="space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
           <h1 className="text-4xl font-black">{text.sellerDashboard}</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
@@ -250,9 +313,6 @@ export async function DashboardPageContent({
     (listing) => listing.status === ListingStatus.ACTIVE && !listing.sale,
   );
   const soldListings = allListings.filter((listing) => Boolean(listing.sale));
-  const expiredListings = allListings.filter(
-    (listing) => listing.status === ListingStatus.INACTIVE && !listing.sale,
-  );
   const draftCount = allListings.filter(
     (listing) => listing.status === ListingStatus.DRAFT && !listing.sale,
   ).length;
@@ -261,92 +321,34 @@ export async function DashboardPageContent({
   );
   const requiresPaymentForCreate = hasPublishedListing && !hasActiveSubscription;
   const validCategoryIds = new Set(categories.map((category) => category.id));
-  const requestedCreateCategoryId =
-    sp.cat && validCategoryIds.has(sp.cat) ? sp.cat : undefined;
-  const categoryStats = [...allListings]
-    .reduce<
-      Map<
-        string,
-        {
-          id: string;
-          name: string;
-          posted: number;
-          active: number;
-          draft: number;
-          expired: number;
-          sold: number;
+  const selectedCategoryIdFromQuery =
+    sp.cat && sp.cat !== "all" && validCategoryIds.has(sp.cat) ? sp.cat : undefined;
+  const requestedCreateCategoryId = selectedCategoryIdFromQuery;
+  const allListingsForClient = allListings.map((listing) => ({
+    id: listing.id,
+    title: listing.title,
+    status: listing.status,
+    priceCents: listing.priceCents,
+    currency: listing.currency,
+    categoryId: listing.categoryId,
+    updatedAt: listing.updatedAt.toISOString(),
+    activeUntil: listing.activeUntil ? listing.activeUntil.toISOString() : null,
+    category: {
+      id: listing.category.id,
+      name: listing.category.name,
+      slug: listing.category.slug,
+    },
+    city: {
+      id: listing.city.id,
+      name: listing.city.name,
+    },
+    images: listing.images.map((image) => ({ url: image.url })),
+    sale: listing.sale?.soldAt
+      ? {
+          soldAt: listing.sale.soldAt.toISOString(),
         }
-      >
-    >((acc, listing) => {
-      const key = listing.category.id;
-      const current = acc.get(key) || {
-        id: listing.category.id,
-        name: localizeCategoryName(listing.category, locale),
-        posted: 0,
-        active: 0,
-        draft: 0,
-        expired: 0,
-        sold: 0,
-      };
-      current.posted += 1;
-      if (listing.sale) {
-        current.sold += 1;
-      } else if (listing.status === ListingStatus.ACTIVE) {
-        current.active += 1;
-      } else if (listing.status === ListingStatus.DRAFT) {
-        current.draft += 1;
-      } else if (listing.status === ListingStatus.INACTIVE) {
-        current.expired += 1;
-      }
-      acc.set(key, current);
-      return acc;
-    }, new Map())
-    .values();
-
-  const userCategories = [...categoryStats].sort((a, b) => b.posted - a.posted);
-  const selectedCategoryFromQuery = sp.cat;
-  const selectedCategory =
-    selectedCategoryFromQuery && selectedCategoryFromQuery !== "all"
-      ? userCategories.find((category) => category.id === selectedCategoryFromQuery) || null
-      : null;
-
-  const selectedCategoryListings = [...allListings]
-    .filter((listing) => {
-      if (selectedView === "sold") return Boolean(listing.sale);
-      if (selectedView === "active") {
-        return listing.status === ListingStatus.ACTIVE && !listing.sale;
-      }
-      if (selectedView === "draft") {
-        return listing.status === ListingStatus.DRAFT && !listing.sale;
-      }
-      if (selectedView === "expired") {
-        return listing.status === ListingStatus.INACTIVE && !listing.sale;
-      }
-      return true;
-    })
-    .filter((listing) =>
-      selectedCategory ? listing.categoryId === selectedCategory.id : true,
-    )
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-
-  const categoryBaseHref = selectedCategory
-    ? `/dashboard?cat=${selectedCategory.id}`
-    : "/dashboard?cat=all";
-  const categoryViewStats = selectedCategory
-    ? {
-        all: selectedCategory.posted,
-        active: selectedCategory.active,
-        draft: selectedCategory.draft,
-        expired: selectedCategory.expired,
-        sold: selectedCategory.sold,
-      }
-    : {
-        all: allListings.length,
-        active: activeListings.length,
-        draft: draftCount,
-        expired: expiredListings.length,
-        sold: soldListings.length,
-      };
+      : null,
+  }));
 
   async function publishDraftFromDashboard(formData: FormData) {
     "use server";
@@ -522,8 +524,9 @@ export async function DashboardPageContent({
     redirect("/dashboard?free=1");
   }
 
-  return (
-    <div className="space-y-6">
+return (
+  <div className="min-h-[calc(100vh-72px)] bg-gradient-to-b from-muted/30 via-background to-background">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
       <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -533,9 +536,6 @@ export async function DashboardPageContent({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/profile">
-              <Button variant="outline">{text.profile}</Button>
-            </Link>
             {canCreateListings && categories.length > 0 && cities.length > 0 ? (
               <CreateListingPopout
                 mode="button"
@@ -562,7 +562,6 @@ export async function DashboardPageContent({
                 initial={{
                   categoryId:
                     requestedCreateCategoryId ||
-                    selectedCategory?.id ||
                     categories[0]?.id,
                   phone: parsedPhone.localPhone,
                   phoneCountry: parsedPhone.countryCode,
@@ -574,6 +573,9 @@ export async function DashboardPageContent({
             ) : (
               <Button disabled>{text.createNow}</Button>
             )}
+            <Link href="/profile">
+              <Button variant="outline">{text.profile}</Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -640,410 +642,64 @@ export async function DashboardPageContent({
         </Card>
       )}
 
-      <Card className="border-secondary/20">
-        <CardHeader className="pb-2">
-          <CardTitle>{text.myCategories}</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {text.myCategoriesDesc}
-          </p>
-        </CardHeader>
+      <DashboardStatsBento
+        stats={[
+          {
+            key: "total",
+            label: text.total,
+            value: allListings.length,
+            description: text.totalDesc,
+            tone: "default",
+          },
+          {
+            key: "active",
+            label: text.active,
+            value: activeListings.length,
+            description: text.activeDesc,
+            tone: "success",
+          },
+          {
+            key: "draft",
+            label: text.drafts,
+            value: draftCount,
+            description: text.draftDesc,
+            tone: "warning",
+          },
+          {
+            key: "sold",
+            label: text.sold,
+            value: soldListings.length,
+            description: text.soldDesc,
+            tone: "secondary",
+          },
+        ]}
+      />
 
-        <CardContent className="space-y-4">
-          {userCategories.length === 0 ? (
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
-              {text.noCategoryActivity}
-            </div>
-          ) : (
-            <>
-              <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    href={`/dashboard?cat=all&view=${selectedView}`}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      selectedCategory === null
-                        ? "border-primary/45 bg-primary/10 text-primary shadow-sm"
-                        : "border-border/80 bg-card text-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
-                    }`}
-                  >
-                    {text.allCategories} ({allListings.length})
-                  </Link>
-                  {userCategories.map((category) => {
-                    const isSelected = selectedCategory?.id === category.id;
-                    return (
-                      <Link
-                        key={category.id}
-                        href={`/dashboard?cat=${category.id}&view=${selectedView}`}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                          isSelected
-                            ? "border-primary/45 bg-primary/10 text-primary shadow-sm"
-                            : "border-border/80 bg-card text-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
-                        }`}
-                      >
-                        {category.name} ({category.posted})
-                      </Link>
-                    );
-                  })}
-                </div>
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight">{text.myCategories}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{text.myCategoriesDesc}</p>
+        </div>
 
-                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                  {[
-                    {
-                      key: "total",
-                      label: text.total,
-                      value: allListings.length,
-                      className: "border-border/70 text-foreground",
-                    },
-                    {
-                      key: "active",
-                      label: text.active,
-                      value: activeListings.length,
-                      className: "border-success/35 text-success",
-                    },
-                    {
-                      key: "drafts",
-                      label: text.drafts,
-                      value: draftCount,
-                      className: "border-border/70 text-foreground",
-                    },
-                    {
-                      key: "expired",
-                      label: text.expired,
-                      value: expiredListings.length,
-                      className: "border-warning/35 text-warning",
-                    },
-                    {
-                      key: "sold",
-                      label: text.sold,
-                      value: soldListings.length,
-                      className: "border-secondary/35 text-secondary",
-                    },
-                  ].map((stat) => (
-                    <div
-                      key={stat.key}
-                      className={`rounded-xl border bg-card px-3 py-2 ${stat.className}`}
-                      title={`${stat.label}: ${stat.value}`}
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {stat.label}
-                      </span>
-                      <span className="mt-1 block text-lg font-black leading-none">
-                        {stat.value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
-                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                    <p className="text-sm font-semibold">
-                      {selectedCategory
-                        ? `${selectedCategory.name} ${text.listings}`
-                        : `${text.allCategories} ${text.listings}`}
-                    </p>
-                    <div className="flex flex-wrap gap-2 lg:justify-end">
-                      <Link href={`${categoryBaseHref}&view=all`}>
-                        <Button
-                          size="sm"
-                          variant={
-                            selectedView === "all" ? "default" : "outline"
-                          }
-                        >
-                          {text.all} ({categoryViewStats.all})
-                        </Button>
-                      </Link>
-                      <Link href={`${categoryBaseHref}&view=active`}>
-                        <Button
-                          size="sm"
-                          variant={
-                            selectedView === "active" ? "default" : "outline"
-                          }
-                        >
-                          {text.active} ({categoryViewStats.active})
-                        </Button>
-                      </Link>
-                      <Link href={`${categoryBaseHref}&view=draft`}>
-                        <Button
-                          size="sm"
-                          variant={
-                            selectedView === "draft" ? "default" : "outline"
-                          }
-                        >
-                          {text.draft} ({categoryViewStats.draft})
-                        </Button>
-                      </Link>
-                      <Link href={`${categoryBaseHref}&view=expired`}>
-                        <Button
-                          size="sm"
-                          variant={
-                            selectedView === "expired" ? "default" : "outline"
-                          }
-                        >
-                          {text.expired} ({categoryViewStats.expired})
-                        </Button>
-                      </Link>
-                      <Link href={`${categoryBaseHref}&view=sold`}>
-                        <Button
-                          size="sm"
-                          variant={
-                            selectedView === "sold" ? "default" : "outline"
-                          }
-                        >
-                          {text.sold} ({categoryViewStats.sold})
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-
-                  {selectedCategoryListings.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {text.noListingsForFilter}
-                    </p>
-                  ) : (
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {selectedCategoryListings.map((listing) => {
-                        const heroImage = listing.images[0]?.url;
-                        const isSold = Boolean(listing.sale);
-                        const isActive = listing.status === ListingStatus.ACTIVE;
-                        const isDraft = listing.status === ListingStatus.DRAFT;
-                        const statusLabel = isSold
-                          ? text.statusSold
-                          : isActive
-                          ? text.statusActive
-                          : isDraft
-                            ? text.statusDraft
-                            : text.statusExpired;
-                        const statusTone = isSold
-                          ? "border-secondary/35 text-secondary ring-secondary/20"
-                          : isActive
-                          ? "border-success/35 text-success ring-success/25"
-                          : isDraft
-                            ? "border-warning/35 text-warning ring-warning/25"
-                            : "border-destructive/35 text-destructive ring-destructive/20";
-
-                        return (
-                          <article
-                            key={listing.id}
-                            className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-transform hover:-translate-y-0.5"
-                          >
-                            <div className="relative h-32">
-                              {heroImage ? (
-                                <Image
-                                  src={heroImage}
-                                  alt={listing.title}
-                                  fill
-                                  unoptimized
-                                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                  sizes="(max-width: 768px) 100vw, 33vw"
-                                />
-                              ) : (
-                                <div className="h-full w-full bg-gradient-to-br from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-900" />
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/30 to-transparent" />
-
-                              <div
-                                className={`absolute right-3 top-3 flex h-14 w-14 flex-col items-center justify-center rounded-full border bg-background/90 ring-2 ${statusTone}`}
-                              >
-                                <span className="text-[9px] font-semibold uppercase leading-none text-muted-foreground">
-                                  {text.status}
-                                </span>
-                                <span className="mt-1 text-[11px] font-black leading-none">
-                                  {statusLabel}
-                                </span>
-                              </div>
-
-                              <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-                                <p className="line-clamp-1 text-base font-black">
-                                  {listing.title}
-                                </p>
-                                <p className="line-clamp-1 text-xs text-white/85">
-                                  {text.updated}{" "}
-                                  {new Date(
-                                    listing.updatedAt,
-                                  ).toLocaleDateString(isMk ? "mk-MK" : "en-US")}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="space-y-3 p-3">
-                              <p className="text-lg font-black text-primary">
-                                {formatCurrencyFromCents(
-                                  listing.priceCents,
-                                  listing.currency,
-                                )}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5 text-xs font-semibold">
-                                  {statusLabel}
-                                </span>
-                                {listing.activeUntil && (
-                                  <span className="rounded-full border border-warning/35 bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
-                                    {text.ends}{" "}
-                                    {new Date(
-                                      listing.activeUntil,
-                                    ).toLocaleDateString(isMk ? "mk-MK" : "en-US")}
-                                  </span>
-                                )}
-                              </div>
-
-                              {isSold ? (
-                                <div className="space-y-2">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <Link href={`/sell/${listing.id}/edit`}>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="w-full"
-                                      >
-                                        {text.edit}
-                                      </Button>
-                                    </Link>
-                                    <Link href={`/listing/${listing.id}`}>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="w-full"
-                                      >
-                                        {text.view}
-                                      </Button>
-                                    </Link>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">
-                                    {text.soldHint}
-                                  </p>
-                                  {listing.sale?.soldAt && (
-                                    <p className="text-xs text-muted-foreground">
-                                      {text.soldOn}{" "}
-                                      {new Date(listing.sale.soldAt).toLocaleDateString(
-                                        isMk ? "mk-MK" : "en-US",
-                                      )}
-                                    </p>
-                                  )}
-                                </div>
-                              ) : isActive ? (
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Link href={`/sell/${listing.id}/edit`}>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="w-full"
-                                    >
-                                      {text.edit}
-                                    </Button>
-                                  </Link>
-                                  <Link href={`/listing/${listing.id}`}>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="w-full"
-                                    >
-                                      {text.view}
-                                    </Button>
-                                  </Link>
-                                </div>
-                              ) : isDraft ? (
-                                <div className="space-y-2">
-                                  {requiresPaymentForCreate ? (
-                                    <>
-                                      <div className="grid grid-cols-2 gap-2">
-                                        <Link href={`/sell/${listing.id}/edit`}>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="w-full"
-                                          >
-                                            {text.edit}
-                                          </Button>
-                                        </Link>
-                                        <Link href={`/sell/${listing.id}/edit`}>
-                                          <Button
-                                            size="sm"
-                                            type="button"
-                                            className="w-full"
-                                          >
-                                            {text.payAndPublish}
-                                          </Button>
-                                        </Link>
-                                      </div>
-                                      <p className="text-xs text-muted-foreground">
-                                        {text.openEditHint}
-                                      </p>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="grid grid-cols-2 gap-2">
-                                        <Link href={`/sell/${listing.id}/edit`}>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="w-full"
-                                          >
-                                            {text.edit}
-                                          </Button>
-                                        </Link>
-                                        <form action={publishDraftFromDashboard}>
-                                          <input
-                                            type="hidden"
-                                            name="id"
-                                            value={listing.id}
-                                          />
-                                          <Button
-                                            size="sm"
-                                            type="submit"
-                                            className="w-full"
-                                          >
-                                            {text.publishFree}
-                                          </Button>
-                                        </form>
-                                      </div>
-                                      <p className="text-xs text-muted-foreground">
-                                        {hasActiveSubscription
-                                          ? text.subscriptionPublishHint
-                                          : text.firstPublishFreeHint}
-                                      </p>
-                                    </>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <Link href={`/sell/${listing.id}/edit`}>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="w-full"
-                                      >
-                                        {text.edit}
-                                      </Button>
-                                    </Link>
-                                    <Link href={`/sell/${listing.id}/edit`}>
-                                      <Button
-                                        size="sm"
-                                        type="button"
-                                        className="w-full"
-                                      >
-                                        {requiresPaymentForCreate
-                                          ? text.payAndPublish
-                                          : text.publishWithSubscription}
-                                      </Button>
-                                    </Link>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">
-                                    {text.expiredHint}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+        <DashboardListingsPanel
+          locale={locale}
+          text={text}
+          allListings={allListingsForClient}
+          initialFilters={{
+            cat: selectedCategoryIdFromQuery || "all",
+            view: selectedView,
+            q: searchQuery,
+            sort: selectedSort,
+            layout: selectedLayout,
+          }}
+          requiresPaymentForCreate={requiresPaymentForCreate}
+          hasActiveSubscription={hasActiveSubscription}
+          publishDraftAction={publishDraftFromDashboard}
+        />
+      </section>
+    </div>
     </div>
   );
 }
+
+

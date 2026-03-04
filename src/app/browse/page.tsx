@@ -23,7 +23,7 @@ import {
 } from "@/lib/prisma-circuit-breaker";
 import { parseTemplateOptions } from "@/lib/listing-fields";
 
-const PAGE_SIZE = 60;
+const PAGE_SIZE = 10;
 type BrowseSort = "newest" | "price-asc" | "price-desc";
 type BrowseTemplate = {
   key: string;
@@ -109,7 +109,7 @@ export default async function BrowsePage({
   const cat = getParam(sp, "cat");
   const sub = getParam(sp, "sub");
   const city = getParam(sp, "city");
-  const condition = getParam(sp, "condition");
+  const condition = getParam(sp, "condition") || getParam(sp, "cond");
   const sort = parseSort(getParam(sp, "sort"));
   const page = Math.max(1, Number(getParam(sp, "page") || 1));
   const minRaw = parseOptionalNumberParam(getParam(sp, "min"));
@@ -165,8 +165,14 @@ export default async function BrowsePage({
   if (city) {
     andFilters.push({ cityId: city });
   }
-  if (condition) {
-    andFilters.push({ condition: condition as ListingCondition });
+  const conditionValues = new Set(Object.values(ListingCondition));
+  const safeCondition =
+    condition && conditionValues.has(condition as ListingCondition)
+      ? (condition as ListingCondition)
+      : undefined;
+
+  if (safeCondition) {
+    andFilters.push({ condition: safeCondition });
   }
   if (safeMinCents !== undefined || safeMaxCents !== undefined) {
     andFilters.push({
@@ -283,7 +289,7 @@ export default async function BrowsePage({
     ),
   );
   const validCityIds = new Set(cities.map((cityItem) => cityItem.id));
-  const validConditionValues = new Set(Object.values(ListingCondition));
+  const validConditionValues = conditionValues;
 
   const hasInvalidCat = Boolean(cat && !validParentCategoryIds.has(cat));
   const hasInvalidSub = Boolean(sub && !validSubcategoryIds.has(sub));
@@ -300,7 +306,7 @@ export default async function BrowsePage({
       if (key === "cat" && hasInvalidCat) return;
       if (key === "sub" && hasInvalidSub) return;
       if (key === "city" && hasInvalidCity) return;
-      if (key === "condition" && hasInvalidCondition) return;
+      if ((key === "condition" || key === "cond") && hasInvalidCondition) return;
       sanitized.set(key, single);
     });
 
@@ -422,7 +428,7 @@ export default async function BrowsePage({
           </CardContent>
         </Card>
       ) : (
-        <div className="responsive-grid gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {listings.map((listing) => (
             <ListingCard key={listing.id} listing={listing} locale={locale} />
           ))}

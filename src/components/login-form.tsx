@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,7 @@ export function LoginForm({
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [loadingAction, setLoadingAction] = useState<
     "login" | "register" | "magic" | null
@@ -205,6 +207,7 @@ export function LoginForm({
   }
 
   return (
+    <>
     <div className="space-y-4">
       <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
         <button
@@ -262,18 +265,29 @@ export function LoginForm({
           <span className="text-sm font-medium">
             {text.password} {isRegister ? text.min8 : ""}
           </span>
-          <Input
-            name="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder={
-              isRegister
-                ? text.registerPasswordPlaceholder
-                : text.loginPasswordPlaceholder
-            }
-            autoComplete={isRegister ? "new-password" : "current-password"}
-          />
+          <div className="relative">
+            <Input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder={
+                isRegister
+                  ? text.registerPasswordPlaceholder
+                  : text.loginPasswordPlaceholder
+              }
+              autoComplete={isRegister ? "new-password" : "current-password"}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              aria-label={text.password}
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </label>
       </div>
 
@@ -317,5 +331,6 @@ export function LoginForm({
         </Link>
       </p>
     </div>
+    </>
   );
 }

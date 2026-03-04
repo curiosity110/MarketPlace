@@ -4,10 +4,11 @@ import type { ChangeEvent } from "react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CategoryFieldType, ListingCondition } from "@prisma/client";
-import { CircleDollarSign, Filter, Search } from "lucide-react";
+import { CircleDollarSign, Filter, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 type Template = {
   key: string;
@@ -26,6 +27,17 @@ type City = { id: string; name: string };
 
 type BrowseSort = "newest" | "price-asc" | "price-desc";
 
+type FilterState = {
+  q: string;
+  cat: string;
+  sub: string;
+  city: string;
+  condition: string;
+  min: string;
+  max: string;
+  sort: BrowseSort;
+};
+
 type Props = {
   categories: ParentCategory[];
   cities: City[];
@@ -33,12 +45,11 @@ type Props = {
   locale?: "en" | "mk";
 };
 
-function setParam(params: URLSearchParams, key: string, value?: string) {
-  if (!value) {
-    params.delete(key);
-    return;
-  }
-  params.set(key, value);
+const TYPING_DEBOUNCE_MS = 320;
+
+function parseSort(value: string | null): BrowseSort {
+  if (value === "price-asc" || value === "price-desc") return value;
+  return "newest";
 }
 
 function getInitialDynamicValues(sp: URLSearchParams) {
@@ -50,9 +61,80 @@ function getInitialDynamicValues(sp: URLSearchParams) {
   return values;
 }
 
-function parseSort(value: string | null): BrowseSort {
-  if (value === "price-asc" || value === "price-desc") return value;
-  return "newest";
+function normalizeNumericInput(value: string) {
+  return value.replace(/[^\d]/g, "");
+}
+
+function toPositiveInteger(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
+  return Math.round(parsed);
+}
+
+function normalizeMinMax(minValue: string, maxValue: string) {
+  const minInt = toPositiveInteger(minValue);
+  const maxInt = toPositiveInteger(maxValue);
+
+  if (minInt !== undefined && maxInt !== undefined && minInt > maxInt) {
+    return {
+      min: String(maxInt),
+      max: String(minInt),
+      hasSwap: true,
+    };
+  }
+
+  return {
+    min: minInt === undefined ? "" : String(minInt),
+    max: maxInt === undefined ? "" : String(maxInt),
+    hasSwap: false,
+  };
+}
+
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debounced, setDebounced] = React.useState(value);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs, value]);
+
+  return debounced;
+}
+
+function areStatesEqual(a: FilterState, b: FilterState) {
+  return (
+    a.q === b.q &&
+    a.cat === b.cat &&
+    a.sub === b.sub &&
+    a.city === b.city &&
+    a.condition === b.condition &&
+    a.min === b.min &&
+    a.max === b.max &&
+    a.sort === b.sort
+  );
+}
+
+function areRecordsEqual(
+  a: Record<string, string>,
+  b: Record<string, string>,
+) {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
+
+function canonicalizeQueryString(input: string) {
+  const entries = [...new URLSearchParams(input).entries()].sort((left, right) => {
+    if (left[0] === right[0]) return left[1].localeCompare(right[1]);
+    return left[0].localeCompare(right[0]);
+  });
+  return new URLSearchParams(entries).toString();
 }
 
 export function BrowseFilters({
@@ -63,8 +145,6 @@ export function BrowseFilters({
 }: Props) {
   const router = useRouter();
   const spReadonly = useSearchParams();
-
-  // Convert readonly params to mutable snapshot
   const spString = spReadonly.toString();
   const sp = React.useMemo(() => new URLSearchParams(spString), [spString]);
 
@@ -85,6 +165,7 @@ export function BrowseFilters({
         priceRange: "Опсег на цена",
         minPrice: "Мин цена",
         maxPrice: "Макс цена",
+        mkd: "МКД",
         categoryFilters: "Филтри за категорија",
         extraFilters: "Дополнителни филтри",
         any: "Секој",
@@ -95,6 +176,18 @@ export function BrowseFilters({
         priceAsc: "Цена од ниска кон висока",
         priceDesc: "Цена од висока кон ниска",
         resetFilters: "Исчисти филтри",
+        activeFilters: "Активни филтри",
+        clearAll: "Исчисти сè",
+        searchChip: "Пребарување",
+        categoryChip: "Категорија",
+        subcategoryChip: "Поткатегорија",
+        cityChip: "Град",
+        conditionChip: "Состојба",
+        priceChip: "Цена",
+        minLabel: "мин",
+        maxLabel: "макс",
+        removeFilter: "Отстрани филтер",
+        priceAutoFixed: "Мин/макс се усогласени автоматски.",
       }
     : {
         search: "Search",
@@ -111,6 +204,7 @@ export function BrowseFilters({
         priceRange: "Price range",
         minPrice: "Min price",
         maxPrice: "Max price",
+        mkd: "MKD",
         categoryFilters: "Category specific filters",
         extraFilters: "Extra filters",
         any: "Any",
@@ -121,11 +215,27 @@ export function BrowseFilters({
         priceAsc: "Price low to high",
         priceDesc: "Price high to low",
         resetFilters: "Reset filters",
+        activeFilters: "Active filters",
+        clearAll: "Clear all",
+        searchChip: "Search",
+        categoryChip: "Category",
+        subcategoryChip: "Subcategory",
+        cityChip: "City",
+        conditionChip: "Condition",
+        priceChip: "Price",
+        minLabel: "min",
+        maxLabel: "max",
+        removeFilter: "Remove filter",
+        priceAutoFixed: "Min/max were aligned automatically.",
       };
 
-  const conditionLabelByValue: Record<ListingCondition, string> = isMk
-    ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
-    : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" };
+  const conditionLabelByValue = React.useMemo<Record<ListingCondition, string>>(
+    () =>
+      isMk
+        ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
+        : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" },
+    [isMk],
+  );
 
   const sortOptions: { value: BrowseSort; label: string }[] = [
     { value: "newest", label: text.newest },
@@ -133,99 +243,394 @@ export function BrowseFilters({
     { value: "price-desc", label: text.priceDesc },
   ];
 
-  // Local UI state (controlled inputs)
-  const [q, setQ] = React.useState(sp.get("q") ?? "");
-  const [cat, setCat] = React.useState(sp.get("cat") ?? "");
-  const [sub, setSub] = React.useState(sp.get("sub") ?? "");
-  const [city, setCity] = React.useState(sp.get("city") ?? "");
-  const [condition, setCondition] = React.useState(sp.get("condition") ?? "");
-  const [min, setMin] = React.useState(sp.get("min") ?? "");
-  const [max, setMax] = React.useState(sp.get("max") ?? "");
-  const [sort, setSort] = React.useState<BrowseSort>(parseSort(sp.get("sort")));
+  const [state, setState] = React.useState<FilterState>({
+    q: sp.get("q") ?? "",
+    cat: sp.get("cat") ?? "",
+    sub: sp.get("sub") ?? "",
+    city: sp.get("city") ?? "",
+    condition: sp.get("condition") ?? sp.get("cond") ?? "",
+    min: sp.get("min") ?? "",
+    max: sp.get("max") ?? "",
+    sort: parseSort(sp.get("sort")),
+  });
+
   const [dynamicValues, setDynamicValues] = React.useState<Record<string, string>>(
     getInitialDynamicValues(sp),
   );
 
-  // Sync state when URL changes (back/forward, link clicks, etc.)
+  const [lastDispatchedQuery, setLastDispatchedQuery] = React.useState<string>(() =>
+    canonicalizeQueryString(spString),
+  );
+
   React.useEffect(() => {
-    const latest = new URLSearchParams(spString);
-    setQ(latest.get("q") ?? "");
-    setCat(latest.get("cat") ?? "");
-    setSub(latest.get("sub") ?? "");
-    setCity(latest.get("city") ?? "");
-    setCondition(latest.get("condition") ?? "");
-    setMin(latest.get("min") ?? "");
-    setMax(latest.get("max") ?? "");
-    setSort(parseSort(latest.get("sort")));
-    setDynamicValues(getInitialDynamicValues(latest));
+    const canonical = canonicalizeQueryString(spString);
+    setLastDispatchedQuery((prev) => (prev === canonical ? prev : canonical));
   }, [spString]);
 
-  const parent = categories.find((category) => category.id === cat);
-  const subcategories = parent?.children ?? [];
-  const selectedCategoryId = sub || cat;
+  React.useEffect(() => {
+    const latest = new URLSearchParams(spString);
+    const nextState: FilterState = {
+      q: latest.get("q") ?? "",
+      cat: latest.get("cat") ?? "",
+      sub: latest.get("sub") ?? "",
+      city: latest.get("city") ?? "",
+      condition: latest.get("condition") ?? latest.get("cond") ?? "",
+      min: latest.get("min") ?? "",
+      max: latest.get("max") ?? "",
+      sort: parseSort(latest.get("sort")),
+    };
+    const nextDynamicValues = getInitialDynamicValues(latest);
 
+    setState((prev) => (areStatesEqual(prev, nextState) ? prev : nextState));
+    setDynamicValues((prev) =>
+      areRecordsEqual(prev, nextDynamicValues) ? prev : nextDynamicValues,
+    );
+  }, [spString]);
+
+  const parent = categories.find((category) => category.id === state.cat);
+  const subcategories = parent?.children ?? [];
+  const selectedCategoryId = state.sub || state.cat;
   const dynamicTemplates = React.useMemo(
     () => templatesByCategory[selectedCategoryId] ?? [],
     [selectedCategoryId, templatesByCategory],
   );
 
-  // When category changes, drop dynamic filters that don’t belong
+  const allTemplateLabels = React.useMemo(() => {
+    const map = new Map<string, string>();
+    Object.values(templatesByCategory).forEach((templates) => {
+      templates.forEach((template) => map.set(template.key, template.label));
+    });
+    return map;
+  }, [templatesByCategory]);
+
+  const parentLabelById = React.useMemo(
+    () => new Map(categories.map((category) => [category.id, category.name])),
+    [categories],
+  );
+
+  const subLabelById = React.useMemo(
+    () =>
+      new Map(
+        categories.flatMap((category) =>
+          category.children.map((child) => [child.id, child.name] as const),
+        ),
+      ),
+    [categories],
+  );
+
+  const cityLabelById = React.useMemo(
+    () => new Map(cities.map((cityItem) => [cityItem.id, cityItem.name])),
+    [cities],
+  );
+
+  const hasAnyFilter = React.useMemo(() => {
+    const dynamicHasValue = Object.values(dynamicValues).some((value) => value.trim().length > 0);
+    return (
+      Boolean(state.q.trim()) ||
+      Boolean(state.cat) ||
+      Boolean(state.sub) ||
+      Boolean(state.city) ||
+      Boolean(state.condition) ||
+      Boolean(state.min.trim()) ||
+      Boolean(state.max.trim()) ||
+      state.sort !== "newest" ||
+      dynamicHasValue
+    );
+  }, [dynamicValues, state]);
+
+  const applyFilters = React.useCallback(
+    (nextState: FilterState, nextDynamicValues: Record<string, string>) => {
+      const normalizedRange = normalizeMinMax(nextState.min, nextState.max);
+
+      const params = new URLSearchParams(spString);
+      const cleanKeys = new Set([
+        "q",
+        "cat",
+        "sub",
+        "city",
+        "condition",
+        "cond",
+        "min",
+        "max",
+        "sort",
+        "page",
+      ]);
+
+      [...params.keys()].forEach((key) => {
+        if (cleanKeys.has(key) || key.startsWith("df_")) {
+          params.delete(key);
+        }
+      });
+
+      if (nextState.q.trim()) params.set("q", nextState.q.trim());
+      if (nextState.cat) params.set("cat", nextState.cat);
+      if (nextState.sub) params.set("sub", nextState.sub);
+      if (nextState.city) params.set("city", nextState.city);
+      if (nextState.condition) params.set("condition", nextState.condition);
+      if (normalizedRange.min) params.set("min", normalizedRange.min);
+      if (normalizedRange.max) params.set("max", normalizedRange.max);
+      if (nextState.sort !== "newest") params.set("sort", nextState.sort);
+
+      Object.entries(nextDynamicValues).forEach(([key, value]) => {
+        const trimmed = value.trim();
+        if (!trimmed) return;
+        params.set(`df_${key}`, trimmed);
+      });
+
+      const hasFilters =
+        Boolean(nextState.q.trim()) ||
+        Boolean(nextState.cat) ||
+        Boolean(nextState.sub) ||
+        Boolean(nextState.city) ||
+        Boolean(nextState.condition) ||
+        Boolean(normalizedRange.min) ||
+        Boolean(normalizedRange.max) ||
+        nextState.sort !== "newest" ||
+        Object.values(nextDynamicValues).some((value) => value.trim().length > 0);
+
+      if (hasFilters) {
+        params.set("page", "1");
+      }
+
+      const query = params.toString();
+      const nextCanonical = canonicalizeQueryString(query);
+      const currentCanonical = canonicalizeQueryString(spString);
+
+      if (
+        nextCanonical === currentCanonical ||
+        nextCanonical === lastDispatchedQuery
+      ) {
+        return;
+      }
+
+      setLastDispatchedQuery(nextCanonical);
+      router.replace(query ? `/browse?${query}` : "/browse", { scroll: false });
+    },
+    [lastDispatchedQuery, router, spString],
+  );
+
+  const debouncedQ = useDebouncedValue(state.q, TYPING_DEBOUNCE_MS);
+  const debouncedMin = useDebouncedValue(state.min, TYPING_DEBOUNCE_MS);
+  const debouncedMax = useDebouncedValue(state.max, TYPING_DEBOUNCE_MS);
+  const debouncedDynamicValues = useDebouncedValue(dynamicValues, TYPING_DEBOUNCE_MS);
+
+  const didMountRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    applyFilters(
+      {
+        ...state,
+        q: debouncedQ,
+        min: debouncedMin,
+        max: debouncedMax,
+      },
+      dynamicValues,
+    );
+  }, [applyFilters, debouncedMax, debouncedMin, debouncedQ, dynamicValues, state]);
+
+  const dynamicDidMountRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!dynamicDidMountRef.current) {
+      dynamicDidMountRef.current = true;
+      return;
+    }
+    applyFilters(state, debouncedDynamicValues);
+  }, [applyFilters, debouncedDynamicValues, state]);
+
   React.useEffect(() => {
     setDynamicValues((prev) => {
-      const allowedKeys = new Set(dynamicTemplates.map((t) => t.key));
-      return Object.fromEntries(Object.entries(prev).filter(([k]) => allowedKeys.has(k)));
+      const allowedKeys = new Set(dynamicTemplates.map((template) => template.key));
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([key]) => allowedKeys.has(key)),
+      );
+      return areRecordsEqual(prev, next) ? prev : next;
     });
   }, [dynamicTemplates]);
 
-  function apply(overrides?: Partial<Record<string, string>>) {
-    const params = new URLSearchParams(spString);
+  const hasPriceSwap = React.useMemo(() => {
+    const minValue = toPositiveInteger(state.min);
+    const maxValue = toPositiveInteger(state.max);
+    return minValue !== undefined && maxValue !== undefined && minValue > maxValue;
+  }, [state.max, state.min]);
 
-    const nextQ = overrides?.q ?? q;
-    const nextCat = overrides?.cat ?? cat;
-    const nextSub = overrides?.sub ?? sub;
-    const nextCity = overrides?.city ?? city;
-    const nextCondition = overrides?.condition ?? condition;
-    const nextMin = overrides?.min ?? min;
-    const nextMax = overrides?.max ?? max;
-    const nextSort = (overrides?.sort as BrowseSort | undefined) ?? sort;
+  const resetAll = React.useCallback(() => {
+    const clearedState: FilterState = {
+      q: "",
+      cat: "",
+      sub: "",
+      city: "",
+      condition: "",
+      min: "",
+      max: "",
+      sort: "newest",
+    };
+    setState(clearedState);
+    setDynamicValues({});
+    applyFilters(clearedState, {});
+  }, [applyFilters]);
 
-    setParam(params, "q", nextQ.trim() || undefined);
-    setParam(params, "cat", nextCat || undefined);
-    setParam(params, "sub", nextSub || undefined);
-    setParam(params, "city", nextCity || undefined);
-    setParam(params, "condition", nextCondition || undefined);
-    setParam(params, "min", nextMin || undefined);
-    setParam(params, "max", nextMax || undefined);
-    setParam(params, "sort", nextSort || undefined);
+  const activeFilterChips = React.useMemo(() => {
+    const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
 
-    // Reset all df_* then re-apply current dynamicValues
-    [...params.keys()]
-      .filter((key) => key.startsWith("df_"))
-      .forEach((key) => params.delete(key));
+    if (state.q.trim()) {
+      chips.push({
+        key: "q",
+        label: `${text.searchChip}: ${state.q.trim()}`,
+        onRemove: () => {
+          const nextState = { ...state, q: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
+    if (state.cat) {
+      const label = parentLabelById.get(state.cat) || state.cat;
+      chips.push({
+        key: "cat",
+        label: `${text.categoryChip}: ${label}`,
+        onRemove: () => {
+          const nextState = { ...state, cat: "", sub: "" };
+          setState(nextState);
+          setDynamicValues({});
+          applyFilters(nextState, {});
+        },
+      });
+    }
+
+    if (state.sub) {
+      const label = subLabelById.get(state.sub) || state.sub;
+      chips.push({
+        key: "sub",
+        label: `${text.subcategoryChip}: ${label}`,
+        onRemove: () => {
+          const nextState = { ...state, sub: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
+    if (state.city) {
+      const label = cityLabelById.get(state.city) || state.city;
+      chips.push({
+        key: "city",
+        label: `${text.cityChip}: ${label}`,
+        onRemove: () => {
+          const nextState = { ...state, city: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
+    if (state.condition) {
+      const label = conditionLabelByValue[state.condition as ListingCondition] || state.condition;
+      chips.push({
+        key: "condition",
+        label: `${text.conditionChip}: ${label}`,
+        onRemove: () => {
+          const nextState = { ...state, condition: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
+    if (state.min.trim() || state.max.trim()) {
+      const normalizedRange = normalizeMinMax(state.min, state.max);
+      const minLabel = normalizedRange.min ? normalizedRange.min : text.minLabel;
+      const maxLabel = normalizedRange.max ? normalizedRange.max : text.maxLabel;
+
+      chips.push({
+        key: "price",
+        label: `${text.priceChip}: ${minLabel} - ${maxLabel} ${text.mkd}`,
+        onRemove: () => {
+          const nextState = { ...state, min: "", max: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
 
     Object.entries(dynamicValues).forEach(([key, value]) => {
       const trimmed = value.trim();
-      if (trimmed) params.set(`df_${key}`, trimmed);
+      if (!trimmed) return;
+      const label = allTemplateLabels.get(key) || key;
+      chips.push({
+        key: `df_${key}`,
+        label: `${label}: ${trimmed}`,
+        onRemove: () => {
+          const nextDynamic = { ...dynamicValues, [key]: "" };
+          setDynamicValues(nextDynamic);
+          applyFilters(state, nextDynamic);
+        },
+      });
     });
 
-    // Whenever filters change: go back to page 1
-    setParam(params, "page", "1");
+    return chips;
+  }, [
+    allTemplateLabels,
+    applyFilters,
+    cityLabelById,
+    conditionLabelByValue,
+    dynamicValues,
+    parentLabelById,
+    state,
+    subLabelById,
+    text.categoryChip,
+    text.cityChip,
+    text.conditionChip,
+    text.maxLabel,
+    text.minLabel,
+    text.mkd,
+    text.priceChip,
+    text.searchChip,
+    text.subcategoryChip,
+  ]);
 
-    router.push(params.toString() ? `/browse?${params.toString()}` : "/browse");
-  }
+  const onCategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextCat = event.target.value;
+    const allowedKeys = new Set(
+      (templatesByCategory[nextCat] ?? []).map((template) => template.key),
+    );
+    const nextDynamicValues = Object.fromEntries(
+      Object.entries(dynamicValues).filter(([key]) => allowedKeys.has(key)),
+    );
 
-  function clearAll() {
-    setQ("");
-    setCat("");
-    setSub("");
-    setCity("");
-    setCondition("");
-    setMin("");
-    setMax("");
-    setSort("newest");
-    setDynamicValues({});
-    router.push("/browse");
-  }
+    const nextState: FilterState = {
+      ...state,
+      cat: nextCat,
+      sub: "",
+    };
+
+    setState(nextState);
+    setDynamicValues(nextDynamicValues);
+    applyFilters(nextState, nextDynamicValues);
+  };
+
+  const onSubcategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextState: FilterState = {
+      ...state,
+      sub: event.target.value,
+    };
+    setState(nextState);
+    applyFilters(nextState, dynamicValues);
+  };
+
+  const onImmediateSelectChange =
+    (key: keyof Pick<FilterState, "city" | "condition" | "sort">) =>
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const nextState: FilterState = {
+        ...state,
+        [key]: event.target.value as FilterState[typeof key],
+      };
+      setState(nextState);
+      applyFilters(nextState, dynamicValues);
+    };
 
   function renderDynamicInput(template: Template) {
     const value = dynamicValues[template.key] ?? "";
@@ -236,9 +641,11 @@ export function BrowseFilters({
         <Select
           name={`df_${template.key}`}
           value={value}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-            setDynamicValues((prev) => ({ ...prev, [template.key]: event.target.value }))
-          }
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+            const next = { ...dynamicValues, [template.key]: event.target.value };
+            setDynamicValues(next);
+            applyFilters(state, next);
+          }}
           className={commonClasses}
         >
           <option value="">
@@ -263,6 +670,7 @@ export function BrowseFilters({
         className={commonClasses}
         type={template.type === CategoryFieldType.NUMBER ? "number" : "text"}
         placeholder={`${text.any} ${template.label.toLowerCase()}`}
+        autoComplete="off"
       />
     );
   }
@@ -272,23 +680,29 @@ export function BrowseFilters({
       className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault();
-        apply();
+        applyFilters(state, dynamicValues);
       }}
     >
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-        <label className="space-y-1">
+      <button type="submit" className="sr-only">
+        {text.apply}
+      </button>
+
+      <div className="grid gap-3 lg:grid-cols-12">
+        <label className="space-y-1 lg:col-span-8">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.search}
           </span>
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              size={14}
+              size={15}
             />
             <Input
               name="q"
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
+              value={state.q}
+              onChange={(event) =>
+                setState((prev) => ({ ...prev, q: event.target.value }))
+              }
               placeholder={text.searchPlaceholder}
               className="pl-9"
               autoComplete="off"
@@ -296,21 +710,40 @@ export function BrowseFilters({
           </div>
         </label>
 
+        <div className="space-y-1 lg:col-span-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {text.orderBy}
+          </p>
+          <div className="inline-flex w-full rounded-xl border border-border/80 bg-muted/20 p-1">
+            {sortOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={cn(
+                  "h-8 flex-1 rounded-lg px-2 text-xs font-semibold transition-colors",
+                  state.sort === option.value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => {
+                  const nextState: FilterState = { ...state, sort: option.value };
+                  setState(nextState);
+                  applyFilters(nextState, dynamicValues);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.category}
           </span>
-          <Select
-            name="cat"
-            value={cat}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-              const next = event.target.value;
-              setCat(next);
-              setSub("");
-              // optionally auto-apply on category change:
-              // apply({ cat: next, sub: "" });
-            }}
-          >
+          <Select name="cat" value={state.cat} onChange={onCategoryChange}>
             <option value="">{text.allCategories}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -324,26 +757,21 @@ export function BrowseFilters({
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.subcategory}
           </span>
-          <div className="space-y-1">
-            <Select
-              name="sub"
-              value={sub}
-              disabled={!cat}
-              onChange={(event: ChangeEvent<HTMLSelectElement>) => setSub(event.target.value)}
-            >
-              <option value="">{cat ? text.allSubcategories : text.selectCategoryFirst}</option>
-              {subcategories.map((subcategory) => (
-                <option key={subcategory.id} value={subcategory.id}>
-                  {subcategory.name}
-                </option>
-              ))}
-            </Select>
-            {cat && subcategories.length === 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                {text.allSubcategories}: 0
-              </p>
-            )}
-          </div>
+          <Select
+            name="sub"
+            value={state.sub}
+            disabled={!state.cat}
+            onChange={onSubcategoryChange}
+          >
+            <option value="">
+              {state.cat ? text.allSubcategories : text.selectCategoryFirst}
+            </option>
+            {subcategories.map((subcategory) => (
+              <option key={subcategory.id} value={subcategory.id}>
+                {subcategory.name}
+              </option>
+            ))}
+          </Select>
         </label>
 
         <label className="space-y-1">
@@ -352,8 +780,8 @@ export function BrowseFilters({
           </span>
           <Select
             name="city"
-            value={city}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => setCity(event.target.value)}
+            value={state.city}
+            onChange={onImmediateSelectChange("city")}
           >
             <option value="">{text.allCities}</option>
             {cities.map((cityItem) => (
@@ -363,67 +791,90 @@ export function BrowseFilters({
             ))}
           </Select>
         </label>
-      </div>
 
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.condition}
           </span>
           <Select
             name="condition"
-            value={condition}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => setCondition(event.target.value)}
+            value={state.condition}
+            onChange={onImmediateSelectChange("condition")}
           >
             <option value="">{text.anyCondition}</option>
             {Object.values(ListingCondition).map((item) => (
               <option key={item} value={item}>
                 {conditionLabelByValue[item]}
               </option>
-              ))}
+            ))}
           </Select>
         </label>
+      </div>
 
-        <div className="price-shapes rounded-2xl border border-dashed border-primary/25 bg-orange-50/40 p-3 dark:bg-orange-500/5 md:col-span-1 lg:col-span-2">
-          <p className="mb-2 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <CircleDollarSign size={14} />
-            {text.priceRange}
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2">
+      <div className="rounded-2xl border border-dashed border-primary/25 bg-orange-50/40 p-3 dark:bg-orange-500/5">
+        <p className="mb-2 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <CircleDollarSign size={14} />
+          {text.priceRange}
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="relative">
             <Input
               name="min"
-              type="number"
-              step="1"
-              min="0"
-              value={min}
-              onChange={(event) => setMin(event.target.value)}
+              type="text"
+              inputMode="numeric"
+              value={state.min}
+              onChange={(event) =>
+                setState((prev) => ({
+                  ...prev,
+                  min: normalizeNumericInput(event.target.value),
+                }))
+              }
               placeholder={text.minPrice}
               autoComplete="off"
+              className="pr-12"
             />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
+              {text.mkd}
+            </span>
+          </div>
+          <div className="relative">
             <Input
               name="max"
-              type="number"
-              step="1"
-              min="0"
-              value={max}
-              onChange={(event) => setMax(event.target.value)}
+              type="text"
+              inputMode="numeric"
+              value={state.max}
+              onChange={(event) =>
+                setState((prev) => ({
+                  ...prev,
+                  max: normalizeNumericInput(event.target.value),
+                }))
+              }
               placeholder={text.maxPrice}
               autoComplete="off"
+              className="pr-12"
             />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
+              {text.mkd}
+            </span>
           </div>
         </div>
+        {hasPriceSwap && (
+          <p className="mt-2 text-xs text-warning">{text.priceAutoFixed}</p>
+        )}
       </div>
 
       {dynamicTemplates.length > 0 && (
         <div className="rounded-2xl border border-secondary/20 bg-blue-50/40 p-3 dark:bg-blue-500/5">
           <p className="mb-3 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Filter size={14} />
-            {cat || sub ? text.categoryFilters : text.extraFilters}
+            {state.cat || state.sub ? text.categoryFilters : text.extraFilters}
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {dynamicTemplates.map((template) => (
               <label key={template.key} className="space-y-1">
-                <span className="text-xs font-semibold text-muted-foreground">{template.label}</span>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {template.label}
+                </span>
                 {renderDynamicInput(template)}
               </label>
             ))}
@@ -431,41 +882,41 @@ export function BrowseFilters({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 pt-1">
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" className="min-w-28">
-            {text.apply}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={clearAll}
-          >
-            {text.resetFilters}
-          </Button>
-        </div>
-
-        <div className="ml-auto space-y-1">
-          <p className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.orderBy}
-          </p>
-          <div className="flex flex-wrap justify-end gap-2">
-            {sortOptions.map((option) => (
-              <Button
-                key={option.value}
+      {(hasAnyFilter || activeFilterChips.length > 0) && (
+        <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {text.activeFilters}
+            </p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-primary hover:underline"
+              onClick={resetAll}
+            >
+              {text.clearAll}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {activeFilterChips.map((chip) => (
+              <button
+                key={chip.key}
                 type="button"
-                size="sm"
-                variant={sort === option.value ? "default" : "outline"}
-                onClick={() => {
-                  setSort(option.value);
-                  apply({ sort: option.value });
-                }}
+                className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-primary/40 hover:text-primary"
+                onClick={chip.onRemove}
+                aria-label={`${text.removeFilter}: ${chip.label}`}
               >
-                {option.label}
-              </Button>
+                <span>{chip.label}</span>
+                <X size={13} />
+              </button>
             ))}
           </div>
         </div>
+      )}
+
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" onClick={resetAll}>
+          {text.resetFilters}
+        </Button>
       </div>
     </form>
   );

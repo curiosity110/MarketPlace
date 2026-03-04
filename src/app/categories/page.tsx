@@ -44,6 +44,10 @@ const iconBySlug = {
   fashion: Shirt,
 } as const;
 
+function getCategoryCover(seed: string) {
+  return `https://picsum.photos/seed/market-${encodeURIComponent(seed)}/1200/720`;
+}
+
 export default async function CategoriesPage({
   searchParams,
 }: {
@@ -334,9 +338,19 @@ export default async function CategoriesPage({
           return (
             <Card
               key={category.id}
-              className="overflow-hidden border-border/75 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+              className="relative overflow-hidden border-border/75 transition-all hover:-translate-y-0.5 hover:border-primary/30"
             >
-              <CardContent className="space-y-4">
+              <div className="pointer-events-none absolute inset-0">
+                <div
+                  className="absolute inset-0 bg-cover bg-center opacity-25"
+                  style={{
+                    backgroundImage: `url("${getCategoryCover(category.slug || category.id)}")`,
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-background/92 via-background/85 to-background/78" />
+              </div>
+
+              <CardContent className="relative space-y-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="inline-flex rounded-xl border border-border/70 bg-muted/20 p-2">
