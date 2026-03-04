@@ -233,11 +233,24 @@ export default async function Home() {
 
   let latestListings: Awaited<ReturnType<typeof fetchHomeData>>[0] = [];
   let categoryHighlights: Awaited<ReturnType<typeof fetchHomeData>>[1] = [];
+  const favoriteListingIdSet = new Set<string>();
   let dbUnavailable = false;
 
   try {
     if (!shouldSkipPrismaCalls()) {
       [latestListings, categoryHighlights] = await fetchHomeData();
+      if (sessionUser && latestListings.length > 0) {
+        const favoriteRows = await prisma.favorite.findMany({
+          where: {
+            userId: sessionUser.id,
+            listingId: { in: latestListings.map((listing) => listing.id) },
+          },
+          select: { listingId: true },
+        });
+        favoriteRows.forEach((favorite) =>
+          favoriteListingIdSet.add(favorite.listingId),
+        );
+      }
       markPrismaHealthy();
     } else {
       dbUnavailable = true;
@@ -379,6 +392,7 @@ export default async function Home() {
                   listing={listing}
                   locale={locale}
                   currentAuthUserId={sessionUser?.authUserId}
+                  isFavorited={favoriteListingIdSet.has(listing.id)}
                 />
               ))}
             </div>

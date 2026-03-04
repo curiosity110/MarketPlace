@@ -134,6 +134,28 @@ export default async function SellerProfilePage({
 
   const [seller, listings] = sellerData;
   if (!seller) notFound();
+  const favoriteListingIdSet = new Set<string>();
+  if (sessionUser && listings.length > 0 && !shouldSkipPrismaCalls()) {
+    try {
+      const favoriteRows = await prisma.favorite.findMany({
+        where: {
+          userId: sessionUser.id,
+          listingId: { in: listings.map((listing) => listing.id) },
+        },
+        select: { listingId: true },
+      });
+      favoriteRows.forEach((favorite) =>
+        favoriteListingIdSet.add(favorite.listingId),
+      );
+      markPrismaHealthy();
+    } catch (error) {
+      if (isPrismaConnectionError(error)) {
+        markPrismaUnavailable();
+      } else {
+        throw error;
+      }
+    }
+  }
 
   const displayName = seller.name || seller.email.split("@")[0];
   const sellerHandle = toHandle(seller.username || displayName);
@@ -179,6 +201,7 @@ export default async function SellerProfilePage({
               listing={listing}
               locale={locale}
               currentAuthUserId={sessionUser?.authUserId}
+              isFavorited={favoriteListingIdSet.has(listing.id)}
             />
           ))}
         </div>

@@ -11,6 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { ContactSellerPopout } from "@/components/contact-seller-popout";
+import { FavoriteToggleButton } from "@/components/favorite-toggle-button";
 import { ListingGallery } from "@/components/listing-gallery";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
 import { Badge } from "@/components/ui/badge";
@@ -196,6 +197,28 @@ export default async function ListingDetails({
   if (!isOwner && !isPublicVisible) {
     notFound();
   }
+  let isFavorited = false;
+  if (sessionUser && !isOwner && !shouldSkipPrismaCalls()) {
+    try {
+      const favorite = await prisma.favorite.findUnique({
+        where: {
+          userId_listingId: {
+            userId: sessionUser.id,
+            listingId: listing.id,
+          },
+        },
+        select: { id: true },
+      });
+      isFavorited = Boolean(favorite);
+      markPrismaHealthy();
+    } catch (error) {
+      if (isPrismaConnectionError(error)) {
+        markPrismaUnavailable();
+      } else {
+        throw error;
+      }
+    }
+  }
 
   const valuesByKey = Object.fromEntries(
     listing.fieldValues.map((field) => [field.key, field.value]),
@@ -255,6 +278,16 @@ export default async function ListingDetails({
               {formatCurrencyFromCents(listing.priceCents, listing.currency)}
             </p>
           </div>
+          {!isOwner && (
+            <div className="flex justify-end">
+              <FavoriteToggleButton
+                listingId={listing.id}
+                locale={locale}
+                isAuthenticated={Boolean(sessionUser)}
+                initialFavorited={isFavorited}
+              />
+            </div>
+          )}
           {isOwner && (
             <div className="flex flex-wrap justify-end gap-2">
               <Link href={`/sell/${listing.id}/edit`}>

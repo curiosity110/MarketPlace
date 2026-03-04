@@ -10,6 +10,7 @@ import {
 import { SlidersHorizontal } from "lucide-react";
 import { BrowseFilters } from "@/components/browse-filters";
 import { ListingCard } from "@/components/listing-card";
+import { SaveSearchPopout } from "@/components/save-search-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -121,6 +122,7 @@ export default async function BrowsePage({
         of: "од",
         previous: "Претходна",
         next: "Следна",
+        favoritesOnly: "Само омилени",
       }
     : {
         smartBrowse: "Smart browse",
@@ -144,6 +146,7 @@ export default async function BrowsePage({
         of: "of",
         previous: "Previous",
         next: "Next",
+        favoritesOnly: "Favorites only",
       };
   const sp = await searchParams;
   const search = getParam(sp, "q")?.trim();
@@ -151,6 +154,7 @@ export default async function BrowsePage({
   const sub = getParam(sp, "sub");
   const city = getParam(sp, "city");
   const condition = getParam(sp, "condition") || getParam(sp, "cond");
+  const favoritesOnlyRequested = getParam(sp, "fav") === "1";
   const sort = parseSort(getParam(sp, "sort"));
   const page = Math.max(1, Number(getParam(sp, "page") || 1));
   const minRaw = parseOptionalNumberParam(getParam(sp, "min"));
@@ -185,6 +189,7 @@ export default async function BrowsePage({
     Boolean(sub) ||
     Boolean(city) ||
     Boolean(condition) ||
+    (favoritesOnlyRequested && Boolean(sessionUser)) ||
     safeMinCents !== undefined ||
     safeMaxCents !== undefined ||
     dynamicFilters.length > 0;
@@ -214,6 +219,13 @@ export default async function BrowsePage({
 
   if (safeCondition) {
     andFilters.push({ condition: safeCondition });
+  }
+  if (favoritesOnlyRequested && sessionUser) {
+    andFilters.push({
+      favorites: {
+        some: { userId: sessionUser.id },
+      },
+    });
   }
   if (safeMinCents !== undefined || safeMaxCents !== undefined) {
     andFilters.push({
@@ -265,12 +277,25 @@ export default async function BrowsePage({
   let totalCount = 0;
   let parentCategories: Awaited<ReturnType<typeof fetchBrowseData>>[2] = [];
   let cities: Awaited<ReturnType<typeof fetchBrowseData>>[3] = [];
+  const favoriteListingIdSet = new Set<string>();
   let dbUnavailable = false;
 
   try {
     if (!shouldSkipPrismaCalls()) {
       [listings, totalCount, parentCategories, cities] =
         await fetchBrowseData();
+      if (sessionUser && listings.length > 0) {
+        const favoriteRows = await prisma.favorite.findMany({
+          where: {
+            userId: sessionUser.id,
+            listingId: { in: listings.map((listing) => listing.id) },
+          },
+          select: { listingId: true },
+        });
+        favoriteRows.forEach((favorite) =>
+          favoriteListingIdSet.add(favorite.listingId),
+        );
+      }
       markPrismaHealthy();
     } else {
       dbUnavailable = true;
@@ -301,8 +326,15 @@ export default async function BrowsePage({
   const hasInvalidCondition = Boolean(
     condition && !validConditionValues.has(condition as ListingCondition),
   );
+  const hasInvalidFav = Boolean(favoritesOnlyRequested && !sessionUser);
 
-  if (hasInvalidCat || hasInvalidSub || hasInvalidCity || hasInvalidCondition) {
+  if (
+    hasInvalidCat ||
+    hasInvalidSub ||
+    hasInvalidCity ||
+    hasInvalidCondition ||
+    hasInvalidFav
+  ) {
     const sanitized = new URLSearchParams();
     Object.entries(sp).forEach(([key, value]) => {
       const single = Array.isArray(value) ? value[0] : value;
@@ -311,6 +343,7 @@ export default async function BrowsePage({
       if (key === "sub" && hasInvalidSub) return;
       if (key === "city" && hasInvalidCity) return;
       if ((key === "condition" || key === "cond") && hasInvalidCondition) return;
+      if (key === "fav" && hasInvalidFav) return;
       sanitized.set(key, single);
     });
 
@@ -361,6 +394,8 @@ export default async function BrowsePage({
     if (!single || key === "page") return;
     params.set(key, single);
   });
+  const saveSearchQuery = Object.fromEntries(params.entries());
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -387,13 +422,18 @@ export default async function BrowsePage({
             <p className="text-xs text-muted-foreground">{text.showingAll}</p>
           )}
         </div>
-        {hasAppliedFilters && (
-          <Link href="/browse">
-            <Button variant="outline" type="button">
-              {text.resetFilters}
-            </Button>
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {Boolean(sessionUser) && hasAppliedFilters && (
+            <SaveSearchPopout locale={locale} query={saveSearchQuery} />
+          )}
+          {hasAppliedFilters && (
+            <Link href="/browse">
+              <Button variant="outline" type="button">
+                {text.resetFilters}
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       <Card className="border-primary/15 bg-card/90">
@@ -410,6 +450,7 @@ export default async function BrowsePage({
             cities={cities}
             templatesByCategory={templatesByCategory}
             locale={locale}
+            canUseFavoritesFilter={Boolean(sessionUser)}
           />
         </CardContent>
       </Card>
@@ -455,6 +496,7 @@ export default async function BrowsePage({
               listing={listing}
               locale={locale}
               currentAuthUserId={sessionUser?.authUserId}
+              isFavorited={favoriteListingIdSet.has(listing.id)}
             />
           ))}
         </div>

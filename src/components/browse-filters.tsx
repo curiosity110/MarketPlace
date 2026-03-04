@@ -33,6 +33,7 @@ type FilterState = {
   sub: string;
   city: string;
   condition: string;
+  fav: string;
   min: string;
   max: string;
   sort: BrowseSort;
@@ -43,6 +44,7 @@ type Props = {
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
   locale?: "en" | "mk";
+  canUseFavoritesFilter?: boolean;
 };
 
 const TYPING_DEBOUNCE_MS = 320;
@@ -110,6 +112,7 @@ function areStatesEqual(a: FilterState, b: FilterState) {
     a.sub === b.sub &&
     a.city === b.city &&
     a.condition === b.condition &&
+    a.fav === b.fav &&
     a.min === b.min &&
     a.max === b.max &&
     a.sort === b.sort
@@ -142,6 +145,7 @@ export function BrowseFilters({
   cities,
   templatesByCategory,
   locale = "en",
+  canUseFavoritesFilter = false,
 }: Props) {
   const router = useRouter();
   const spReadonly = useSearchParams();
@@ -184,10 +188,12 @@ export function BrowseFilters({
         cityChip: "Град",
         conditionChip: "Состојба",
         priceChip: "Цена",
+        favoritesChip: "Омилени",
         minLabel: "мин",
         maxLabel: "макс",
         removeFilter: "Отстрани филтер",
         priceAutoFixed: "Мин/макс се усогласени автоматски.",
+        favoritesOnly: "Само омилени",
       }
     : {
         search: "Search",
@@ -223,10 +229,12 @@ export function BrowseFilters({
         cityChip: "City",
         conditionChip: "Condition",
         priceChip: "Price",
+        favoritesChip: "Favorites",
         minLabel: "min",
         maxLabel: "max",
         removeFilter: "Remove filter",
         priceAutoFixed: "Min/max were aligned automatically.",
+        favoritesOnly: "Favorites only",
       };
 
   const conditionLabelByValue = React.useMemo<Record<ListingCondition, string>>(
@@ -252,6 +260,7 @@ export function BrowseFilters({
     sub: sp.get("sub") ?? "",
     city: sp.get("city") ?? "",
     condition: sp.get("condition") ?? sp.get("cond") ?? "",
+    fav: sp.get("fav") === "1" ? "1" : "",
     min: sp.get("min") ?? "",
     max: sp.get("max") ?? "",
     sort: parseSort(sp.get("sort")),
@@ -278,6 +287,7 @@ export function BrowseFilters({
       sub: latest.get("sub") ?? "",
       city: latest.get("city") ?? "",
       condition: latest.get("condition") ?? latest.get("cond") ?? "",
+      fav: latest.get("fav") === "1" ? "1" : "",
       min: latest.get("min") ?? "",
       max: latest.get("max") ?? "",
       sort: parseSort(latest.get("sort")),
@@ -334,6 +344,7 @@ export function BrowseFilters({
       Boolean(state.sub) ||
       Boolean(state.city) ||
       Boolean(state.condition) ||
+      state.fav === "1" ||
       Boolean(state.min.trim()) ||
       Boolean(state.max.trim()) ||
       state.sort !== "newest" ||
@@ -353,6 +364,7 @@ export function BrowseFilters({
         "city",
         "condition",
         "cond",
+        "fav",
         "min",
         "max",
         "sort",
@@ -370,6 +382,7 @@ export function BrowseFilters({
       if (nextState.sub) params.set("sub", nextState.sub);
       if (nextState.city) params.set("city", nextState.city);
       if (nextState.condition) params.set("condition", nextState.condition);
+      if (nextState.fav === "1") params.set("fav", "1");
       if (normalizedRange.min) params.set("min", normalizedRange.min);
       if (normalizedRange.max) params.set("max", normalizedRange.max);
       if (nextState.sort !== "newest") params.set("sort", nextState.sort);
@@ -386,6 +399,7 @@ export function BrowseFilters({
         Boolean(nextState.sub) ||
         Boolean(nextState.city) ||
         Boolean(nextState.condition) ||
+        nextState.fav === "1" ||
         Boolean(normalizedRange.min) ||
         Boolean(normalizedRange.max) ||
         nextState.sort !== "newest" ||
@@ -466,6 +480,7 @@ export function BrowseFilters({
       sub: "",
       city: "",
       condition: "",
+      fav: "",
       min: "",
       max: "",
       sort: "newest",
@@ -543,6 +558,18 @@ export function BrowseFilters({
       });
     }
 
+    if (state.fav === "1") {
+      chips.push({
+        key: "fav",
+        label: text.favoritesChip,
+        onRemove: () => {
+          const nextState = { ...state, fav: "" };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
     if (state.min.trim() || state.max.trim()) {
       const normalizedRange = normalizeMinMax(state.min, state.max);
       const minLabel = normalizedRange.min ? normalizedRange.min : text.minLabel;
@@ -601,6 +628,7 @@ export function BrowseFilters({
     text.categoryChip,
     text.cityChip,
     text.conditionChip,
+    text.favoritesChip,
     text.maxLabel,
     text.minLabel,
     text.mkd,
@@ -785,6 +813,27 @@ export function BrowseFilters({
               </button>
             ))}
           </div>
+          {canUseFavoritesFilter && (
+            <button
+              type="button"
+              className={cn(
+                "mt-2 inline-flex h-8 items-center rounded-full border px-3 text-xs font-semibold transition-colors",
+                state.fav === "1"
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => {
+                const nextState: FilterState = {
+                  ...state,
+                  fav: state.fav === "1" ? "" : "1",
+                };
+                setState(nextState);
+                applyFilters(nextState, dynamicValues);
+              }}
+            >
+              {text.favoritesOnly}
+            </button>
+          )}
         </div>
       </div>
 

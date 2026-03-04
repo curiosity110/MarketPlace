@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { canAccessControl, getSessionUser } from "@/lib/auth";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Container } from "@/components/ui/container";
-import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { listNotifications } from "@/lib/actions/notifications";
 import { AuthCtaLinks } from "@/components/auth-cta-links";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { NavPrimaryLinks } from "@/components/nav-primary-links";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { NavAccountLinks } from "@/components/nav-account-links";
+import { NotificationsBell } from "@/components/notifications-bell";
+import { NavPrimaryLinks } from "@/components/nav-primary-links";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Container } from "@/components/ui/container";
 import { getMessages, getServerLocale } from "@/lib/i18n";
 
 export async function Nav() {
@@ -14,7 +16,9 @@ export async function Nav() {
   const locale = await getServerLocale();
   const messages = getMessages(locale);
   const isAdmin = user ? canAccessControl(user.role) : false;
-  const profileLabel = locale === "mk" ? "Профил" : "Profile";
+  const notifications = user
+    ? await listNotifications({ limit: 8 })
+    : { items: [], unreadCount: 0 };
 
   return (
     <>
@@ -48,12 +52,19 @@ export async function Nav() {
             />
             <ThemeToggle label={messages.theme.toggle} />
             {user ? (
-              <NavAccountLinks
-                isAdmin={isAdmin}
-                adminLabel={messages.nav.admin}
-                profileLabel={profileLabel}
-                logoutLabel={messages.nav.logout}
-              />
+              <>
+                <NotificationsBell
+                  locale={locale}
+                  items={notifications.items}
+                  unreadCount={notifications.unreadCount}
+                />
+                <NavAccountLinks
+                  isAdmin={isAdmin}
+                  adminLabel={messages.nav.admin}
+                  profileLabel={messages.market.profile}
+                  logoutLabel={messages.nav.logout}
+                />
+              </>
             ) : (
               <AuthCtaLinks
                 registerLabel={messages.nav.register}

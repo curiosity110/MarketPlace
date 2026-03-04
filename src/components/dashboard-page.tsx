@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateListingPopout } from "@/components/create-listing-popout";
+import { ListingCard } from "@/components/listing-card";
+import { SavedSearchesList } from "@/components/saved-searches-list";
 import { DashboardListingsPanel } from "@/components/dashboard-listings-panel";
-import { DashboardStatsBento } from "@/components/dashboard-stats-bento";
 import { createListingFromDashboard } from "@/lib/actions/create-listing";
 import { canAccessControl, canSell, requireSeller, requireUser } from "@/lib/auth";
 import {
@@ -16,6 +17,7 @@ import {
 import { parseStoredPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { isPrismaConnectionError } from "@/lib/prisma-errors";
+import { listingCardSelect } from "@/lib/listing-card-select";
 import {
   markPrismaHealthy,
   markPrismaUnavailable,
@@ -52,6 +54,23 @@ function parseLayout(value: string | undefined): ListingLayout {
   return "grid";
 }
 
+function toSavedSearchHref(queryJson: string) {
+  try {
+    const parsed = JSON.parse(queryJson) as Record<string, unknown>;
+    const params = new URLSearchParams();
+    Object.entries(parsed).forEach(([key, value]) => {
+      const safeKey = key.trim();
+      const safeValue = String(value ?? "").trim();
+      if (!safeKey || !safeValue) return;
+      params.set(safeKey, safeValue);
+    });
+    const query = params.toString();
+    return query ? `/browse?${query}` : "/browse";
+  } catch {
+    return "/browse";
+  }
+}
+
 export async function DashboardPageContent({
   searchParams,
 }: {
@@ -79,6 +98,12 @@ export async function DashboardPageContent({
         myCategories: "Мои категории",
         myCategoriesDesc:
           "Едно место за категорија, статус, уредување и преглед.",
+        favorites: "Омилени",
+        favoritesDesc: "Огласи кои ги зачува за подоцна.",
+        noFavorites: "Сè уште немаш омилени огласи.",
+        savedSearches: "Зачувани пребарувања",
+        savedSearchesDesc: "Брзо отвори ги филтрите што ги користиш најчесто.",
+        noSavedSearches: "Сè уште немаш зачувани пребарувања.",
         noCategoryActivity: "Сè уште нема активност по категории.",
         total: "Вкупно",
         active: "Активни",
@@ -130,6 +155,12 @@ export async function DashboardPageContent({
         myCategories: "My categories",
         myCategoriesDesc:
           "One place to switch category, filter by status, edit, and view.",
+        favorites: "Favorites",
+        favoritesDesc: "Listings you saved for later.",
+        noFavorites: "You do not have favorite listings yet.",
+        savedSearches: "Saved searches",
+        savedSearchesDesc: "Quickly open your most-used browse filters.",
+        noSavedSearches: "No saved searches yet.",
         noCategoryActivity: "No category activity yet.",
         total: "Total",
         active: "Active",
@@ -266,6 +297,28 @@ export async function DashboardPageContent({
           status: { not: ListingStatus.DRAFT },
         },
       }),
+      prisma.favorite.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          id: true,
+          listing: {
+            select: listingCardSelect,
+          },
+        },
+      }),
+      prisma.savedSearch.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          name: true,
+          queryJson: true,
+          createdAt: true,
+        },
+      }),
     ]);
   }
 
@@ -311,6 +364,8 @@ export async function DashboardPageContent({
     cities,
     templates,
     publishedCount,
+    favorites,
+    savedSearches,
   ] = analyticsData;
 
   const parsedPhone = parseStoredPhone(userRecord?.phone);
@@ -334,6 +389,15 @@ export async function DashboardPageContent({
   const selectedCategoryIdFromQuery =
     sp.cat && sp.cat !== "all" && validCategoryIds.has(sp.cat) ? sp.cat : undefined;
   const requestedCreateCategoryId = selectedCategoryIdFromQuery;
+  const favoriteListings = favorites.map((favorite) => favorite.listing);
+  const savedSearchItems = savedSearches.map((searchItem) => ({
+    id: searchItem.id,
+    name: searchItem.name,
+    href: toSavedSearchHref(searchItem.queryJson),
+    createdAtLabel: searchItem.createdAt.toLocaleDateString(
+      isMk ? "mk-MK" : "en-US",
+    ),
+  }));
   const allListingsForClient = allListings.map((listing) => ({
     id: listing.id,
     title: listing.title,
@@ -707,8 +771,47 @@ return (
           publishDraftAction={publishDraftFromDashboard}
         />
       </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>{text.favorites}</CardTitle>
+            <p className="text-sm text-muted-foreground">{text.favoritesDesc}</p>
+          </CardHeader>
+          <CardContent>
+            {favoriteListings.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{text.noFavorites}</p>
+            ) : (
+              <div className="responsive-grid gap-4">
+                {favoriteListings.map((listing) => (
+                  <ListingCard
+                    key={listing.id}
+                    listing={listing}
+                    locale={locale}
+                    currentAuthUserId={user.authUserId}
+                    isFavorited
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>{text.savedSearches}</CardTitle>
+            <p className="text-sm text-muted-foreground">{text.savedSearchesDesc}</p>
+          </CardHeader>
+          <CardContent>
+            {savedSearchItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{text.noSavedSearches}</p>
+            ) : (
+              <SavedSearchesList locale={locale} items={savedSearchItems} />
+            )}
+          </CardContent>
+        </Card>
+      </section>
     </div>
     </div>
   );
 }
-

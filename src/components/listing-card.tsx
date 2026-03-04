@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ListingCondition } from "@prisma/client";
 import { ImageOff, MessageCircle, Pencil, Phone } from "lucide-react";
 import { ContactSellerPopout } from "@/components/contact-seller-popout";
+import { FavoriteToggleButton } from "@/components/favorite-toggle-button";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,12 +16,14 @@ type ListingCardProps = {
   listing: ListingCardDTO;
   locale?: "en" | "mk";
   currentAuthUserId?: string | null;
+  isFavorited?: boolean;
 };
 
 export function ListingCard({
   listing,
   locale = "en",
   currentAuthUserId,
+  isFavorited = false,
 }: ListingCardProps) {
   const isMk = locale === "mk";
   const text = isMk
@@ -118,6 +121,16 @@ export function ListingCard({
                 />
               )}
             </>
+          )}
+          {!isOwner && (
+            <FavoriteToggleButton
+              listingId={listing.id}
+              locale={locale}
+              isAuthenticated={Boolean(currentAuthUserId)}
+              initialFavorited={isFavorited}
+              iconOnly
+              className="border-white/70 bg-background/90 backdrop-blur"
+            />
           )}
         </div>
 
