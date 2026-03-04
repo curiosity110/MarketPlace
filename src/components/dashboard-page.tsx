@@ -236,7 +236,17 @@ export async function DashboardPageContent({
       }),
       prisma.listing.findMany({
         where: { ownerId: user.authUserId },
-        include: { category: true, city: true, images: true, sale: true },
+        include: {
+          category: true,
+          city: true,
+          images: true,
+          sale: {
+            select: {
+              id: true,
+              soldAt: true,
+            },
+          },
+        },
         orderBy: { updatedAt: "desc" },
       }),
       prisma.category.findMany({
@@ -701,5 +711,4 @@ return (
     </div>
   );
 }
-
 
