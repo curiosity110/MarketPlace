@@ -55,6 +55,14 @@ function hashQuery(queryJson: string) {
   return createHash("sha256").update(queryJson).digest("hex");
 }
 
+function summarizeQuery(query: Record<string, string>) {
+  const pairs = Object.entries(query)
+    .filter(([key, value]) => key.length > 0 && value.length > 0)
+    .slice(0, 4)
+    .map(([key, value]) => `${key}: ${value}`);
+  return pairs.join(" • ");
+}
+
 export async function saveSearch({
   query,
   name,
@@ -84,6 +92,7 @@ export async function saveSearch({
   const queryJson = JSON.stringify(normalizedQuery);
   const queryHash = hashQuery(queryJson);
   const safeName = name?.trim().slice(0, 80) || null;
+  const summary = summarizeQuery(normalizedQuery);
 
   try {
     const existing = await prisma.savedSearch.findUnique({
@@ -130,6 +139,7 @@ export async function saveSearch({
           userId: user.id,
           type: NotificationType.SYSTEM,
           title: text.saved,
+          body: summary || null,
           href: "/browse",
         },
       }),

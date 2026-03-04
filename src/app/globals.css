@@ -77,6 +77,9 @@
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -94,6 +97,9 @@ body {
     "Segoe UI",
     sans-serif;
   line-height: 1.55;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 /* Improve readability for tiny metadata text across the app. */
@@ -163,6 +169,10 @@ textarea:focus-visible {
 .responsive-grid {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.responsive-grid > * {
+  min-width: 0;
 }
 
 @media (min-width: 640px) {

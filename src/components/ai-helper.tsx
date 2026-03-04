@@ -198,11 +198,11 @@ export function AIHelper({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl md:bottom-6 md:right-6"
+          className="fixed bottom-20 right-3 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl md:bottom-6 md:right-6 md:h-auto md:w-auto md:gap-2 md:px-4 md:py-3 md:text-sm md:font-semibold"
           aria-label={text.openAssistant}
         >
           <MessageCircle size={18} />
-          <span>{text.askAssistant}</span>
+          <span className="hidden md:inline">{text.askAssistant}</span>
         </button>
       )}
 

@@ -34,13 +34,15 @@ export function AuthCtaLinks({ registerLabel, loginLabel }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <Link href={`/register?next=${encodedNext}`}>
+      <Link href={`/register?next=${encodedNext}`} className="hidden sm:inline-flex">
         <Button variant="outline" size="sm">
           {registerLabel}
         </Button>
       </Link>
       <Link href={`/login?next=${encodedNext}`}>
-        <Button size="sm">{loginLabel}</Button>
+        <Button size="sm" className="px-3">
+          {loginLabel}
+        </Button>
       </Link>
     </div>
   );

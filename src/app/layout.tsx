@@ -34,7 +34,7 @@ export default async function RootLayout({
         >
           <div className="min-h-screen bg-background text-foreground">
             <Nav />
-            <main className="min-h-[calc(100vh-4rem)]">
+            <main className="min-h-[calc(100vh-4rem)] overflow-x-clip">
               <Container className="pb-24 pt-6 md:pb-8 md:pt-8">
                 {children}
               </Container>

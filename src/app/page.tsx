@@ -295,7 +295,7 @@ export default async function Home() {
               </Link>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="hidden gap-3 lg:grid lg:grid-cols-3">
               <div className="rounded-2xl border border-border/70 bg-card p-3">
                 <Sparkles className="mb-2 text-primary" size={18} />
                 <p className="text-sm font-semibold">{text.smartAssistance}</p>

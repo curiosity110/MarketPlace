@@ -503,14 +503,14 @@ export default async function CategoriesPage({
                 publishLabel={
                   createRequiresPayment
                     ? isMk
-                      ? "ÐŸÐ»Ð°Ñ‚Ð¸ dummy Stripe Ð¸ Ð¾Ð±Ñ˜Ð°Ð²Ð¸"
+                      ? "Плати dummy Stripe и објави"
                       : "Pay dummy Stripe & publish"
                     : createHasActiveSubscription
                       ? isMk
-                        ? "ÐžÐ±Ñ˜Ð°Ð²Ð¸ ÑÐ¾ Ð°ÐºÑ‚Ð¸Ð²Ð½Ð° Ð¿Ñ€ÐµÑ‚Ð¿Ð»Ð°Ñ‚Ð°"
+                        ? "Објави со активна претплата"
                         : "Publish with active subscription"
                       : isMk
-                        ? "ÐžÐ±Ñ˜Ð°Ð²Ð¸ Ð¿Ñ€Ð² 30-Ð´Ð½ÐµÐ²ÐµÐ½ Ð¾Ð³Ð»Ð°Ñ (Ð±ÐµÑÐ¿Ð»Ð°Ñ‚Ð½Ð¾)"
+                        ? "Објави прв 30-дневен оглас (бесплатно)"
                         : "Publish first 30-day listing (free)"
                 }
                 paymentProvider={createRequiresPayment ? "stripe-dummy" : "none"}

@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { NotificationType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -26,6 +26,8 @@ function getMessages(locale: ActionLocale) {
       notFound: "Огласот не е пронајден.",
       added: "Додадено во омилени.",
       removed: "Отстрането од омилени.",
+      listingInfoPrefix: "Оглас",
+      categoryPrefix: "Категорија",
     };
   }
 
@@ -35,6 +37,8 @@ function getMessages(locale: ActionLocale) {
     notFound: "Listing not found.",
     added: "Added to favorites.",
     removed: "Removed from favorites.",
+    listingInfoPrefix: "Listing",
+    categoryPrefix: "Category",
   };
 }
 
@@ -78,7 +82,20 @@ export async function toggleFavorite({
   try {
     const listing = await prisma.listing.findUnique({
       where: { id: safeListingId },
-      select: { id: true },
+      select: {
+        id: true,
+        title: true,
+        category: {
+          select: {
+            name: true,
+            parent: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!listing) {
@@ -118,6 +135,13 @@ export async function toggleFavorite({
       };
     }
 
+    const categoryLabel = listing.category?.parent?.name
+      ? `${listing.category.parent.name} / ${listing.category.name}`
+      : listing.category?.name || "";
+    const body = `${text.listingInfoPrefix}: ${listing.title}${
+      categoryLabel ? ` • ${text.categoryPrefix}: ${categoryLabel}` : ""
+    }`;
+
     await prisma.$transaction([
       prisma.favorite.create({
         data: {
@@ -130,6 +154,7 @@ export async function toggleFavorite({
           userId: user.id,
           type: NotificationType.SYSTEM,
           title: text.added,
+          body,
           href: `/listing/${safeListingId}`,
         },
       }),

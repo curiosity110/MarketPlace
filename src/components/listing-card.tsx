@@ -65,8 +65,8 @@ export function ListingCard({
   const sellerPhone = listing.seller?.phone || null;
 
   return (
-    <Card className="h-full overflow-hidden border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
-      <div className="group relative aspect-video w-full overflow-hidden bg-muted">
+    <Card className="h-full min-w-0 overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
+      <div className="group relative aspect-[4/3] w-full overflow-hidden bg-muted sm:aspect-video">
         <Link href={`/listing/${listing.id}`} className="absolute inset-0 z-0">
           <span className="sr-only">{listing.title}</span>
         </Link>
@@ -76,7 +76,6 @@ export function ListingCard({
             src={firstImage}
             alt={listing.title}
             fill
-            unoptimized
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
           />
@@ -92,10 +91,13 @@ export function ListingCard({
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
 
         <div className="absolute left-3 top-3 z-10 flex gap-1.5">
-          <Badge variant="secondary" className="border-white/50 bg-background/90 shadow-sm">
+          <Badge
+            variant="secondary"
+            className="h-7 border-white/50 bg-background/90 px-2.5 text-xs shadow-sm"
+          >
             {conditionLabel}
           </Badge>
-          {isSold && <Badge variant="secondary">{text.sold}</Badge>}
+          {isSold && <Badge variant="secondary" className="h-7 px-2.5 text-xs">{text.sold}</Badge>}
         </div>
 
         <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
@@ -105,7 +107,7 @@ export function ListingCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 w-8 border-white/70 bg-background/90 p-0 backdrop-blur"
+                  className="h-7 w-7 border-white/70 bg-background/90 p-0 backdrop-blur"
                   aria-label={text.edit}
                 >
                   <Pencil size={13} />
@@ -129,25 +131,25 @@ export function ListingCard({
               isAuthenticated={Boolean(currentAuthUserId)}
               initialFavorited={isFavorited}
               iconOnly
-              className="border-white/70 bg-background/90 backdrop-blur"
+              className="h-7 w-7 border-white/70 bg-background/90 p-0 backdrop-blur"
             />
           )}
         </div>
 
-        <div className="absolute bottom-3 right-3 z-10 rounded-full border border-white/70 bg-white/95 px-3 py-1 text-sm font-bold text-primary shadow-sm dark:border-border dark:bg-background/95">
+        <div className="absolute bottom-3 right-3 z-10 rounded-full border border-white/70 bg-white/95 px-3 py-1 text-base font-black text-primary shadow-sm dark:border-border dark:bg-background/95">
           {formattedPrice}
         </div>
       </div>
 
-      <CardContent className="space-y-3 p-4">
+      <CardContent className="space-y-2.5 p-3.5 sm:p-4">
         <Link href={`/listing/${listing.id}`}>
-          <h3 className="line-clamp-2 min-h-[2.7rem] text-base font-extrabold leading-tight tracking-tight transition-colors hover:text-primary">
+          <h3 className="line-clamp-2 min-h-[2.5rem] text-lg font-extrabold leading-tight tracking-tight transition-colors hover:text-primary sm:text-base">
             {listing.title}
           </h3>
         </Link>
 
-        <p className="text-xs text-muted-foreground">{locationCategoryLine}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="truncate text-xs text-muted-foreground">{locationCategoryLine}</p>
+        <p className="truncate text-xs text-muted-foreground">
           {text.by} {sellerLabel}
         </p>
 

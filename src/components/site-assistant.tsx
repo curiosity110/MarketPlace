@@ -1,8 +1,13 @@
 ﻿"use client";
 
 import { useMemo } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { AIHelper } from "@/components/ai-helper";
+
+const AIHelper = dynamic(
+  () => import("@/components/ai-helper").then((mod) => mod.AIHelper),
+  { ssr: false },
+);
 
 type AssistantConfig = {
   title: string;

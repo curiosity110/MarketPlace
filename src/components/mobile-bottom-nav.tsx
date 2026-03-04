@@ -5,11 +5,10 @@ import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   CircleUserRound,
-  FolderKanban,
+  House,
   LayoutDashboard,
   LogIn,
   Search,
-  ShoppingBag,
 } from "lucide-react";
 import { isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -18,9 +17,8 @@ type Props = {
   isLoggedIn: boolean;
   isAdmin: boolean;
   labels: {
+    home: string;
     browse: string;
-    categories: string;
-    sell: string;
     dashboard: string;
     login: string;
   };
@@ -51,9 +49,8 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
   const profileOrLoginIcon = isLoggedIn ? LayoutDashboard : LogIn;
 
   const items: NavItem[] = [
+    { href: "/", label: labels.home, icon: House, show: true },
     { href: "/browse", label: labels.browse, icon: Search, show: true },
-    { href: "/categories", label: labels.categories, icon: FolderKanban, show: true },
-    { href: "/sell", label: labels.sell, icon: ShoppingBag, show: true },
     {
       href: isAdmin ? "/admin" : profileOrLoginHref,
       label: isAdmin ? labels.dashboard : profileOrLoginLabel,
@@ -64,7 +61,7 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden">
-      <div className="mx-auto grid max-w-3xl grid-cols-4 gap-1">
+      <div className="mx-auto grid max-w-3xl grid-cols-3 gap-1">
         {items
           .filter((item) => item.show !== false)
           .map((item) => {

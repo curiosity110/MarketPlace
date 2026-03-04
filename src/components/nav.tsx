@@ -23,11 +23,11 @@ export async function Nav() {
   return (
     <>
       <nav className="sticky top-0 z-50 border-b border-border/70 bg-background/95 backdrop-blur-sm">
-        <Container className="flex items-center justify-between gap-3 py-3">
-          <div className="flex items-center gap-6">
+        <Container className="flex flex-wrap items-center gap-2 py-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-6">
             <Link
               href="/"
-              className="rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 px-4 py-1.5 text-sm font-bold tracking-wide text-white shadow-sm transition-opacity hover:opacity-90"
+              className="shrink-0 rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 px-3 py-1.5 text-sm font-bold tracking-wide text-white shadow-sm transition-opacity hover:opacity-90 sm:px-4"
             >
               {messages.appName}
             </Link>
@@ -43,7 +43,7 @@ export async function Nav() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex min-w-0 items-center gap-2">
             <LanguageSwitcher
               locale={locale}
               label={messages.language.label}
@@ -79,9 +79,8 @@ export async function Nav() {
         isAdmin={isAdmin}
         isLoggedIn={Boolean(user)}
         labels={{
+          home: messages.nav.home,
           browse: messages.nav.browse,
-          categories: messages.nav.categories,
-          sell: messages.nav.sell,
           dashboard: messages.nav.dashboard,
           login: messages.nav.login,
         }}
