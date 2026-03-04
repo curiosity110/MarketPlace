@@ -13,7 +13,7 @@ type AssistantConfig = {
 function getConfig(pathname: string, locale: "en" | "mk"): AssistantConfig {
   const isMk = locale === "mk";
   const routeGuide =
-    "Website routes: /browse, /categories, /dashboard, /profile, /register, /login, /sell, /listing/[id], /seller/[id]. Prefer direct route links when user asks where to go.";
+    "Website routes: / (landing), /browse, /categories, /dashboard, /profile, /register, /login, /sell, /listing/[id], /seller/[id]. Authenticated users visiting / are redirected to /dashboard. Prefer direct route links when user asks where to go.";
 
   if (pathname.startsWith("/sell")) {
     return {

@@ -44,6 +44,15 @@ const iconBySlug = {
   fashion: Shirt,
 } as const;
 
+const POPULAR_CATEGORY_LOOKUP = [
+  { slug: "cars", fallbackName: "cars" },
+  { slug: "phones", fallbackName: "phones" },
+  { slug: "electronics", fallbackName: "electronics" },
+  { slug: "jobs", fallbackName: "jobs" },
+  { slug: "real-estate", fallbackName: "real estate" },
+  { slug: "fashion", fallbackName: "fashion" },
+] as const;
+
 function getCategoryCover(seed: string) {
   return `https://picsum.photos/seed/market-${encodeURIComponent(seed)}/1200/720`;
 }
@@ -270,6 +279,20 @@ export default async function CategoriesPage({
     (sum, category) => sum + category.children.length,
     0,
   );
+  const popularCategories = POPULAR_CATEGORY_LOOKUP
+    .map((item) =>
+      categories.find(
+        (category) =>
+          category.slug === item.slug ||
+          category.name.trim().toLowerCase() === item.fallbackName,
+      ),
+    )
+    .filter((category): category is (typeof categories)[number] => Boolean(category))
+    .filter(
+      (category, index, arr) =>
+        arr.findIndex((current) => current.id === category.id) === index,
+    );
+  const popularLabel = isMk ? "\u041f\u043e\u043f\u0443\u043b\u0430\u0440\u043d\u043e" : "Popular";
 
   return (
     <div className="space-y-7">
@@ -315,6 +338,26 @@ export default async function CategoriesPage({
               />
             </div>
           </form>
+
+          {popularCategories.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {popularLabel}
+              </span>
+              {popularCategories.map((category) => (
+                <Link key={category.id} href={`/browse?cat=${category.id}`}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 rounded-full px-3 text-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    {localizeCategoryName(category, locale)}
+                  </Button>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -338,7 +381,7 @@ export default async function CategoriesPage({
           return (
             <Card
               key={category.id}
-              className="relative overflow-hidden border-border/75 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+              className="relative h-full overflow-hidden border-border/75 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
             >
               <div className="pointer-events-none absolute inset-0">
                 <div

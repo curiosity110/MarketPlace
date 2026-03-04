@@ -135,95 +135,97 @@ export function DashboardFilterBar({
           )}
         </div>
 
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {labels.categoriesLabel}
-          </p>
-          <div className="overflow-x-auto pb-1">
-            <div className="inline-flex min-w-max items-center gap-2">
-              {categories.map((category) => {
-                const isActive = current.cat === category.id;
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {labels.categoriesLabel}
+            </p>
+            <div className="overflow-x-auto pb-1">
+              <div className="inline-flex min-w-max items-center gap-2">
+                {categories.map((category) => {
+                  const isActive = current.cat === category.id;
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      aria-pressed={isActive}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                        isActive
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border/80 bg-card text-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary",
+                      )}
+                      onClick={() => applyChange({ cat: category.id })}
+                    >
+                      <span>{category.label}</span>
+                      <span
+                        className={cn(
+                          "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-black leading-none",
+                          isActive
+                            ? "bg-primary-foreground/20 text-primary-foreground"
+                            : "bg-muted text-foreground",
+                        )}
+                      >
+                        {category.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 lg:justify-self-end">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:text-right">
+              {labels.statusLabel}
+            </p>
+            <div className="flex flex-wrap justify-start gap-3 lg:max-w-[340px] lg:justify-end">
+              {statuses.map((status) => {
+                const isActive = current.view === status.key;
+                const Icon = STATUS_ICONS[status.key];
                 return (
                   <button
-                    key={category.id}
+                    key={status.key}
                     type="button"
                     aria-pressed={isActive}
+                    aria-label={status.label}
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                      isActive
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                        : "border-border/80 bg-card text-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary",
+                      "group relative flex flex-col items-center gap-1 rounded-md p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     )}
-                    onClick={() => applyChange({ cat: category.id })}
+                    onClick={() => applyChange({ view: status.key })}
                   >
-                    <span>{category.label}</span>
                     <span
                       className={cn(
-                        "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-black leading-none",
+                        "relative inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors",
                         isActive
-                          ? "bg-primary-foreground/20 text-primary-foreground"
-                          : "bg-muted text-foreground",
+                          ? "bg-primary text-primary-foreground border-primary/40 ring-2 ring-primary/25"
+                          : "bg-background border-border/70 text-foreground hover:bg-muted",
+                        status.count === 0 ? "opacity-60" : "",
                       )}
                     >
-                      {category.count}
+                      <Icon className="h-5 w-5" aria-hidden />
+                      <span
+                        className={cn(
+                          "absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none",
+                          isActive ? "bg-primary-foreground text-primary" : "bg-muted text-foreground",
+                        )}
+                      >
+                        {status.count}
+                      </span>
+                      <span className="sr-only">{status.label}</span>
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[11px] font-medium leading-none",
+                        isActive ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {status.label}
                     </span>
                   </button>
                 );
               })}
             </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {labels.statusLabel}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {statuses.map((status) => {
-              const isActive = current.view === status.key;
-              const Icon = STATUS_ICONS[status.key];
-              return (
-                <button
-                  key={status.key}
-                  type="button"
-                  aria-pressed={isActive}
-                  aria-label={status.label}
-                  className={cn(
-                    "group relative flex flex-col items-center gap-1 rounded-md p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  )}
-                  onClick={() => applyChange({ view: status.key })}
-                >
-                  <span
-                    className={cn(
-                      "relative inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors",
-                      isActive
-                        ? "bg-primary text-primary-foreground border-primary/40 ring-2 ring-primary/25"
-                        : "bg-background border-border/70 text-foreground hover:bg-muted",
-                      status.count === 0 ? "opacity-60" : "",
-                    )}
-                  >
-                    <Icon className="h-5 w-5" aria-hidden />
-                    <span
-                      className={cn(
-                        "absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none",
-                        isActive ? "bg-primary-foreground text-primary" : "bg-muted text-foreground",
-                      )}
-                    >
-                      {status.count}
-                    </span>
-                    <span className="sr-only">{status.label}</span>
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[11px] font-medium leading-none",
-                      isActive ? "text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    {status.label}
-                  </span>
-                </button>
-              );
-            })}
           </div>
         </div>
 

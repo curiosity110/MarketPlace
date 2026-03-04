@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ListingStatus } from "@prisma/client";
 import {
   ArrowRight,
@@ -16,19 +15,14 @@ import {
   shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
 import { ListingCard } from "@/components/listing-card";
+import { HomeCategoryShortcuts } from "@/components/home-category-shortcuts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSessionUser } from "@/lib/auth";
 import { localizeCategoryName } from "@/lib/category-label";
 import { getServerLocale } from "@/lib/i18n";
 
 export default async function Home() {
-  const sessionUser = await getSessionUser();
-  if (sessionUser) {
-    redirect("/dashboard");
-  }
-
   const locale = await getServerLocale();
   const isMk = locale === "mk";
   const text = isMk
@@ -213,6 +207,15 @@ export default async function Home() {
     }
   }
 
+  const categoryShortcutItems = categoryHighlights.map((category) => ({
+    id: category.id,
+    label: localizeCategoryName(category, locale),
+    count: category._count.listings,
+  }));
+  const shortcutsTitle = isMk
+    ? "\u041f\u0440\u0435\u0431\u0430\u0440\u0430\u0458 \u043f\u043e\u043f\u0443\u043b\u0430\u0440\u043d\u0438 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438"
+    : "Browse popular categories";
+
   return (
     <div className="space-y-12 md:space-y-16">
       <section className="hero-surface overflow-hidden rounded-3xl border border-border/70 px-5 py-10 sm:px-8 sm:py-12 md:px-12 md:py-16">
@@ -281,7 +284,7 @@ export default async function Home() {
                 <Link
                   key={category.id}
                   href={`/browse?cat=${category.id}`}
-                  className="flex items-center justify-between rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm transition-colors hover:border-primary/35 hover:bg-orange-50/50 dark:hover:bg-orange-500/10"
+                  className="flex items-center justify-between rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-orange-50/50 hover:shadow-md dark:hover:bg-orange-500/10"
                 >
                   <span className="font-medium">
                     {localizeCategoryName(category, locale)}
@@ -301,6 +304,12 @@ export default async function Home() {
         </div>
       </section>
 
+      <HomeCategoryShortcuts
+        title={shortcutsTitle}
+        browseAllLabel={text.browseAll}
+        items={categoryShortcutItems}
+      />
+
       {dbUnavailable && (
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="py-4 text-sm text-foreground">
@@ -308,6 +317,41 @@ export default async function Home() {
           </CardContent>
         </Card>
       )}
+
+      <section className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold">{text.latestListings}</h2>
+          <p className="text-muted-foreground">
+            {text.latestListingsDesc}
+          </p>
+        </div>
+
+        {latestListings.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">
+                {text.noListings}
+              </p>
+              <Link href="/sell" className="mt-4 inline-block">
+                <Button>{text.listItem}</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="responsive-grid gap-4">
+              {latestListings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} locale={locale} />
+              ))}
+            </div>
+            <div className="text-center">
+              <Link href="/browse">
+                <Button variant="outline">{text.browseAll}</Button>
+              </Link>
+            </div>
+          </>
+        )}
+      </section>
 
       <section className="space-y-6">
         <div className="flex items-end justify-between gap-4">
@@ -370,41 +414,6 @@ export default async function Home() {
             </Card>
           ))}
         </div>
-      </section>
-
-      <section className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold">{text.latestListings}</h2>
-          <p className="text-muted-foreground">
-            {text.latestListingsDesc}
-          </p>
-        </div>
-
-        {latestListings.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                {text.noListings}
-              </p>
-              <Link href="/sell" className="mt-4 inline-block">
-                <Button>{text.listItem}</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <div className="responsive-grid gap-4">
-              {latestListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} locale={locale} />
-              ))}
-            </div>
-            <div className="text-center">
-              <Link href="/browse">
-                <Button variant="outline">{text.browseAll}</Button>
-              </Link>
-            </div>
-          </>
-        )}
       </section>
     </div>
   );

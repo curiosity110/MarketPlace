@@ -25,6 +25,9 @@ type QuickLink = {
 function resolveQuickRoute(question: string): string | null {
   const q = question.toLowerCase();
 
+  if (q.includes("home") || q.includes("landing") || q.includes("почет")) {
+    return "/";
+  }
   if (q.includes("register") || q.includes("signup") || q.includes("регист")) {
     return "/register";
   }
@@ -108,6 +111,7 @@ export function AIHelper({
     () =>
       isMk
         ? [
+            { label: "Почетна", path: "/" },
             { label: "Регистрација", path: "/register" },
             { label: "Најава", path: "/login" },
             { label: "Пребарување", path: "/browse" },
@@ -115,6 +119,7 @@ export function AIHelper({
             { label: "Контролна табла", path: "/dashboard" },
           ]
         : [
+            { label: "Home", path: "/" },
             { label: "Register", path: "/register" },
             { label: "Login", path: "/login" },
             { label: "Browse", path: "/browse" },

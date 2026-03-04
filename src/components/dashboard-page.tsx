@@ -642,7 +642,7 @@ return (
         </Card>
       )}
 
-      <DashboardStatsBento
+      {/* <DashboardStatsBento
         stats={[
           {
             key: "total",
@@ -673,7 +673,7 @@ return (
             tone: "secondary",
           },
         ]}
-      />
+      /> */}
 
       <section className="space-y-4">
         <div>

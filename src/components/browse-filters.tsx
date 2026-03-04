@@ -237,11 +237,14 @@ export function BrowseFilters({
     [isMk],
   );
 
-  const sortOptions: { value: BrowseSort; label: string }[] = [
-    { value: "newest", label: text.newest },
-    { value: "price-asc", label: text.priceAsc },
-    { value: "price-desc", label: text.priceDesc },
-  ];
+  const sortOptions = React.useMemo<{ value: BrowseSort; label: string }[]>(
+    () => [
+      { value: "newest", label: text.newest },
+      { value: "price-asc", label: text.priceAsc },
+      { value: "price-desc", label: text.priceDesc },
+    ],
+    [text.newest, text.priceAsc, text.priceDesc],
+  );
 
   const [state, setState] = React.useState<FilterState>({
     q: sp.get("q") ?? "",
@@ -556,6 +559,20 @@ export function BrowseFilters({
       });
     }
 
+    if (state.sort !== "newest") {
+      const sortLabel =
+        sortOptions.find((option) => option.value === state.sort)?.label || state.sort;
+      chips.push({
+        key: "sort",
+        label: `${text.orderBy}: ${sortLabel}`,
+        onRemove: () => {
+          const nextState = { ...state, sort: "newest" as BrowseSort };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        },
+      });
+    }
+
     Object.entries(dynamicValues).forEach(([key, value]) => {
       const trimmed = value.trim();
       if (!trimmed) return;
@@ -590,6 +607,8 @@ export function BrowseFilters({
     text.priceChip,
     text.searchChip,
     text.subcategoryChip,
+    text.orderBy,
+    sortOptions,
   ]);
 
   const onCategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
@@ -686,6 +705,37 @@ export function BrowseFilters({
       <button type="submit" className="sr-only">
         {text.apply}
       </button>
+
+      {(hasAnyFilter || activeFilterChips.length > 0) && (
+        <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {text.activeFilters}
+            </p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-primary hover:underline"
+              onClick={resetAll}
+            >
+              {text.clearAll}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {activeFilterChips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-primary/40 hover:text-primary"
+                onClick={chip.onRemove}
+                aria-label={`${text.removeFilter}: ${chip.label}`}
+              >
+                <span>{chip.label}</span>
+                <X size={13} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-3 lg:grid-cols-12">
         <label className="space-y-1 lg:col-span-8">
@@ -877,37 +927,6 @@ export function BrowseFilters({
                 </span>
                 {renderDynamicInput(template)}
               </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(hasAnyFilter || activeFilterChips.length > 0) && (
-        <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {text.activeFilters}
-            </p>
-            <button
-              type="button"
-              className="text-xs font-semibold text-primary hover:underline"
-              onClick={resetAll}
-            >
-              {text.clearAll}
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {activeFilterChips.map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-primary/40 hover:text-primary"
-                onClick={chip.onRemove}
-                aria-label={`${text.removeFilter}: ${chip.label}`}
-              >
-                <span>{chip.label}</span>
-                <X size={13} />
-              </button>
             ))}
           </div>
         </div>

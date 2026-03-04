@@ -66,6 +66,9 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
     .slice(0, 2);
 
   const categoryLabel = localizeCategoryPath(listing.category, locale);
+  const locationCategoryLine = categoryLabel
+    ? `${listing.city.name} • ${categoryLabel}`
+    : listing.city.name;
   const sellerLabel =
     listing.seller?.name || listing.seller?.email?.split("@")[0] || text.seller;
   const conditionLabel = conditionLabelByValue[listing.condition];
@@ -73,7 +76,7 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
-      <Card className="h-full overflow-hidden border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/35 hover:shadow-lg">
+      <Card className="h-full overflow-hidden border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
         <div className="relative aspect-video w-full overflow-hidden bg-muted">
           {firstImage ? (
             <Image
@@ -111,9 +114,7 @@ export function ListingCard({ listing, locale = "en" }: ListingCardProps) {
             {listing.title}
           </h3>
 
-          <p className="text-xs text-muted-foreground">
-            {listing.city.name} | {categoryLabel}
-          </p>
+          <p className="text-xs text-muted-foreground">{locationCategoryLine}</p>
           <p className="text-xs text-muted-foreground">
             {text.by} {sellerLabel}
           </p>
