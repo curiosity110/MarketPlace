@@ -26,6 +26,8 @@ const PRISMA_CONNECTION_ERROR_CODES = new Set([
   "P1002", // Connection timed out
   "P1017", // Server has closed the connection
   "P2024", // Timed out fetching a connection from the pool
+  "P2021", // Table does not exist (schema drift / not migrated yet)
+  "P2022", // Column does not exist (schema drift / not migrated yet)
 ]);
 
 const PRISMA_CONNECTION_ERROR_PATTERNS = [
@@ -39,6 +41,9 @@ const PRISMA_CONNECTION_ERROR_PATTERNS = [
   "maxclientsinsessionmode",
   "remaining connection slots are reserved",
   "error querying the database: fatal",
+  "does not exist in the current database",
+  "table does not exist",
+  "column does not exist",
 ];
 
 function hasConnectionErrorMessage(message: string) {

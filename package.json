@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/ensure-prisma-client.cjs && next build",
+    "build": "pnpm prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "make:admin": "tsx scripts/make-admin.ts",
@@ -17,6 +17,11 @@
   },
   "prisma": {
     "seed": "node prisma/seed.js"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "dependencies": {
     "@prisma/client": "6.19.2",
