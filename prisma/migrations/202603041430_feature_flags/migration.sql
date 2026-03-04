@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS "FeatureFlag" (
+  "id" TEXT NOT NULL,
+  "key" TEXT NOT NULL,
+  "enabled" BOOLEAN NOT NULL DEFAULT false,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "FeatureFlag_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "FeatureFlag_key_key" ON "FeatureFlag"("key");

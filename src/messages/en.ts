@@ -40,4 +40,10 @@
     register: "Register",
     logout: "Logout",
   },
+  labs: {
+    title: "Labs / Experimental",
+    enabled: "Enabled",
+    disabled: "Disabled",
+    dbUnavailable: "Database is currently unavailable.",
+  },
 };

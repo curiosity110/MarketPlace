@@ -41,4 +41,10 @@
     register: "Регистрација",
     logout: "Одјава",
   },
+  labs: {
+    title: "Labs / Experimental",
+    enabled: "Вклучено",
+    disabled: "Исклучено",
+    dbUnavailable: "Базата е моментално недостапна.",
+  },
 };
