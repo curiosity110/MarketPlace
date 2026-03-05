@@ -110,23 +110,23 @@ export function DynamicFieldsEditor({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        noAdditionalFields: "Нема дополнителни полиња за оваа категорија.",
-        categoryFields: "Полиња на категорија",
-        clear: "Исчисти",
-        select: "Избери",
-        searchOrSelect: "Внеси или избери",
-        yes: "Да",
-        no: "Не",
-      }
+      noAdditionalFields: "Нема дополнителни полиња за оваа категорија.",
+      categoryFields: "Полиња на категорија",
+      clear: "Исчисти",
+      select: "Избери",
+      searchOrSelect: "Внеси или избери",
+      yes: "Да",
+      no: "Не",
+    }
     : {
-        noAdditionalFields: "No additional fields for this category.",
-        categoryFields: "Category fields",
-        clear: "Clear",
-        select: "Select",
-        searchOrSelect: "Type or select",
-        yes: "Yes",
-        no: "No",
-      };
+      noAdditionalFields: "No additional fields for this category.",
+      categoryFields: "Category fields",
+      clear: "Clear",
+      select: "Select",
+      searchOrSelect: "Type or select",
+      yes: "Yes",
+      no: "No",
+    };
 
   const templates = useMemo(
     () => templatesByCategory[categoryId] ?? [],
@@ -146,7 +146,19 @@ export function DynamicFieldsEditor({
   );
 
   useEffect(() => {
-    setFieldValues(initialTemplateValues);
+    setFieldValues((prev) => {
+      // Fast shallow compare: same keys + same values
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(initialTemplateValues);
+      if (prevKeys.length !== nextKeys.length) return initialTemplateValues;
+
+      for (const k of nextKeys) {
+        if ((prev[k] ?? "") !== (initialTemplateValues[k] ?? "")) {
+          return initialTemplateValues;
+        }
+      }
+      return prev;
+    });
   }, [initialTemplateValues]);
 
   useEffect(() => {
