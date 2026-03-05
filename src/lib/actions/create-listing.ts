@@ -32,7 +32,7 @@ const MAX_IMAGES_PER_LISTING = 10;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const MAX_DEFAULT_DELIVERY_TEXT_LENGTH = 600;
 
-type CreateRedirectBase = "/sell" | "/sell/analytics" | "/dashboard";
+type CreateRedirectBase = "/dashboard" | "/browse";
 type ActionLocale = "en" | "mk";
 type CreateErrorField =
   | "title"
@@ -94,7 +94,7 @@ function inferErrorField(message: string): CreateErrorField {
 }
 
 function redirectWithError(
-  _basePath: CreateRedirectBase,
+  basePath: CreateRedirectBase,
   message: string,
   field: CreateErrorField = "general",
 ): never {
@@ -105,7 +105,7 @@ function redirectWithError(
   if (resolvedField !== "general") {
     next.set("errorField", resolvedField);
   }
-  redirect(`/sell?${next.toString()}`);
+  redirect(`${basePath}?${next.toString()}`);
 }
 
 function sanitizeFileName(fileName: string) {
@@ -311,8 +311,8 @@ async function createListingWithBase(
       throw error;
     }
 
-    revalidatePath("/sell");
-    redirect("/sell?create=1&defaultsSaved=1");
+    revalidatePath("/dashboard");
+    redirect("/dashboard?create=1&defaultsSaved=1");
   }
 
   if (status === ListingStatus.ACTIVE) {
@@ -470,13 +470,12 @@ async function createListingWithBase(
   }
 
   revalidatePath("/browse");
-  revalidatePath("/sell");
   revalidatePath("/sell/analytics");
   revalidatePath("/dashboard");
   if (listingId) revalidatePath(`/listing/${listingId}`);
 
   if (status === ListingStatus.ACTIVE && isFirstPublishedPost) {
-    redirect(`/listing/${listingId}?created=1`);
+    redirect(`/dashboard?created=1&listingId=${listingId}&first=1`);
   }
   if (
     status === ListingStatus.ACTIVE &&
@@ -484,10 +483,10 @@ async function createListingWithBase(
     !hasActiveSubscription &&
     chargedWithDummyPayment
   ) {
-    redirect(`/listing/${listingId}?created=1&paid=1`);
+    redirect(`/dashboard?created=1&paid=1&listingId=${listingId}`);
   }
   if (status === ListingStatus.ACTIVE) {
-    redirect(`/listing/${listingId}?created=1`);
+    redirect(`/dashboard?created=1&listingId=${listingId}`);
   }
   if (status === ListingStatus.DRAFT) {
     if (listingId) {
@@ -496,7 +495,9 @@ async function createListingWithBase(
       }
       redirect(`/sell/${listingId}/edit`);
     }
-    redirect(`${basePath}?error=${encodeURIComponent(msg.draftSaveFailed)}`);
+    redirect(
+      `${basePath}?create=1&error=${encodeURIComponent(msg.draftSaveFailed)}`,
+    );
   }
 
   redirect(basePath);
@@ -504,15 +505,15 @@ async function createListingWithBase(
 
 export async function createListingFromSell(formData: FormData) {
   "use server";
-  await createListingWithBase(formData, "/sell");
+  await createListingWithBase(formData, "/dashboard");
 }
 
 export async function createListingFromAnalytics(formData: FormData) {
   "use server";
-  await createListingWithBase(formData, "/sell");
+  await createListingWithBase(formData, "/dashboard");
 }
 
 export async function createListingFromDashboard(formData: FormData) {
   "use server";
-  await createListingWithBase(formData, "/sell");
+  await createListingWithBase(formData, "/dashboard");
 }

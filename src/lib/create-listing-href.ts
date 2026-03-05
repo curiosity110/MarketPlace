@@ -8,7 +8,7 @@ export type CreateListingHrefValue =
 export function buildCreateListingHref(
   params?: Record<string, CreateListingHrefValue>,
 ) {
-  if (!params) return "/sell?create=1";
+  if (!params) return "?create=1";
 
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -24,5 +24,5 @@ export function buildCreateListingHref(
   }
 
   const query = search.toString();
-  return query ? `/sell?${query}` : "/sell?create=1";
+  return query ? `?${query}` : "?create=1";
 }

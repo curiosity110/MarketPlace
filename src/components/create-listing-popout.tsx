@@ -47,6 +47,8 @@ type Props = {
   buttonClassName?: string;
   hideTrigger?: boolean;
   openOnMount?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
   initial?: {
     id?: string;
@@ -140,6 +142,8 @@ export function CreateListingPopout({
   buttonClassName = "",
   hideTrigger = false,
   openOnMount = false,
+  open,
+  onOpenChange,
   onClose,
   initial,
   locale = "en",
@@ -160,9 +164,9 @@ export function CreateListingPopout({
         openWhenNeeded: "Отвори ја формата кога ти треба.",
         closeCreateListingForm: "Затвори форма за креирање оглас",
         createNewListing: "Креирај нов оглас",
-        fillAndPublish: "Пополнување во 3 чекори: фотографии, основи и детали.",
+        fillAndPublish: "Воден процес во 4 чекори: фотографии, основи, детали и преглед.",
         close: "Затвори",
-        chooseCategoryTitle: "Избери категорија",
+        chooseCategoryTitle: "Избери категорија за почеток",
         chooseCategoryHint:
           "Избери категорија за да се вчитаат точните полиња за објавување.",
         categorySearchLabel: "Брзо пребарување",
@@ -180,9 +184,9 @@ export function CreateListingPopout({
         openWhenNeeded: "Open the form only when you need it.",
         closeCreateListingForm: "Close create listing form",
         createNewListing: "Create a new listing",
-        fillAndPublish: "Complete 3 steps: photos, basics, and details.",
+        fillAndPublish: "Guided in 4 steps: photos, basics, details, and review.",
         close: "Close",
-        chooseCategoryTitle: "Choose category",
+        chooseCategoryTitle: "Choose a category to start",
         chooseCategoryHint:
           "Pick a category first so the form loads with the correct templates.",
         categorySearchLabel: "Live category search",
@@ -199,8 +203,12 @@ export function CreateListingPopout({
   const resolvedButtonLabel = buttonLabel ?? (isMk ? "Нов оглас" : "New listing");
   const resolvedPublishLabel =
     publishLabel ?? (isMk ? "Објави оглас" : "Publish listing");
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpenControlled = typeof open === "boolean";
+  const isOpen = isOpenControlled ? open : internalOpen;
   const [isActive, setIsActive] = useState(false);
+  const previousIsOpenRef = useRef(isOpen);
+  const isClosingRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
   const autoOpenDoneRef = useRef(false);
   const pickerContainerRef = useRef<HTMLDivElement | null>(null);
@@ -411,19 +419,37 @@ export function CreateListingPopout({
     };
   }, [initial, resolvedCreateCategoryId]);
 
+  const setOpenState = useCallback(
+    (nextOpen: boolean) => {
+      if (!isOpenControlled) {
+        setInternalOpen(nextOpen);
+      }
+      onOpenChange?.(nextOpen);
+    },
+    [isOpenControlled, onOpenChange],
+  );
+
   const openPopout = useCallback(() => {
-    setIsOpen(true);
+    isClosingRef.current = false;
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setOpenState(true);
     requestAnimationFrame(() => setIsActive(true));
-  }, []);
+  }, [setOpenState]);
 
   const closePopout = useCallback(() => {
+    isClosingRef.current = true;
     setIsActive(false);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => {
-      setIsOpen(false);
+      setOpenState(false);
+      isClosingRef.current = false;
+      closeTimerRef.current = null;
       onClose?.();
     }, 190);
-  }, [onClose]);
+  }, [onClose, setOpenState]);
 
   useEffect(() => {
     if (!openOnMount || autoOpenDoneRef.current) return;
@@ -431,6 +457,22 @@ export function CreateListingPopout({
     const timer = window.setTimeout(() => openPopout(), 0);
     return () => window.clearTimeout(timer);
   }, [openOnMount, openPopout]);
+
+  useEffect(() => {
+    const wasOpen = previousIsOpenRef.current;
+    if (!wasOpen && isOpen && !isClosingRef.current) {
+      const frame = window.requestAnimationFrame(() => setIsActive(true));
+      previousIsOpenRef.current = isOpen;
+      return () => window.cancelAnimationFrame(frame);
+    }
+    if (wasOpen && !isOpen) {
+      isClosingRef.current = false;
+      const frame = window.requestAnimationFrame(() => setIsActive(false));
+      previousIsOpenRef.current = isOpen;
+      return () => window.cancelAnimationFrame(frame);
+    }
+    previousIsOpenRef.current = isOpen;
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -570,9 +612,12 @@ export function CreateListingPopout({
                   locale={locale}
                 />
               ) : shouldShowCreateCategoryGate ? (
-                <section className="mx-auto w-full max-w-xl space-y-4 rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5">
-                  <div className="space-y-1">
-                    <p className="text-base font-bold">{text.chooseCategoryTitle}</p>
+                <section className="mx-auto w-full max-w-2xl space-y-5 rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/30 p-5 shadow-sm sm:p-6">
+                  <div className="space-y-2">
+                    <span className="inline-flex rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                      {text.category}
+                    </span>
+                    <p className="text-lg font-black sm:text-xl">{text.chooseCategoryTitle}</p>
                     <p className="text-sm text-muted-foreground">{text.chooseCategoryHint}</p>
                   </div>
 

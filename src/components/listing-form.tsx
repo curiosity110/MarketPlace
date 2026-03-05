@@ -764,6 +764,19 @@ export function ListingForm({
     });
   }
 
+  function clearCreatePhotos() {
+    if (photosInputRef.current) {
+      photosInputRef.current.value = "";
+    }
+    setPhotoValidationError(null);
+    setSmartFillError(null);
+    setSmartSuggestions(null);
+    setPhotoPreviewUrls((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    });
+  }
+
   async function runSmartFill() {
     if (!smartFillEnabled) {
       setSmartSuggestions(null);
@@ -905,6 +918,12 @@ export function ListingForm({
 
       {wizardEnabled && (
         <section className="space-y-2 rounded-2xl border border-border/70 bg-card/70 p-3 sm:p-4">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <p className="text-base font-semibold">{isMk ? "Креирај оглас" : "Create listing"}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isMk ? "Чекор" : "Step"} {currentStep} {isMk ? "од" : "of"} {wizardSteps.length}
+            </p>
+          </div>
           <div className="grid gap-2 sm:grid-cols-3">
             {wizardSteps.map((step) => {
               const isActive = currentStep === step.id;
@@ -957,6 +976,11 @@ export function ListingForm({
               maxLength={120}
               autoComplete="off"
             />
+            <p className="text-xs text-muted-foreground">
+              {isMk
+                ? "\u041a\u0440\u0430\u0442\u043e\u043a \u0438 \u043a\u043e\u043d\u043a\u0440\u0435\u0442\u0435\u043d \u043d\u0430\u0441\u043b\u043e\u0432 \u0434\u043e\u0431\u0438\u0432\u0430 \u043f\u043e\u0432\u0435\u045c\u0435 \u043a\u043b\u0438\u043a\u043e\u0432\u0438."
+                : "Short and clear titles get more clicks."}
+            </p>
           </label>
 
           <label className={`space-y-1 ${wizardEnabled && currentStep !== 3 ? "hidden" : ""}`}>
@@ -973,12 +997,23 @@ export function ListingForm({
 
           {!initial?.id && (
             <div
-              className={`rounded-xl border border-border/70 bg-card/90 p-3 ${
+              className={`rounded-2xl border border-border/70 bg-card/95 p-4 ${
                 wizardEnabled && currentStep !== 2 ? "hidden" : ""
               }`}
             >
-              <label className="space-y-1">
-                <span className="text-sm font-medium">{text.photos}</span>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-semibold">{text.photos}</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={clearCreatePhotos}
+                  disabled={photoPreviewUrls.length === 0}
+                >
+                  {isMk ? "\u0420\u0435\u0441\u0435\u0442\u0438\u0440\u0430\u0458 \u0441\u043b\u0438\u043a\u0438" : "Reset images"}
+                </Button>
+              </div>
+              <label className="space-y-2">
                 <input
                   ref={photosInputRef}
                   type="file"
@@ -992,7 +1027,7 @@ export function ListingForm({
                     setSmartSuggestions(null);
                     refreshPhotoPreview(event.target.files);
                   }}
-                  className="block w-full rounded-xl border border-border bg-input px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                  className="block min-h-[180px] w-full rounded-2xl border-2 border-dashed border-border bg-muted/10 px-3 py-5 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
                 />
               </label>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -1005,18 +1040,18 @@ export function ListingForm({
               )}
 
               {photoPreviewUrls.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
                   {photoPreviewUrls.map((previewUrl, index) => (
                     <div
                       key={`${previewUrl}-${index}`}
-                      className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border/70 bg-muted/20"
+                      className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted/20"
                     >
                       <Image
                         src={previewUrl}
                         alt={`${text.photos} ${index + 1}`}
                         fill
                         unoptimized
-                        sizes="(max-width: 640px) 50vw, 33vw"
+                        sizes="112px"
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -1032,6 +1067,11 @@ export function ListingForm({
                     <p className="text-xs text-muted-foreground">
                       {text.smartFillHint}
                     </p>
+                    {(isSmartFillPending || (smartSuggestions && hasSmartSuggestions)) && (
+                      <span className="mt-1 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        {isSmartFillPending ? text.smartFillWorking : text.smartFillApply}
+                      </span>
+                    )}
                   </div>
                   <Button
                     type="button"
@@ -1171,16 +1211,6 @@ export function ListingForm({
             </div>
           )}
 
-          <label className={`space-y-1 ${wizardEnabled && currentStep !== 1 ? "hidden" : ""}`}>
-            <span className="text-sm font-medium">{text.condition}</span>
-            <Select name="condition" defaultValue={restoredCondition}>
-              {Object.values(ListingCondition).map((condition) => (
-                <option key={condition} value={condition}>
-                  {conditionLabelByValue[condition]}
-                </option>
-              ))}
-            </Select>
-          </label>
         </div>
 
         <div
@@ -1273,7 +1303,7 @@ export function ListingForm({
               wizardEnabled && currentStep !== 1 ? "hidden" : ""
             }`}
           >
-            <h3 className="text-sm font-semibold">{text.pricingAndLocation}</h3>
+            <h3 className="text-sm font-semibold">{isMk ? "Цена" : "Pricing"}</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1">
                 <span className="text-sm font-medium">{text.price}</span>
@@ -1287,6 +1317,11 @@ export function ListingForm({
                   required
                   autoComplete="off"
                 />
+                <p className="text-xs text-muted-foreground">
+                  {isMk
+                    ? "\u0412\u043d\u0435\u0441\u0438 \u0444\u0438\u043d\u0430\u043b\u043d\u0430 \u0446\u0435\u043d\u0430 \u0448\u0442\u043e \u045c\u0435 \u0458\u0430 \u0432\u0438\u0434\u0430\u0442 \u043a\u0443\u043f\u0443\u0432\u0430\u0447\u0438\u0442\u0435."
+                    : "Enter the final public price buyers should see."}
+                </p>
               </label>
 
               <label className="space-y-1">
@@ -1301,6 +1336,24 @@ export function ListingForm({
               </label>
             </div>
 
+            <label className="space-y-1">
+              <span className="text-sm font-medium">{text.condition}</span>
+              <Select name="condition" defaultValue={restoredCondition}>
+                {Object.values(ListingCondition).map((condition) => (
+                  <option key={condition} value={condition}>
+                    {conditionLabelByValue[condition]}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+
+          <div
+            className={`space-y-2 rounded-xl border border-border/70 bg-card/90 p-3 ${
+              wizardEnabled && currentStep !== 1 ? "hidden" : ""
+            }`}
+          >
+            <h3 className="text-sm font-semibold">{isMk ? "Локација" : "Location"}</h3>
             <label className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {text.city}
@@ -1781,5 +1834,3 @@ function SuggestionRow({
     </div>
   );
 }
-
-

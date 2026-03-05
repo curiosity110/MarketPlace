@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback } from "react";
 import type { ComponentType } from "react";
 import {
   CirclePlus,
@@ -11,7 +12,6 @@ import {
   LogIn,
   Search,
 } from "lucide-react";
-import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -28,15 +28,18 @@ type Props = {
 };
 
 type NavItem = {
-  href: string;
+  key: string;
   label: string;
   icon: ComponentType<{ size?: number; className?: string }>;
+  href?: string;
+  action?: () => void;
   show?: boolean;
 };
 
 export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
+  const isDev = process.env.NODE_ENV !== "production";
   const pathname = usePathname();
-  const sellHref = buildCreateListingHref();
+  const router = useRouter();
   const currentPath = pathname;
   const safeNextPath =
     currentPath.startsWith("/") &&
@@ -52,11 +55,39 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
   const profileOrLoginLabel = isLoggedIn ? labels.dashboard : labels.login;
   const profileOrLoginIcon = isLoggedIn ? LayoutDashboard : LogIn;
 
+  const openCreateListing = useCallback(() => {
+    const nextPath = pathname || "/browse";
+    if (!isLoggedIn) {
+      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+      return;
+    }
+    if (isDev) {
+      console.log("MODAL_CLICK", {
+        source: "mobile-bottom-nav",
+        time: Date.now(),
+      });
+    }
+    window.dispatchEvent(new CustomEvent("mkd:open-create-modal"));
+  }, [isDev, isLoggedIn, pathname, router]);
+
   const items: NavItem[] = [
-    { href: "/", label: labels.home, icon: House, show: true },
-    { href: "/browse", label: labels.browse, icon: Search, show: true },
-    { href: sellHref, label: labels.sell, icon: CirclePlus, show: true },
+    { key: "home", href: "/", label: labels.home, icon: House, show: true },
     {
+      key: "browse",
+      href: "/browse",
+      label: labels.browse,
+      icon: Search,
+      show: true,
+    },
+    {
+      key: "sell",
+      label: labels.sell,
+      icon: CirclePlus,
+      action: openCreateListing,
+      show: true,
+    },
+    {
+      key: "profile",
       href: isAdmin ? "/admin" : profileOrLoginHref,
       label: isAdmin ? labels.dashboard : profileOrLoginLabel,
       icon: isAdmin ? CircleUserRound : profileOrLoginIcon,
@@ -70,26 +101,44 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
         {items
           .filter((item) => item.show !== false)
           .map((item) => {
-            const itemPath = item.href.split("?")[0];
+            const itemPath = item.href?.split("?")[0] ?? pathname;
             const active =
-              item.href === "/admin"
+              item.key === "sell"
+                ? false
+                : item.href === "/admin"
                 ? isActivePath(pathname, "/admin")
                 : item.href === "/dashboard"
                   ? isActivePath(pathname, "/dashboard") || isActivePath(pathname, "/profile")
-                : item.href.startsWith("/login")
+                : item.href?.startsWith("/login")
                   ? isActivePath(pathname, "/profile") || isActivePath(pathname, "/dashboard")
                   : isActivePath(pathname, itemPath);
 
+            const className = cn(
+              "flex flex-col items-center justify-center gap-1 rounded-full px-2 py-2 text-[11px] transition-all",
+              active
+                ? "bg-muted font-semibold text-foreground ring-1 ring-border"
+                : "font-medium text-foreground/70 hover:bg-muted/70",
+            );
+
+            if (item.action) {
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={item.action}
+                  className={className}
+                >
+                  <item.icon size={16} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            }
+
             return (
               <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-full px-2 py-2 text-[11px] transition-all",
-                  active
-                    ? "bg-muted font-semibold text-foreground ring-1 ring-border"
-                    : "font-medium text-foreground/70 hover:bg-muted/70",
-                )}
+                key={item.key}
+                href={item.href || "/"}
+                className={className}
               >
                 <item.icon size={16} />
                 <span>{item.label}</span>

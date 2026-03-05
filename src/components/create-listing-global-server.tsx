@@ -1,6 +1,6 @@
 import { Currency, ListingStatus } from "@prisma/client";
 import { unstable_cache } from "next/cache";
-import { CreateListingGlobal } from "@/components/create-listing-global";
+import { CreateListingModalController } from "@/components/create-listing-modal-controller";
 import { createListingFromSell } from "@/lib/actions/create-listing";
 import { canSell, getSessionUser } from "@/lib/auth";
 import type { SessionUser } from "@/lib/auth";
@@ -53,6 +53,10 @@ const getCreateModalMeta = unstable_cache(
   { revalidate: 300 },
 );
 
+function fallbackPublishLabel(isMk: boolean) {
+  return isMk ? "Објави оглас" : "Publish listing";
+}
+
 export async function CreateListingGlobalServer({
   forceOpen = false,
   sessionUser: providedSessionUser,
@@ -62,19 +66,54 @@ export async function CreateListingGlobalServer({
   const isMk = locale === "mk";
   const sessionUser = providedSessionUser ?? (await getSessionUser());
 
-  if (
-    !sessionUser ||
-    !canSell(sessionUser.role) ||
-    (!ignoreCircuitBreaker && shouldSkipPrismaCalls())
-  ) {
-    return null;
+  if (!ignoreCircuitBreaker && shouldSkipPrismaCalls()) {
+    return (
+      <CreateListingModalController
+        action={createListingFromSell}
+        categories={[]}
+        cities={[]}
+        templatesByCategory={{}}
+        publishLabel={fallbackPublishLabel(isMk)}
+        paymentProvider="none"
+        showPlanSelector={false}
+        locale={locale}
+        forceOpen={forceOpen}
+        initial={{
+          currency: Currency.MKD,
+        }}
+      />
+    );
   }
 
   try {
-    const [{ categories, cities, templates }, userRecord, publishedCount, activeSubscriptionCount] =
-      await Promise.all([
-        getCreateModalMeta(),
-        prisma.user.findUnique({
+    const { categories, cities, templates } = await getCreateModalMeta();
+    const templatesByCategory = groupTemplatesByCategory(
+      normalizeTemplates(templates),
+    );
+    markPrismaHealthy();
+
+    if (!sessionUser || !canSell(sessionUser.role)) {
+      return (
+        <CreateListingModalController
+          action={createListingFromSell}
+          categories={categories}
+          cities={cities}
+          templatesByCategory={templatesByCategory}
+          publishLabel={fallbackPublishLabel(isMk)}
+          paymentProvider="none"
+          showPlanSelector={false}
+          locale={locale}
+          forceOpen={forceOpen}
+          initial={{
+            categoryId: categories[0]?.id,
+            currency: Currency.MKD,
+          }}
+        />
+      );
+    }
+
+    const [userRecord, publishedCount, activeSubscriptionCount] = await Promise.all([
+      prisma.user.findUnique({
         where: { id: sessionUser.id },
         select: {
           phone: true,
@@ -83,28 +122,23 @@ export async function CreateListingGlobalServer({
           defaultCityId: true,
           defaultDeliveryText: true,
         },
-        }),
-        prisma.listing.count({
+      }),
+      prisma.listing.count({
         where: {
           ownerId: sessionUser.authUserId,
           status: { not: ListingStatus.DRAFT },
         },
-        }),
-        prisma.listing.count({
+      }),
+      prisma.listing.count({
         where: {
           ownerId: sessionUser.authUserId,
           status: ListingStatus.ACTIVE,
           activeUntil: null,
           sale: null,
         },
-        }),
-      ]);
+      }),
+    ]);
 
-    markPrismaHealthy();
-
-    const templatesByCategory = groupTemplatesByCategory(
-      normalizeTemplates(templates),
-    );
     const parsedPhone = parseStoredPhone(
       userRecord?.defaultPhone || userRecord?.phone,
     );
@@ -124,7 +158,7 @@ export async function CreateListingGlobalServer({
           : "Publish first 30-day listing (free)";
 
     return (
-      <CreateListingGlobal
+      <CreateListingModalController
         action={createListingFromSell}
         categories={categories}
         cities={cities}
@@ -147,15 +181,13 @@ export async function CreateListingGlobalServer({
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      if (!forceOpen) return null;
-
       return (
-        <CreateListingGlobal
+        <CreateListingModalController
           action={createListingFromSell}
           categories={[]}
           cities={[]}
           templatesByCategory={{}}
-          publishLabel={isMk ? "Објави оглас" : "Publish listing"}
+          publishLabel={fallbackPublishLabel(isMk)}
           paymentProvider="none"
           showPlanSelector={false}
           locale={locale}

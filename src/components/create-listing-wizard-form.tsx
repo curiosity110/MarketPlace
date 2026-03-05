@@ -127,9 +127,12 @@ export function CreateListingWizardForm({
         photos: "Фотографии",
         basics: "Основи",
         details: "Детали",
+        reviewStep: "Преглед",
+        stepProgress: "Чекор {current} од {total}",
         stepPhotos: "Чекор 1: Фотографии",
         stepBasics: "Чекор 2: Основи",
         stepDetails: "Чекор 3: Детали",
+        stepReview: "Чекор 4: Преглед",
         back: "Назад",
         continue: "Продолжи",
         publish: "Објави",
@@ -194,6 +197,17 @@ export function CreateListingWizardForm({
         phonePlaceholder: "Внеси телефонски број",
         country: "Држава",
         acceptedPhoneFormat: "Прифатен формат: локален, +држава или 00држава.",
+        listingInfo: "Инфо за огласот",
+        pricing: "Цена и состојба",
+        location: "Локација",
+        vehicleDetails: "Детали за возило",
+        chooseCategoryToStart: "Избери категорија за почеток.",
+        resetImages: "Ресетирај слики",
+        quickFillAnalyzing: "Анализирам...",
+        quickFillReady: "Предлозите се подготвени",
+        titleHelper: "Краток и јасен наслов продава побрзо.",
+        priceHelper: "Внеси финална цена што купувачите ќе ја видат.",
+        cityHelper: "Избери град за локално таргетирање.",
         categoryFields: "Полиња на категорија",
         review: "Преглед",
         reviewTitle: "Наслов",
@@ -231,9 +245,12 @@ export function CreateListingWizardForm({
         photos: "Photos",
         basics: "Basics",
         details: "Details",
+        reviewStep: "Review",
+        stepProgress: "Step {current} of {total}",
         stepPhotos: "Step 1: Photos",
         stepBasics: "Step 2: Basics",
         stepDetails: "Step 3: Details",
+        stepReview: "Step 4: Review",
         back: "Back",
         continue: "Continue",
         publish: "Publish",
@@ -297,6 +314,17 @@ export function CreateListingWizardForm({
         phonePlaceholder: "Enter phone number",
         country: "Country",
         acceptedPhoneFormat: "Accepted format: local, +country, or 00country.",
+        listingInfo: "Listing info",
+        pricing: "Pricing",
+        location: "Location",
+        vehicleDetails: "Vehicle details",
+        chooseCategoryToStart: "Choose a category to start.",
+        resetImages: "Reset images",
+        quickFillAnalyzing: "Analyzing...",
+        quickFillReady: "Suggestions ready",
+        titleHelper: "Short and clear titles convert better.",
+        priceHelper: "Enter the final public price buyers should see.",
+        cityHelper: "Pick a city so buyers can find nearby listings.",
         categoryFields: "Category fields",
         review: "Review",
         reviewTitle: "Title",
@@ -338,6 +366,9 @@ export function CreateListingWizardForm({
   const [photoValidationError, setPhotoValidationError] = useState<string | null>(null);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [selectedPhotosCount, setSelectedPhotosCount] = useState(0);
+  const [quickFillStatus, setQuickFillStatus] = useState<"idle" | "analyzing" | "ready">(
+    "idle",
+  );
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [plan, setPlan] = useState<ListingPlan>(
     initial?.plan ?? "pay-per-listing",
@@ -480,6 +511,29 @@ export function CreateListingWizardForm({
   const quickCategoryCandidates = quickFillResult?.categoryCandidates ?? [];
   const hasQuickFillSuggestions =
     quickSuggestions.length > 0 || quickCategoryCandidates.length > 0;
+  const totalWizardSteps = 4;
+  const wizardSteps = useMemo(
+    () => [
+      { id: 1, label: text.photos, stepLabel: text.stepPhotos },
+      { id: 2, label: text.basics, stepLabel: text.stepBasics },
+      { id: 3, label: text.details, stepLabel: text.stepDetails },
+      { id: 4, label: text.reviewStep, stepLabel: text.stepReview },
+    ],
+    [
+      text.basics,
+      text.details,
+      text.photos,
+      text.reviewStep,
+      text.stepBasics,
+      text.stepDetails,
+      text.stepPhotos,
+      text.stepReview,
+    ],
+  );
+  const currentWizardStep = wizardSteps.find((step) => step.id === currentStep) ?? wizardSteps[0];
+  const stepProgressLabel = text.stepProgress
+    .replace("{current}", String(currentStep))
+    .replace("{total}", String(totalWizardSteps));
   const normalizedServerErrorField = useMemo<CreateFieldErrorKey>(() => {
     if (serverErrorField === "title") return "title";
     if (serverErrorField === "categoryId") return "categoryId";
@@ -534,13 +588,15 @@ export function CreateListingWizardForm({
     }
     if (
       normalizedServerErrorField === "categoryId" ||
-      normalizedServerErrorField === "cityId" ||
       normalizedServerErrorField === "price"
     ) {
       setCurrentStep(2);
       return;
     }
-    if (normalizedServerErrorField === "phone") {
+    if (
+      normalizedServerErrorField === "cityId" ||
+      normalizedServerErrorField === "phone"
+    ) {
       setCurrentStep(3);
     }
   }, [normalizedServerErrorField, serverErrorMessage]);
@@ -745,14 +801,17 @@ export function CreateListingWizardForm({
     setQuickFillMessage(text.quickFillAppliedAll);
   }
 
-  function runQuickFill() {
+  async function runQuickFill() {
     const input = quickFillLine.trim();
     if (!input) {
       setQuickFillResult(null);
       setQuickFillMessage(text.quickFillInputRequired);
+      setQuickFillStatus("idle");
       return;
     }
 
+    setQuickFillStatus("analyzing");
+    await Promise.resolve();
     const result = quickFillFromLine({
       text: input,
       locale,
@@ -762,14 +821,27 @@ export function CreateListingWizardForm({
     setQuickFillResult(result);
     if (result.suggestions.length === 0 && result.categoryCandidates.length === 0) {
       setQuickFillMessage(text.quickFillNoSuggestions);
+      setQuickFillStatus("idle");
       return;
     }
     setQuickFillMessage(null);
+    setQuickFillStatus("ready");
+  }
+
+  function clearSelectedPhotos() {
+    if (photosInputRef.current) {
+      photosInputRef.current.value = "";
+    }
+    setPhotoValidationError(null);
+    setSelectedPhotosCount(0);
+    setPhotoPreviewUrls((previous) => {
+      previous.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    });
   }
 
   function validateCurrentStep(step: number) {
     if (step === 1) {
-      if (!title.trim()) return text.titleRequired;
       const photosError = validateCreatePhotos(photosInputRef.current?.files ?? null);
       setPhotoValidationError(photosError);
       if (photosError) return photosError;
@@ -777,15 +849,20 @@ export function CreateListingWizardForm({
     }
 
     if (step === 2) {
+      if (!title.trim()) return text.titleRequired;
       if (!resolvedSelectedCategoryId) return text.categoryRequired;
-      if (!cityId) return text.cityRequired;
       if (!price.trim() || Number(price) <= 0) return text.priceRequired;
       return null;
     }
 
-    if (!phone.trim()) return text.phoneRequired;
-    const normalizedPhoneResult = normalizePhoneInput(phone, phoneCountry, locale);
-    if (!normalizedPhoneResult.ok) return normalizedPhoneResult.error;
+    if (step === 3 || step === 4) {
+      if (!cityId) return text.cityRequired;
+      if (!phone.trim()) return text.phoneRequired;
+      const normalizedPhoneResult = normalizePhoneInput(phone, phoneCountry, locale);
+      if (!normalizedPhoneResult.ok) return normalizedPhoneResult.error;
+      return null;
+    }
+
     return null;
   }
 
@@ -803,7 +880,7 @@ export function CreateListingWizardForm({
     }
 
     setStepError(null);
-    setCurrentStep((previous) => Math.min(3, previous + 1));
+    setCurrentStep((previous) => Math.min(totalWizardSteps, previous + 1));
   }
 
   return (
@@ -833,11 +910,18 @@ export function CreateListingWizardForm({
           setStepError(photosError);
           return;
         }
-        const finalError = validateCurrentStep(3);
-        if (finalError) {
+        const basicsError = validateCurrentStep(2);
+        if (basicsError) {
+          event.preventDefault();
+          setCurrentStep(2);
+          setStepError(basicsError);
+          return;
+        }
+        const detailsError = validateCurrentStep(3);
+        if (detailsError) {
           event.preventDefault();
           setCurrentStep(3);
-          setStepError(finalError);
+          setStepError(detailsError);
           return;
         }
         setServerErrorMessage(null);
@@ -851,28 +935,35 @@ export function CreateListingWizardForm({
         <input type="hidden" name="paymentProvider" value={paymentProvider} />
       )}
 
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { id: 1, label: text.stepPhotos },
-          { id: 2, label: text.stepBasics },
-          { id: 3, label: text.stepDetails },
-        ].map((step) => (
-          <button
-            key={step.id}
-            type="button"
-            onClick={() => setCurrentStep(step.id)}
-            className={`rounded-xl border px-2 py-2 text-center text-xs font-semibold transition-colors sm:text-sm ${
-              currentStep === step.id
-                ? "border-primary/45 bg-primary/10 text-foreground"
-                : currentStep > step.id
-                  ? "border-secondary/30 bg-secondary/10 text-foreground"
-                  : "border-border/70 bg-card text-muted-foreground"
-            }`}
-          >
-            {step.label}
-          </button>
-        ))}
-      </div>
+      <section className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4 sm:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-lg font-semibold">{text.createListing}</p>
+            <p className="text-sm text-muted-foreground">{stepProgressLabel}</p>
+          </div>
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+            {currentWizardStep.stepLabel}
+          </span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-4">
+          {wizardSteps.map((step) => (
+            <button
+              key={step.id}
+              type="button"
+              onClick={() => setCurrentStep(step.id)}
+              className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-colors sm:text-sm ${
+                currentStep === step.id
+                  ? "border-primary/45 bg-primary/10 text-foreground"
+                  : currentStep > step.id
+                    ? "border-secondary/30 bg-secondary/10 text-foreground"
+                    : "border-border/70 bg-background text-muted-foreground hover:border-primary/25"
+              }`}
+            >
+              {step.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {stepError && (
         <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -893,10 +984,33 @@ export function CreateListingWizardForm({
       ) : null}
 
       <section className={currentStep === 1 ? "space-y-4" : "hidden"}>
-        <div className="space-y-2 rounded-2xl border border-border/70 bg-card p-4">
-          <p className="text-sm font-semibold">{text.photos}</p>
-          <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/35 hover:bg-primary/5">
-            <ImagePlus size={24} className="text-primary" />
+        <div className="space-y-3 rounded-2xl border border-border/70 bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold">{text.photos}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {quickFillStatus === "analyzing" ? (
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  {text.quickFillAnalyzing}
+                </span>
+              ) : null}
+              {quickFillStatus === "ready" || hasQuickFillSuggestions ? (
+                <span className="rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-[11px] font-semibold text-secondary">
+                  {text.quickFillReady}
+                </span>
+              ) : null}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={clearSelectedPhotos}
+                disabled={selectedPhotosCount === 0}
+              >
+                {text.resetImages}
+              </Button>
+            </div>
+          </div>
+          <label className="flex min-h-[190px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/35 hover:bg-primary/5">
+            <ImagePlus size={26} className="text-primary" />
             <span className="text-sm font-medium text-foreground">{text.photoHint}</span>
             <input
               ref={photosInputRef}
@@ -912,46 +1026,29 @@ export function CreateListingWizardForm({
               className="sr-only"
             />
           </label>
-          {photoValidationError && (
+          {photoValidationError ? (
             <p className="text-xs font-medium text-destructive">{photoValidationError}</p>
-          )}
-          {photoPreviewUrls.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          ) : null}
+          {photoPreviewUrls.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {photoPreviewUrls.map((url, index) => (
                 <div
                   key={`${url}-${index}`}
-                  className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border/70 bg-muted/20"
+                  className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted/20"
                 >
                   <Image
                     src={url}
                     alt={`Selected photo ${index + 1}`}
                     fill
                     unoptimized
-                    sizes="180px"
+                    sizes="112px"
                     className="object-cover"
                   />
                 </div>
               ))}
             </div>
-          )}
-        </div>
-
-        <label className="space-y-1">
-          <span className="text-sm font-medium">{text.title}</span>
-          <Input
-            name="title"
-            value={title}
-            onChange={(event) => {
-              setTitle(event.target.value);
-              setServerErrorMessage(null);
-            }}
-            placeholder={text.titlePlaceholder}
-            required
-          />
-          {titleServerError ? (
-            <p className="text-xs font-medium text-destructive">{titleServerError}</p>
           ) : null}
-        </label>
+        </div>
 
         <div className="space-y-2 rounded-2xl border border-primary/20 bg-primary/5 p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -963,7 +1060,9 @@ export function CreateListingWizardForm({
               type="button"
               size="sm"
               variant="outline"
-              onClick={runQuickFill}
+              onClick={() => {
+                void runQuickFill();
+              }}
               className="gap-1"
             >
               <Wand2 size={14} />
@@ -977,15 +1076,22 @@ export function CreateListingWizardForm({
               onChange={(event) => {
                 setQuickFillLine(event.target.value);
                 setQuickFillMessage(null);
+                setQuickFillStatus("idle");
               }}
               onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
-                runQuickFill();
+                void runQuickFill();
               }}
               placeholder={text.quickFillPrompt}
             />
-            <Button type="button" variant="outline" onClick={runQuickFill}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void runQuickFill();
+              }}
+            >
               {text.quickFill}
             </Button>
           </div>
@@ -1053,49 +1159,138 @@ export function CreateListingWizardForm({
       </section>
 
       <section className={currentStep === 2 ? "space-y-4" : "hidden"}>
-        <div className="space-y-2">
-          <label className="space-y-1">
-            <span className="text-sm font-medium">{text.categorySearch}</span>
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-card p-4">
+          <h3 className="text-sm font-semibold">{text.listingInfo}</h3>
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium">{text.title}</span>
             <Input
-              value={categorySearch}
-              onChange={(event) => setCategorySearch(event.target.value)}
-              placeholder={text.categorySearchPlaceholder}
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-sm font-medium">{text.category}</span>
-            <Select
-              name="categoryId"
-              value={resolvedSelectedCategoryId}
+              name="title"
+              value={title}
               onChange={(event) => {
-                setSelectedCategoryId(event.target.value);
+                setTitle(event.target.value);
                 setServerErrorMessage(null);
               }}
+              placeholder={text.titlePlaceholder}
               required
-            >
-              <option value="" disabled>
-                {text.categoryRequired}
-              </option>
-              {filteredCategories.length === 0 ? (
-                <option value="" disabled>
-                  {text.noCategoryMatch}
-                </option>
-              ) : (
-                filteredCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {localizeCategoryName(category, locale)}
-                  </option>
-                ))
-              )}
-            </Select>
-            {categoryServerError ? (
-              <p className="text-xs font-medium text-destructive">{categoryServerError}</p>
+            />
+            <p className="text-xs text-muted-foreground">{text.titleHelper}</p>
+            {titleServerError ? (
+              <p className="text-xs font-medium text-destructive">{titleServerError}</p>
             ) : null}
           </label>
+
+          <div className="space-y-2">
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium">{text.categorySearch}</span>
+              <Input
+                value={categorySearch}
+                onChange={(event) => setCategorySearch(event.target.value)}
+                placeholder={text.categorySearchPlaceholder}
+              />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium">{text.category}</span>
+              <Select
+                name="categoryId"
+                value={resolvedSelectedCategoryId}
+                onChange={(event) => {
+                  setSelectedCategoryId(event.target.value);
+                  setServerErrorMessage(null);
+                }}
+                required
+              >
+                <option value="" disabled>
+                  {text.categoryRequired}
+                </option>
+                {filteredCategories.length === 0 ? (
+                  <option value="" disabled>
+                    {text.noCategoryMatch}
+                  </option>
+                ) : (
+                  filteredCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {localizeCategoryName(category, locale)}
+                    </option>
+                  ))
+                )}
+              </Select>
+              {categoryServerError ? (
+                <p className="text-xs font-medium text-destructive">{categoryServerError}</p>
+              ) : null}
+            </label>
+          </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1">
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-card p-4">
+          <h3 className="text-sm font-semibold">{text.pricing}</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium">{text.price}</span>
+              <Input
+                name="price"
+                type="number"
+                min="1"
+                step="1"
+                value={price}
+                onChange={(event) => {
+                  setPrice(event.target.value);
+                  setServerErrorMessage(null);
+                }}
+                placeholder={text.pricePlaceholder}
+                required
+              />
+              <p className="text-xs text-muted-foreground">{text.priceHelper}</p>
+              {priceServerError ? (
+                <p className="text-xs font-medium text-destructive">{priceServerError}</p>
+              ) : null}
+            </label>
+
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium">{text.currency}</span>
+              <Select
+                name="currency"
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value as Currency)}
+              >
+                {MARKETPLACE_CURRENCIES.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+
+          <div className="space-y-1.5">
+            <span className="text-sm font-medium">{text.condition}</span>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                ListingCondition.NEW,
+                ListingCondition.USED,
+                ListingCondition.REFURBISHED,
+              ].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCondition(value)}
+                  className={`rounded-xl border px-2 py-2 text-xs font-semibold transition-colors ${
+                    condition === value
+                      ? "border-primary/45 bg-primary/10 text-foreground"
+                      : "border-border/70 bg-background text-muted-foreground"
+                  }`}
+                >
+                  {conditionLabelByValue[value]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={currentStep === 3 ? "space-y-4" : "hidden"}>
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-card p-4">
+          <h3 className="text-sm font-semibold">{text.location}</h3>
+          <label className="space-y-1.5">
             <span className="text-sm font-medium">{text.city}</span>
             <Select
               name="cityId"
@@ -1118,79 +1313,17 @@ export function CreateListingWizardForm({
                 ))
               )}
             </Select>
+            <p className="text-xs text-muted-foreground">{text.cityHelper}</p>
             {cityServerError ? (
               <p className="text-xs font-medium text-destructive">{cityServerError}</p>
             ) : null}
           </label>
-
-          <label className="space-y-1">
-            <span className="text-sm font-medium">{text.price}</span>
-            <Input
-              name="price"
-              type="number"
-              min="1"
-              step="1"
-              value={price}
-              onChange={(event) => {
-                setPrice(event.target.value);
-                setServerErrorMessage(null);
-              }}
-              placeholder={text.pricePlaceholder}
-              required
-            />
-            {priceServerError ? (
-              <p className="text-xs font-medium text-destructive">{priceServerError}</p>
-            ) : null}
-          </label>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1">
-            <span className="text-sm font-medium">{text.currency}</span>
-            <Select
-              name="currency"
-              value={currency}
-              onChange={(event) => setCurrency(event.target.value as Currency)}
-            >
-              {MARKETPLACE_CURRENCIES.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <div className="space-y-1">
-            <span className="text-sm font-medium">{text.condition}</span>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                ListingCondition.NEW,
-                ListingCondition.USED,
-                ListingCondition.REFURBISHED,
-              ].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setCondition(value)}
-                  className={`rounded-xl border px-2 py-2 text-xs font-semibold transition-colors ${
-                    condition === value
-                      ? "border-primary/45 bg-primary/10 text-foreground"
-                      : "border-border/70 bg-card text-muted-foreground"
-                  }`}
-                >
-                  {conditionLabelByValue[value]}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className={currentStep === 3 ? "space-y-4" : "hidden"}>
-        <div className="space-y-3 rounded-2xl border border-border/70 bg-card p-4">
-          <p className="text-sm font-semibold">{text.details}</p>
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-card p-4">
+          <h3 className="text-sm font-semibold">{text.details}</h3>
           <div className="grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)]">
-            <label className="space-y-1">
+            <label className="space-y-1.5">
               <span className="text-sm font-medium">{text.country}</span>
               <Select
                 name="phoneCountry"
@@ -1205,7 +1338,7 @@ export function CreateListingWizardForm({
               </Select>
             </label>
 
-            <label className="space-y-1">
+            <label className="space-y-1.5">
               <span className="text-sm font-medium">{text.phone}</span>
               <Input
                 name="phone"
@@ -1230,7 +1363,7 @@ export function CreateListingWizardForm({
           <p className="text-xs text-muted-foreground">{text.acceptedPhoneFormat}</p>
         </div>
 
-        <label className="space-y-1">
+        <label className="space-y-1.5">
           <span className="text-sm font-medium">{text.description}</span>
           <textarea
             name="description"
@@ -1243,7 +1376,7 @@ export function CreateListingWizardForm({
         </label>
 
         <div className="space-y-2 rounded-2xl border border-border/70 bg-card p-4">
-          <p className="text-sm font-semibold">{text.categoryFields}</p>
+          <p className="text-sm font-semibold">{text.vehicleDetails}</p>
           {resolvedSelectedCategoryId ? (
             <DynamicFieldsEditor
               key={resolvedSelectedCategoryId}
@@ -1254,10 +1387,12 @@ export function CreateListingWizardForm({
               locale={locale}
             />
           ) : (
-            <p className="text-sm text-muted-foreground">{text.categoryRequired}</p>
+            <p className="text-sm text-muted-foreground">{text.chooseCategoryToStart}</p>
           )}
         </div>
+      </section>
 
+      <section className={currentStep === 4 ? "space-y-4" : "hidden"}>
         <div className="space-y-2 rounded-2xl border border-secondary/30 bg-blue-50/40 p-4 dark:bg-blue-500/10">
           <p className="text-sm font-semibold">{text.review}</p>
           <div className="grid gap-1 text-sm text-muted-foreground">
@@ -1357,7 +1492,7 @@ export function CreateListingWizardForm({
           {text.back}
         </Button>
 
-        {currentStep < 3 ? (
+        {currentStep < totalWizardSteps ? (
           <Button type="button" onClick={() => moveStep("next")}>
             {text.continue}
             <ChevronRight size={16} />
@@ -1396,7 +1531,7 @@ export function CreateListingWizardForm({
             {text.back}
           </Button>
 
-          {currentStep < 3 ? (
+          {currentStep < totalWizardSteps ? (
             <Button type="button" onClick={() => moveStep("next")}>
               {text.continue}
               <ChevronRight size={16} />
