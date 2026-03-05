@@ -1,7 +1,7 @@
 import { Currency, ListingStatus } from "@prisma/client";
+import { unstable_cache } from "next/cache";
 import { CreateListingGlobal } from "@/components/create-listing-global";
-import { CreateListingPopout } from "@/components/create-listing-popout";
-import { createListingFromDashboard } from "@/lib/actions/create-listing";
+import { createListingFromSell } from "@/lib/actions/create-listing";
 import { canSell, getSessionUser } from "@/lib/auth";
 import type { SessionUser } from "@/lib/auth";
 import { getServerLocale } from "@/lib/i18n";
@@ -21,37 +21,12 @@ import {
 type CreateListingGlobalServerProps = {
   forceOpen?: boolean;
   sessionUser?: SessionUser | null;
-  renderInline?: boolean;
   ignoreCircuitBreaker?: boolean;
 };
 
-export async function CreateListingGlobalServer({
-  forceOpen = false,
-  sessionUser: providedSessionUser,
-  renderInline = false,
-  ignoreCircuitBreaker = false,
-}: CreateListingGlobalServerProps = {}) {
-  const locale = await getServerLocale();
-  const isMk = locale === "mk";
-  const sessionUser = providedSessionUser ?? (await getSessionUser());
-
-  if (
-    !sessionUser ||
-    !canSell(sessionUser.role) ||
-    (!ignoreCircuitBreaker && shouldSkipPrismaCalls())
-  ) {
-    return null;
-  }
-
-  try {
-    const [
-      categories,
-      cities,
-      templates,
-      userRecord,
-      publishedCount,
-      activeSubscriptionCount,
-    ] = await Promise.all([
+const getCreateModalMeta = unstable_cache(
+  async () => {
+    const [categories, cities, templates] = await Promise.all([
       prisma.category.findMany({
         where: { isActive: true },
         select: {
@@ -70,34 +45,69 @@ export async function CreateListingGlobalServer({
         where: { isActive: true, category: { isActive: true } },
         orderBy: [{ categoryId: "asc" }, { order: "asc" }],
       }),
-      prisma.user.findUnique({
+    ]);
+
+    return { categories, cities, templates };
+  },
+  ["create-listing-modal-meta"],
+  { revalidate: 300 },
+);
+
+export async function CreateListingGlobalServer({
+  forceOpen = false,
+  sessionUser: providedSessionUser,
+  ignoreCircuitBreaker = false,
+}: CreateListingGlobalServerProps = {}) {
+  const locale = await getServerLocale();
+  const isMk = locale === "mk";
+  const sessionUser = providedSessionUser ?? (await getSessionUser());
+
+  if (
+    !sessionUser ||
+    !canSell(sessionUser.role) ||
+    (!ignoreCircuitBreaker && shouldSkipPrismaCalls())
+  ) {
+    return null;
+  }
+
+  try {
+    const [{ categories, cities, templates }, userRecord, publishedCount, activeSubscriptionCount] =
+      await Promise.all([
+        getCreateModalMeta(),
+        prisma.user.findUnique({
         where: { id: sessionUser.id },
-        select: { phone: true },
-      }),
-      prisma.listing.count({
+        select: {
+          phone: true,
+          defaultCountry: true,
+          defaultPhone: true,
+          defaultCityId: true,
+          defaultDeliveryText: true,
+        },
+        }),
+        prisma.listing.count({
         where: {
           ownerId: sessionUser.authUserId,
           status: { not: ListingStatus.DRAFT },
         },
-      }),
-      prisma.listing.count({
+        }),
+        prisma.listing.count({
         where: {
           ownerId: sessionUser.authUserId,
           status: ListingStatus.ACTIVE,
           activeUntil: null,
           sale: null,
         },
-      }),
-    ]);
+        }),
+      ]);
 
     markPrismaHealthy();
-
-    if (categories.length === 0 || cities.length === 0) return null;
 
     const templatesByCategory = groupTemplatesByCategory(
       normalizeTemplates(templates),
     );
-    const parsedPhone = parseStoredPhone(userRecord?.phone);
+    const parsedPhone = parseStoredPhone(
+      userRecord?.defaultPhone || userRecord?.phone,
+    );
     const hasActiveSubscription = activeSubscriptionCount > 0;
     const requiresPaymentForCreate =
       publishedCount > 0 && !hasActiveSubscription;
@@ -113,33 +123,9 @@ export async function CreateListingGlobalServer({
           ? "Објави прв 30-дневен оглас (бесплатно)"
           : "Publish first 30-day listing (free)";
 
-    if (renderInline) {
-      return (
-        <CreateListingPopout
-          mode="card"
-          openOnMount={forceOpen}
-          action={createListingFromDashboard}
-          categories={categories}
-          cities={cities}
-          templatesByCategory={templatesByCategory}
-          allowDraft={false}
-          showPlanSelector={requiresPaymentForCreate}
-          publishLabel={publishLabel}
-          paymentProvider={requiresPaymentForCreate ? "stripe-dummy" : "none"}
-          locale={locale}
-          initial={{
-            categoryId: categories[0]?.id,
-            phone: parsedPhone.localPhone,
-            phoneCountry: parsedPhone.countryCode,
-            currency: Currency.MKD,
-          }}
-        />
-      );
-    }
-
     return (
       <CreateListingGlobal
-        action={createListingFromDashboard}
+        action={createListingFromSell}
         categories={categories}
         cities={cities}
         templatesByCategory={templatesByCategory}
@@ -151,7 +137,9 @@ export async function CreateListingGlobalServer({
         initial={{
           categoryId: categories[0]?.id,
           phone: parsedPhone.localPhone,
-          phoneCountry: parsedPhone.countryCode,
+          phoneCountry: userRecord?.defaultCountry || parsedPhone.countryCode,
+          cityId: userRecord?.defaultCityId || undefined,
+          description: userRecord?.defaultDeliveryText || undefined,
           currency: Currency.MKD,
         }}
       />
@@ -159,7 +147,24 @@ export async function CreateListingGlobalServer({
   } catch (error) {
     if (isPrismaConnectionError(error)) {
       markPrismaUnavailable();
-      return null;
+      if (!forceOpen) return null;
+
+      return (
+        <CreateListingGlobal
+          action={createListingFromSell}
+          categories={[]}
+          cities={[]}
+          templatesByCategory={{}}
+          publishLabel={isMk ? "Објави оглас" : "Publish listing"}
+          paymentProvider="none"
+          showPlanSelector={false}
+          locale={locale}
+          forceOpen={forceOpen}
+          initial={{
+            currency: Currency.MKD,
+          }}
+        />
+      );
     }
     throw error;
   }

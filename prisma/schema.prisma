@@ -88,6 +88,10 @@ model User {
   email                   String             @unique
   name                    String?
   phone                   String?
+  defaultCountry          String?
+  defaultPhone            String?
+  defaultCityId           String?
+  defaultDeliveryText     String?
   username                String?
   company                 String?
   website                 String?

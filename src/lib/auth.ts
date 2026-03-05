@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import {
   markPrismaHealthy,
   markPrismaUnavailable,
-  shouldSkipPrismaCalls,
 } from "@/lib/prisma-circuit-breaker";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import {
@@ -36,11 +35,7 @@ const CONTROL_ACCESS_ROLES = new Set<Role>([Role.ADMIN, Role.STAFF, Role.CEO]);
 const MONEY_ANALYTICS_ROLES = new Set<Role>([Role.ADMIN, Role.CEO]);
 
 export async function getSessionUser(): Promise<SessionUser | null> {
-  if (
-    !getSupabasePublicConfig() ||
-    shouldSkipSupabaseCalls() ||
-    shouldSkipPrismaCalls()
-  ) {
+  if (!getSupabasePublicConfig() || shouldSkipSupabaseCalls()) {
     return null;
   }
 

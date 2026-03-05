@@ -68,22 +68,69 @@ export function CreateListingGlobal({
   const shouldDisableOnSell = pathname === "/sell" && !forceOpen;
 
   const mergedInitial = useMemo(() => {
-    const categoryFromQuery = searchParams.get("cat");
+    const categoryFromQuery = searchParams.get("cat")?.trim() || "";
+    const subcategoryFromQuery = searchParams.get("sub")?.trim() || "";
+    const titleFromQuery = searchParams.get("q")?.trim() || "";
+    const cityFromQuery = searchParams.get("city")?.trim() || "";
     const planFromQuery = resolvePlan(searchParams.get("plan"));
-    const categoryIsValid =
-      categoryFromQuery &&
-      categories.some((category) => category.id === categoryFromQuery);
+
+    const resolveCategoryId = (token: string) =>
+      token
+        ? categories.find(
+            (category) => category.id === token || category.slug === token,
+          )?.id
+        : undefined;
+
+    const hasTemplates = (categoryId: string | undefined) =>
+      Boolean(categoryId && (templatesByCategory[categoryId]?.length ?? 0) > 0);
+
+    const subCategoryId = resolveCategoryId(subcategoryFromQuery);
+    const categoryIdFromCat = resolveCategoryId(categoryFromQuery);
+    const resolvedQueryCategoryId = subCategoryId ?? categoryIdFromCat;
+    const resolvedQueryCategoryRecord = resolvedQueryCategoryId
+      ? categories.find((category) => category.id === resolvedQueryCategoryId)
+      : undefined;
+
+    const fallbackParentCategoryId =
+      resolvedQueryCategoryRecord?.parentId &&
+      hasTemplates(resolvedQueryCategoryRecord.parentId)
+        ? resolvedQueryCategoryRecord.parentId
+        : undefined;
+    const categoryIdWithTemplate = hasTemplates(resolvedQueryCategoryId)
+      ? resolvedQueryCategoryId
+      : fallbackParentCategoryId;
+
+    const normalizedCityQuery = cityFromQuery
+      .normalize("NFKD")
+      .toLowerCase()
+      .trim();
+    const resolvedCityId = cityFromQuery
+      ? cities.find((city) => {
+          if (city.id === cityFromQuery) return true;
+          return (
+            city.name
+              .normalize("NFKD")
+              .toLowerCase()
+              .trim() === normalizedCityQuery
+          );
+        })?.id
+      : undefined;
 
     return {
       ...initial,
-      categoryId: categoryIsValid ? categoryFromQuery : initial?.categoryId,
+      title: titleFromQuery || initial?.title,
+      categoryId: categoryIdWithTemplate ?? initial?.categoryId,
+      cityId: resolvedCityId ?? initial?.cityId,
       plan: planFromQuery ?? initial?.plan,
     };
-  }, [categories, initial, searchParams]);
+  }, [categories, cities, initial, searchParams, templatesByCategory]);
 
   function closeAndCleanQuery() {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("create");
+    nextParams.delete("error");
+    nextParams.delete("errorField");
+    nextParams.delete("defaultsSaved");
     if (pathname === "/sell") {
       nextParams.set("closed", "1");
     }

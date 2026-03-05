@@ -10,8 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { localizeCategoryName } from "@/lib/category-label";
 import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
-import { PHONE_COUNTRIES } from "@/lib/phone";
-import { smartFillFromTitle, type SmartFillSuggestions } from "@/lib/smart-fill";
+import { normalizePhoneInput, PHONE_COUNTRIES } from "@/lib/phone";
+import {
+  quickFillFromLine,
+  type QuickFillResult,
+  type QuickFillSuggestion,
+  type QuickFillCategoryCandidate,
+} from "@/lib/quick-fill";
 
 type Category = {
   id: string;
@@ -55,7 +60,18 @@ type Props = {
     plan?: ListingPlan;
   };
   locale?: "en" | "mk";
+  serverError?: string | null;
+  serverErrorField?: string | null;
+  defaultsSaved?: boolean;
 };
+
+type CreateFieldErrorKey =
+  | "title"
+  | "categoryId"
+  | "cityId"
+  | "price"
+  | "phone"
+  | "general";
 
 const MAX_CREATE_PHOTOS = 10;
 const MAX_CREATE_SINGLE_FILE_SIZE = 4 * 1024 * 1024; // 4MB
@@ -100,6 +116,9 @@ export function CreateListingWizardForm({
   paymentProvider = "none",
   initial,
   locale = "en",
+  serverError = null,
+  serverErrorField = null,
+  defaultsSaved = false,
 }: Props) {
   const isMk = locale === "mk";
   const text = isMk
@@ -115,19 +134,35 @@ export function CreateListingWizardForm({
         continue: "Продолжи",
         publish: "Објави",
         close: "Затвори",
-        smartFill: "Паметно пополнување",
-        smartFillHint:
-          "Користи наслов за да добиеш предлог за марка, модел, година, состојба и опис.",
+        quickFill: "Брзо пополнување",
+        quickFillOneLine: "Брзо пополнување (1 ред)",
+        quickFillPrompt: "Што продаваш?",
+        quickFillPlaceholder:
+          "Пример: Golf 6 2012 1.6 tdi Strumica 5500",
+        quickFillHint:
+          "Ќе добиеш структурирани предлози. Ништо не се применува автоматски.",
         suggestions: "Предлози",
+        categoryCandidates: "Категориски предлози",
         apply: "Примени",
-        smartFillTitleRequired: "Внеси наслов за да се прикажат предлози.",
-        smartFillNoSuggestions: "Нема доволно сигурни предлози од насловот.",
-        smartTitle: "Предложен наслов",
-        smartBrand: "Предложена марка",
-        smartModel: "Предложен модел",
-        smartYear: "Предложена година",
-        smartCondition: "Предложена состојба",
-        smartDescription: "Предложен опис",
+        applyAll: "Примени сѐ",
+        quickFillInputRequired: "Внеси текст за брзо пополнување.",
+        quickFillNoSuggestions: "Нема сигурни предлози за овој текст.",
+        quickFillAppliedAll: "Сите предлози се применети.",
+        quickFieldBrand: "Марка",
+        quickFieldModel: "Модел",
+        quickFieldYear: "Година",
+        quickFieldCondition: "Состојба",
+        quickFieldCity: "Град",
+        quickFieldPrice: "Цена",
+        quickFieldFuel: "Гориво",
+        quickFieldTransmission: "Менувач",
+        quickFieldKilometers: "Километри",
+        quickFieldDescription: "Опис",
+        confidenceHigh: "Висока",
+        confidenceMedium: "Средна",
+        confidenceLow: "Ниска",
+        saveDefaults: "Зачувај како мои стандарди",
+        defaultsSaved: "Стандардните вредности се зачувани.",
         title: "Наслов",
         titlePlaceholder: "Пример: Volkswagen Golf 7 2017",
         titleRequired: "Насловот е задолжителен.",
@@ -203,19 +238,34 @@ export function CreateListingWizardForm({
         continue: "Continue",
         publish: "Publish",
         close: "Close",
-        smartFill: "Smart Fill",
-        smartFillHint:
-          "Use title parsing to suggest brand, model, year, condition, and a cleaner description.",
+        quickFill: "Quick Fill",
+        quickFillOneLine: "Quick Fill (1 line)",
+        quickFillPrompt: "What are you selling?",
+        quickFillPlaceholder: "Example: Golf 6 2012 1.6 tdi Strumica 5500",
+        quickFillHint:
+          "Get structured suggestions only. Nothing is auto-applied.",
         suggestions: "Suggestions",
+        categoryCandidates: "Category candidates",
         apply: "Apply",
-        smartFillTitleRequired: "Enter a title to generate suggestions.",
-        smartFillNoSuggestions: "No reliable suggestions were found from the title.",
-        smartTitle: "Suggested title",
-        smartBrand: "Suggested brand",
-        smartModel: "Suggested model",
-        smartYear: "Suggested year",
-        smartCondition: "Suggested condition",
-        smartDescription: "Suggested description",
+        applyAll: "Apply all",
+        quickFillInputRequired: "Enter a quick-fill line first.",
+        quickFillNoSuggestions: "No reliable suggestions found for this line.",
+        quickFillAppliedAll: "All suggestions were applied.",
+        quickFieldBrand: "Brand",
+        quickFieldModel: "Model",
+        quickFieldYear: "Year",
+        quickFieldCondition: "Condition",
+        quickFieldCity: "City",
+        quickFieldPrice: "Price",
+        quickFieldFuel: "Fuel",
+        quickFieldTransmission: "Transmission",
+        quickFieldKilometers: "Kilometers",
+        quickFieldDescription: "Description",
+        confidenceHigh: "High",
+        confidenceMedium: "Medium",
+        confidenceLow: "Low",
+        saveDefaults: "Save as my defaults",
+        defaultsSaved: "Your default seller values were saved.",
         title: "Title",
         titlePlaceholder: "Example: Volkswagen Golf 7 2017",
         titleRequired: "Title is required.",
@@ -308,9 +358,19 @@ export function CreateListingWizardForm({
   );
   const [phoneCountry, setPhoneCountry] = useState(initial?.phoneCountry ?? "MK");
   const [phone, setPhone] = useState(initial?.phone ?? "");
-  const [smartSuggestions, setSmartSuggestions] =
-    useState<SmartFillSuggestions | null>(null);
-  const [smartFillMessage, setSmartFillMessage] = useState<string | null>(null);
+  const [quickFillLine, setQuickFillLine] = useState(initial?.title ?? "");
+  const [quickFillResult, setQuickFillResult] = useState<QuickFillResult | null>(
+    null,
+  );
+  const [quickFillMessage, setQuickFillMessage] = useState<string | null>(null);
+  const [suggestedDynamicValues, setSuggestedDynamicValues] = useState<
+    Record<string, string>
+  >({});
+  const [serverErrorMessage, setServerErrorMessage] = useState<string | null>(serverError);
+
+  useEffect(() => {
+    setServerErrorMessage(serverError);
+  }, [serverError]);
 
   const paymentAmount = plan === "subscription" ? 30 : 4;
   const paymentLabel = plan === "subscription" ? text.subscription : text.payPerListing;
@@ -391,25 +451,99 @@ export function CreateListingWizardForm({
       })
       .map((entry) => entry.category);
   }, [categoriesWithTemplates, categorySearch, categorySearchEntries, locale]);
-  const hasSmartSuggestions = useMemo(
-    () =>
-      Boolean(
-        smartSuggestions &&
-          Object.values(smartSuggestions).some(
-            (value) =>
-              typeof value === "string"
-                ? value.trim().length > 0
-                : Boolean(value),
-          ),
-      ),
-    [smartSuggestions],
+  const selectedCategoryTemplates = useMemo(
+    () => templatesByCategory[resolvedSelectedCategoryId] ?? [],
+    [resolvedSelectedCategoryId, templatesByCategory],
   );
+  const dynamicFieldKeysBySuggestion = useMemo(() => {
+    const findTemplateKey = (patterns: string[]) =>
+      selectedCategoryTemplates.find((template) => {
+        const normalized = normalizeSearchText(`${template.key} ${template.label}`);
+        return patterns.some((pattern) => normalized.includes(pattern));
+      })?.key;
+
+    return {
+      brand: findTemplateKey(["brand", "make", "марка"]),
+      model: findTemplateKey(["model", "модел"]),
+      year: findTemplateKey(["year", "година"]),
+      fuel: findTemplateKey(["fuel", "гориво"]),
+      transmission: findTemplateKey([
+        "transmission",
+        "gearbox",
+        "менувач",
+        "трансмисија",
+      ]),
+      kilometers: findTemplateKey(["kilometer", "kilomet", "mileage", "км", "килом"]),
+    };
+  }, [selectedCategoryTemplates]);
+  const quickSuggestions = quickFillResult?.suggestions ?? [];
+  const quickCategoryCandidates = quickFillResult?.categoryCandidates ?? [];
+  const hasQuickFillSuggestions =
+    quickSuggestions.length > 0 || quickCategoryCandidates.length > 0;
+  const normalizedServerErrorField = useMemo<CreateFieldErrorKey>(() => {
+    if (serverErrorField === "title") return "title";
+    if (serverErrorField === "categoryId") return "categoryId";
+    if (serverErrorField === "cityId") return "cityId";
+    if (serverErrorField === "price") return "price";
+    if (serverErrorField === "phone") return "phone";
+    if (!serverErrorMessage) return "general";
+
+    if (/(phone|телефон)/i.test(serverErrorMessage)) return "phone";
+    if (/(title|наслов)/i.test(serverErrorMessage)) return "title";
+    if (/(price|цена)/i.test(serverErrorMessage)) return "price";
+    if (/(category|категори)/i.test(serverErrorMessage)) return "categoryId";
+    if (/(city|град)/i.test(serverErrorMessage)) return "cityId";
+    return "general";
+  }, [serverErrorField, serverErrorMessage]);
+
+  const titleServerError =
+    serverErrorMessage && normalizedServerErrorField === "title"
+      ? serverErrorMessage
+      : null;
+  const categoryServerError =
+    serverErrorMessage && normalizedServerErrorField === "categoryId"
+      ? serverErrorMessage
+      : null;
+  const cityServerError =
+    serverErrorMessage && normalizedServerErrorField === "cityId"
+      ? serverErrorMessage
+      : null;
+  const priceServerError =
+    serverErrorMessage && normalizedServerErrorField === "price"
+      ? serverErrorMessage
+      : null;
+  const phoneServerError =
+    serverErrorMessage && normalizedServerErrorField === "phone"
+      ? serverErrorMessage
+      : null;
+  const generalServerError = serverErrorMessage;
 
   useEffect(() => {
     return () => {
       photoPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [photoPreviewUrls]);
+
+  useEffect(() => {
+    if (!serverErrorMessage) return;
+    if (
+      normalizedServerErrorField === "title"
+    ) {
+      setCurrentStep(1);
+      return;
+    }
+    if (
+      normalizedServerErrorField === "categoryId" ||
+      normalizedServerErrorField === "cityId" ||
+      normalizedServerErrorField === "price"
+    ) {
+      setCurrentStep(2);
+      return;
+    }
+    if (normalizedServerErrorField === "phone") {
+      setCurrentStep(3);
+    }
+  }, [normalizedServerErrorField, serverErrorMessage]);
 
   useEffect(() => {
     if (!showPaymentPanel) return;
@@ -463,25 +597,174 @@ export function CreateListingWizardForm({
     });
   }
 
-  function runSmartFill() {
-    const baseTitle = title.trim();
-    if (!baseTitle) {
-      setSmartSuggestions(null);
-      setSmartFillMessage(text.smartFillTitleRequired);
+  function resolveQuickSuggestionLabel(suggestion: QuickFillSuggestion) {
+    if (suggestion.field === "brand") return text.quickFieldBrand;
+    if (suggestion.field === "model") return text.quickFieldModel;
+    if (suggestion.field === "year") return text.quickFieldYear;
+    if (suggestion.field === "condition") return text.quickFieldCondition;
+    if (suggestion.field === "city") return text.quickFieldCity;
+    if (suggestion.field === "price") return text.quickFieldPrice;
+    if (suggestion.field === "fuel") return text.quickFieldFuel;
+    if (suggestion.field === "transmission") return text.quickFieldTransmission;
+    if (suggestion.field === "kilometers") return text.quickFieldKilometers;
+    return text.quickFieldDescription;
+  }
+
+  function resolveConfidenceLabel(confidence: "high" | "medium" | "low") {
+    if (confidence === "high") return text.confidenceHigh;
+    if (confidence === "medium") return text.confidenceMedium;
+    return text.confidenceLow;
+  }
+
+  function resolveCategoryForCandidate(candidateId: string) {
+    const hasTemplates = (categoryId: string | undefined) =>
+      Boolean(categoryId && (templatesByCategory[categoryId]?.length ?? 0) > 0);
+
+    if (hasTemplates(candidateId)) return candidateId;
+    const selected = categories.find((category) => category.id === candidateId);
+    if (!selected) return "";
+    if (hasTemplates(selected.parentId || undefined)) return selected.parentId || "";
+    const firstChildWithTemplates = categories.find(
+      (category) => category.parentId === selected.id && hasTemplates(category.id),
+    );
+    return firstChildWithTemplates?.id || "";
+  }
+
+  function applyQuickCategoryCandidate(candidate: QuickFillCategoryCandidate) {
+    const resolvedCategoryId = resolveCategoryForCandidate(candidate.categoryId);
+    if (!resolvedCategoryId) return;
+    setSelectedCategoryId(resolvedCategoryId);
+    setServerErrorMessage(null);
+  }
+
+  function applyQuickSuggestion(suggestion: QuickFillSuggestion) {
+    if (suggestion.field === "condition" && suggestion.condition) {
+      setCondition(suggestion.condition);
+      setServerErrorMessage(null);
       return;
     }
 
-    const suggestions = smartFillFromTitle(baseTitle, locale);
-    setSmartSuggestions(suggestions);
-    if (
-      !Object.values(suggestions).some((value) =>
-        typeof value === "string" ? value.trim().length > 0 : Boolean(value),
-      )
-    ) {
-      setSmartFillMessage(text.smartFillNoSuggestions);
+    if (suggestion.field === "city") {
+      const resolvedCityId =
+        suggestion.cityId ||
+        cities.find(
+          (city) =>
+            normalizeSearchText(city.name) === normalizeSearchText(suggestion.value),
+        )?.id;
+      if (resolvedCityId) setCityId(resolvedCityId);
+      setServerErrorMessage(null);
       return;
     }
-    setSmartFillMessage(null);
+
+    if (suggestion.field === "price") {
+      const numericValue = suggestion.value.replace(/[^\d]/g, "");
+      if (numericValue) setPrice(numericValue);
+      setServerErrorMessage(null);
+      return;
+    }
+
+    if (suggestion.field === "description") {
+      setDescription(suggestion.value);
+      return;
+    }
+
+    if (suggestion.field === "brand") {
+      if (dynamicFieldKeysBySuggestion.brand) {
+        setSuggestedDynamicValues((previous) => ({
+          ...previous,
+          [dynamicFieldKeysBySuggestion.brand as string]: suggestion.value,
+        }));
+      } else {
+        appendSuggestionToTitle(suggestion.value);
+      }
+      return;
+    }
+
+    if (suggestion.field === "model") {
+      if (dynamicFieldKeysBySuggestion.model) {
+        setSuggestedDynamicValues((previous) => ({
+          ...previous,
+          [dynamicFieldKeysBySuggestion.model as string]: suggestion.value,
+        }));
+      } else {
+        appendSuggestionToTitle(suggestion.value);
+      }
+      return;
+    }
+
+    if (suggestion.field === "year") {
+      if (dynamicFieldKeysBySuggestion.year) {
+        setSuggestedDynamicValues((previous) => ({
+          ...previous,
+          [dynamicFieldKeysBySuggestion.year as string]: suggestion.value,
+        }));
+      } else {
+        appendSuggestionToTitle(suggestion.value);
+      }
+      return;
+    }
+
+    if (suggestion.field === "fuel" && dynamicFieldKeysBySuggestion.fuel) {
+      setSuggestedDynamicValues((previous) => ({
+        ...previous,
+        [dynamicFieldKeysBySuggestion.fuel as string]: suggestion.value,
+      }));
+      return;
+    }
+
+    if (
+      suggestion.field === "transmission" &&
+      dynamicFieldKeysBySuggestion.transmission
+    ) {
+      setSuggestedDynamicValues((previous) => ({
+        ...previous,
+        [dynamicFieldKeysBySuggestion.transmission as string]: suggestion.value,
+      }));
+      return;
+    }
+
+    if (suggestion.field === "kilometers" && dynamicFieldKeysBySuggestion.kilometers) {
+      setSuggestedDynamicValues((previous) => ({
+        ...previous,
+        [dynamicFieldKeysBySuggestion.kilometers as string]: suggestion.value,
+      }));
+      return;
+    }
+
+    appendSuggestionToTitle(suggestion.value);
+  }
+
+  function applyAllQuickFill() {
+    if (!quickFillResult) return;
+    if (quickFillResult.categoryCandidates[0]) {
+      applyQuickCategoryCandidate(quickFillResult.categoryCandidates[0]);
+    }
+    quickFillResult.suggestions.forEach((suggestion) => {
+      applyQuickSuggestion(suggestion);
+    });
+    setQuickFillMessage(text.quickFillAppliedAll);
+  }
+
+  function runQuickFill() {
+    const input = quickFillLine.trim();
+    if (!input) {
+      setQuickFillResult(null);
+      setQuickFillMessage(text.quickFillInputRequired);
+      return;
+    }
+
+    const result = quickFillFromLine({
+      text: input,
+      locale,
+      categories,
+      cities,
+    });
+    setQuickFillResult(result);
+    if (result.suggestions.length === 0 && result.categoryCandidates.length === 0) {
+      setQuickFillMessage(text.quickFillNoSuggestions);
+      return;
+    }
+    setQuickFillMessage(null);
   }
 
   function validateCurrentStep(step: number) {
@@ -501,6 +784,8 @@ export function CreateListingWizardForm({
     }
 
     if (!phone.trim()) return text.phoneRequired;
+    const normalizedPhoneResult = normalizePhoneInput(phone, phoneCountry, locale);
+    if (!normalizedPhoneResult.ok) return normalizedPhoneResult.error;
     return null;
   }
 
@@ -527,6 +812,19 @@ export function CreateListingWizardForm({
       encType="multipart/form-data"
       className="space-y-5 pb-24 md:space-y-6 md:pb-0"
       onSubmit={(event) => {
+        const submitEvent = event.nativeEvent as SubmitEvent;
+        const submitter = submitEvent.submitter as
+          | HTMLButtonElement
+          | HTMLInputElement
+          | null;
+        const submitIntent = submitter?.value;
+
+        if (submitIntent === "save-defaults") {
+          setServerErrorMessage(null);
+          setStepError(null);
+          return;
+        }
+
         const photosError = validateCreatePhotos(photosInputRef.current?.files ?? null);
         setPhotoValidationError(photosError);
         if (photosError) {
@@ -535,6 +833,14 @@ export function CreateListingWizardForm({
           setStepError(photosError);
           return;
         }
+        const finalError = validateCurrentStep(3);
+        if (finalError) {
+          event.preventDefault();
+          setCurrentStep(3);
+          setStepError(finalError);
+          return;
+        }
+        setServerErrorMessage(null);
         setStepError(null);
       }}
     >
@@ -573,6 +879,18 @@ export function CreateListingWizardForm({
           {stepError}
         </p>
       )}
+
+      {generalServerError && (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {generalServerError}
+        </p>
+      )}
+
+      {defaultsSaved ? (
+        <p className="rounded-xl border border-green-300/60 bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-300">
+          {text.defaultsSaved}
+        </p>
+      ) : null}
 
       <section className={currentStep === 1 ? "space-y-4" : "hidden"}>
         <div className="space-y-2 rounded-2xl border border-border/70 bg-card p-4">
@@ -625,88 +943,110 @@ export function CreateListingWizardForm({
             value={title}
             onChange={(event) => {
               setTitle(event.target.value);
-              setSmartFillMessage(null);
+              setServerErrorMessage(null);
             }}
             placeholder={text.titlePlaceholder}
             required
           />
+          {titleServerError ? (
+            <p className="text-xs font-medium text-destructive">{titleServerError}</p>
+          ) : null}
         </label>
 
         <div className="space-y-2 rounded-2xl border border-primary/20 bg-primary/5 p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold">{text.smartFill}</p>
-              <p className="text-xs text-muted-foreground">{text.smartFillHint}</p>
+              <p className="text-sm font-semibold">{text.quickFillOneLine}</p>
+              <p className="text-xs text-muted-foreground">{text.quickFillHint}</p>
             </div>
-            <Button type="button" size="sm" variant="outline" onClick={runSmartFill} className="gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={runQuickFill}
+              className="gap-1"
+            >
               <Wand2 size={14} />
-              {text.smartFill}
+              {text.quickFill}
             </Button>
           </div>
 
-          {smartFillMessage && (
-            <p className="text-xs font-medium text-muted-foreground">{smartFillMessage}</p>
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <Input
+              value={quickFillLine}
+              onChange={(event) => {
+                setQuickFillLine(event.target.value);
+                setQuickFillMessage(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                runQuickFill();
+              }}
+              placeholder={text.quickFillPrompt}
+            />
+            <Button type="button" variant="outline" onClick={runQuickFill}>
+              {text.quickFill}
+            </Button>
+          </div>
+
+          {quickFillMessage && (
+            <p className="text-xs font-medium text-muted-foreground">{quickFillMessage}</p>
           )}
 
-          {smartSuggestions && hasSmartSuggestions && (
+          {hasQuickFillSuggestions && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.suggestions}
-              </p>
-              {smartSuggestions.suggestedTitle && (
-                <SuggestionRow
-                  label={text.smartTitle}
-                  value={smartSuggestions.suggestedTitle}
-                  applyLabel={text.apply}
-                  onApply={() => setTitle(smartSuggestions.suggestedTitle || "")}
-                />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.suggestions}
+                </p>
+                <Button type="button" size="sm" variant="ghost" onClick={applyAllQuickFill}>
+                  {text.applyAll}
+                </Button>
+              </div>
+
+              {quickCategoryCandidates.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {text.categoryCandidates}
+                  </p>
+                  {quickCategoryCandidates.map((candidate) => {
+                    const candidateCategory = categories.find(
+                      (category) => category.id === candidate.categoryId,
+                    );
+                    const valueLabel = candidateCategory
+                      ? localizeCategoryName(candidateCategory, locale)
+                      : candidate.label;
+                    return (
+                      <SuggestionRow
+                        key={`category-${candidate.categoryId}-${candidate.confidence}`}
+                        label={text.category}
+                        value={valueLabel}
+                        confidenceLabel={resolveConfidenceLabel(candidate.confidence)}
+                        applyLabel={text.apply}
+                        onApply={() => applyQuickCategoryCandidate(candidate)}
+                      />
+                    );
+                  })}
+                </div>
               )}
-              {smartSuggestions.suggestedBrand && (
-                <SuggestionRow
-                  label={text.smartBrand}
-                  value={smartSuggestions.suggestedBrand}
-                  applyLabel={text.apply}
-                  onApply={() =>
-                    appendSuggestionToTitle(smartSuggestions.suggestedBrand || "")
-                  }
-                />
-              )}
-              {smartSuggestions.suggestedModel && (
-                <SuggestionRow
-                  label={text.smartModel}
-                  value={smartSuggestions.suggestedModel}
-                  applyLabel={text.apply}
-                  onApply={() =>
-                    appendSuggestionToTitle(smartSuggestions.suggestedModel || "")
-                  }
-                />
-              )}
-              {smartSuggestions.suggestedYear && (
-                <SuggestionRow
-                  label={text.smartYear}
-                  value={smartSuggestions.suggestedYear}
-                  applyLabel={text.apply}
-                  onApply={() =>
-                    appendSuggestionToTitle(smartSuggestions.suggestedYear || "")
-                  }
-                />
-              )}
-              {smartSuggestions.suggestedCondition && (
-                <SuggestionRow
-                  label={text.smartCondition}
-                  value={conditionLabelByValue[smartSuggestions.suggestedCondition]}
-                  applyLabel={text.apply}
-                  onApply={() => setCondition(smartSuggestions.suggestedCondition || condition)}
-                />
-              )}
-              {smartSuggestions.suggestedDescription && (
-                <SuggestionRow
-                  label={text.smartDescription}
-                  value={smartSuggestions.suggestedDescription}
-                  applyLabel={text.apply}
-                  onApply={() => setDescription(smartSuggestions.suggestedDescription || "")}
-                />
-              )}
+
+              {quickSuggestions.map((suggestion, index) => {
+                const suggestionValue =
+                  suggestion.field === "condition" && suggestion.condition
+                    ? conditionLabelByValue[suggestion.condition]
+                    : suggestion.value;
+                return (
+                  <SuggestionRow
+                    key={`suggestion-${suggestion.field}-${suggestion.value}-${index}`}
+                    label={resolveQuickSuggestionLabel(suggestion)}
+                    value={suggestionValue}
+                    confidenceLabel={resolveConfidenceLabel(suggestion.confidence)}
+                    applyLabel={text.apply}
+                    onApply={() => applyQuickSuggestion(suggestion)}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
@@ -727,7 +1067,10 @@ export function CreateListingWizardForm({
             <Select
               name="categoryId"
               value={resolvedSelectedCategoryId}
-              onChange={(event) => setSelectedCategoryId(event.target.value)}
+              onChange={(event) => {
+                setSelectedCategoryId(event.target.value);
+                setServerErrorMessage(null);
+              }}
               required
             >
               <option value="" disabled>
@@ -745,6 +1088,9 @@ export function CreateListingWizardForm({
                 ))
               )}
             </Select>
+            {categoryServerError ? (
+              <p className="text-xs font-medium text-destructive">{categoryServerError}</p>
+            ) : null}
           </label>
         </div>
 
@@ -754,7 +1100,10 @@ export function CreateListingWizardForm({
             <Select
               name="cityId"
               value={cityId}
-              onChange={(event) => setCityId(event.target.value)}
+              onChange={(event) => {
+                setCityId(event.target.value);
+                setServerErrorMessage(null);
+              }}
               required
             >
               {cities.length === 0 ? (
@@ -769,6 +1118,9 @@ export function CreateListingWizardForm({
                 ))
               )}
             </Select>
+            {cityServerError ? (
+              <p className="text-xs font-medium text-destructive">{cityServerError}</p>
+            ) : null}
           </label>
 
           <label className="space-y-1">
@@ -779,10 +1131,16 @@ export function CreateListingWizardForm({
               min="1"
               step="1"
               value={price}
-              onChange={(event) => setPrice(event.target.value)}
+              onChange={(event) => {
+                setPrice(event.target.value);
+                setServerErrorMessage(null);
+              }}
               placeholder={text.pricePlaceholder}
               required
             />
+            {priceServerError ? (
+              <p className="text-xs font-medium text-destructive">{priceServerError}</p>
+            ) : null}
           </label>
         </div>
 
@@ -852,7 +1210,10 @@ export function CreateListingWizardForm({
               <Input
                 name="phone"
                 value={phone}
-                onChange={(event) => setPhone(event.target.value)}
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                  setServerErrorMessage(null);
+                }}
                 placeholder={text.phonePlaceholder}
                 required
                 minLength={6}
@@ -861,6 +1222,9 @@ export function CreateListingWizardForm({
                 autoComplete="tel"
                 pattern="[0-9+()\\-\\s]{6,20}"
               />
+              {phoneServerError ? (
+                <p className="text-xs font-medium text-destructive">{phoneServerError}</p>
+              ) : null}
             </label>
           </div>
           <p className="text-xs text-muted-foreground">{text.acceptedPhoneFormat}</p>
@@ -886,6 +1250,7 @@ export function CreateListingWizardForm({
               categoryId={resolvedSelectedCategoryId}
               templatesByCategory={templatesByCategory}
               initialValues={initial?.dynamicValues}
+              suggestedValues={suggestedDynamicValues}
               locale={locale}
             />
           ) : (
@@ -925,6 +1290,12 @@ export function CreateListingWizardForm({
               {phone.trim() ? `${phoneCountry} ${phone}` : text.noValue}
             </p>
           </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button name="intent" value="save-defaults" type="submit" variant="outline">
+            {text.saveDefaults}
+          </Button>
         </div>
 
         {showPlanSelector && (
@@ -1163,20 +1534,29 @@ export function CreateListingWizardForm({
 function SuggestionRow({
   label,
   value,
+  confidenceLabel,
   applyLabel,
   onApply,
 }: {
   label: string;
   value: string;
+  confidenceLabel?: string;
   applyLabel: string;
   onApply: () => void;
 }) {
   return (
     <div className="flex items-start justify-between gap-2 rounded-xl border border-border/70 bg-card/90 px-3 py-2">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          {confidenceLabel ? (
+            <span className="rounded-full border border-border/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {confidenceLabel}
+            </span>
+          ) : null}
+        </div>
         <p className="line-clamp-2 text-sm text-foreground">{value}</p>
       </div>
       <Button type="button" size="sm" variant="outline" onClick={onApply}>

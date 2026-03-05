@@ -30,9 +30,17 @@ const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const MAX_TOTAL_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const MAX_IMAGES_PER_LISTING = 10;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const MAX_DEFAULT_DELIVERY_TEXT_LENGTH = 600;
 
 type CreateRedirectBase = "/sell" | "/sell/analytics" | "/dashboard";
 type ActionLocale = "en" | "mk";
+type CreateErrorField =
+  | "title"
+  | "categoryId"
+  | "cityId"
+  | "price"
+  | "phone"
+  | "general";
 
 function resolveActionLocale(value: FormDataEntryValue | null): ActionLocale {
   return value === "mk" ? "mk" : "en";
@@ -76,8 +84,28 @@ function resolveActiveUntil(status: ListingStatus, plan: string) {
   return new Date(Date.now() + THIRTY_DAYS_MS);
 }
 
-function redirectWithError(basePath: CreateRedirectBase, message: string): never {
-  redirect(`${basePath}?error=${encodeURIComponent(message)}`);
+function inferErrorField(message: string): CreateErrorField {
+  if (/(phone|телефон)/i.test(message)) return "phone";
+  if (/(title|наслов)/i.test(message)) return "title";
+  if (/(price|цена)/i.test(message)) return "price";
+  if (/(category|категори)/i.test(message)) return "categoryId";
+  if (/(city|град)/i.test(message)) return "cityId";
+  return "general";
+}
+
+function redirectWithError(
+  _basePath: CreateRedirectBase,
+  message: string,
+  field: CreateErrorField = "general",
+): never {
+  const resolvedField = field === "general" ? inferErrorField(message) : field;
+  const next = new URLSearchParams();
+  next.set("create", "1");
+  next.set("error", message);
+  if (resolvedField !== "general") {
+    next.set("errorField", resolvedField);
+  }
+  redirect(`/sell?${next.toString()}`);
 }
 
 function sanitizeFileName(fileName: string) {
@@ -216,7 +244,7 @@ async function createListingWithBase(
   const cityId = String(formData.get("cityId") || "");
   const currencyRaw = String(formData.get("currency") || Currency.MKD);
   if (!isMarketplaceCurrency(currencyRaw)) {
-    redirectWithError(basePath, msg.onlyEurMkd);
+    redirectWithError(basePath, msg.onlyEurMkd, "price");
   }
   const currency = currencyRaw;
   const condition = formData.get(
@@ -228,11 +256,11 @@ async function createListingWithBase(
   if (phoneRaw.length > 0) {
     const normalizedPhoneResult = normalizePhoneInput(phoneRaw, phoneCountry, locale);
     if (!normalizedPhoneResult.ok) {
-      redirectWithError(basePath, normalizedPhoneResult.error);
+      redirectWithError(basePath, normalizedPhoneResult.error, "phone");
     }
     sellerPhoneToSave = normalizedPhoneResult.e164;
   } else if (status === ListingStatus.ACTIVE) {
-    redirectWithError(basePath, msg.phoneRequired);
+    redirectWithError(basePath, msg.phoneRequired, "phone");
   }
   const price = Number(formData.get("price") || 0);
   const priceCents = Number.isFinite(price) ? Math.round(price * 100) : 0;
@@ -240,12 +268,59 @@ async function createListingWithBase(
   const dynamicValues = getDynamicFieldEntries(formData);
   const imageFiles = getImageFiles(formData);
 
+  if (intent === "save-defaults") {
+    if (cityId) {
+      try {
+        const cityExists = await prisma.city.count({
+          where: { id: cityId },
+        });
+        markPrismaHealthy();
+        if (cityExists === 0) {
+          redirectWithError(basePath, msg.cityInvalid, "cityId");
+        }
+      } catch (error) {
+        if (isPrismaConnectionError(error)) {
+          markPrismaUnavailable();
+          redirectWithError(basePath, msg.dbUnavailable);
+        }
+        throw error;
+      }
+    }
+
+    const defaultDeliveryText = description
+      ? description.slice(0, MAX_DEFAULT_DELIVERY_TEXT_LENGTH)
+      : null;
+
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          defaultCountry: phoneCountry || null,
+          defaultPhone: sellerPhoneToSave,
+          defaultCityId: cityId || null,
+          defaultDeliveryText,
+          ...(sellerPhoneToSave ? { phone: sellerPhoneToSave } : {}),
+        },
+      });
+      markPrismaHealthy();
+    } catch (error) {
+      if (isPrismaConnectionError(error)) {
+        markPrismaUnavailable();
+        redirectWithError(basePath, msg.dbUnavailable);
+      }
+      throw error;
+    }
+
+    revalidatePath("/sell");
+    redirect("/sell?create=1&defaultsSaved=1");
+  }
+
   if (status === ListingStatus.ACTIVE) {
     if (!categoryId) {
-      redirectWithError(basePath, msg.categoryRequired);
+      redirectWithError(basePath, msg.categoryRequired, "categoryId");
     }
     if (!cityId) {
-      redirectWithError(basePath, msg.cityRequired);
+      redirectWithError(basePath, msg.cityRequired, "cityId");
     }
 
     try {
@@ -259,10 +334,10 @@ async function createListingWithBase(
       ]);
       markPrismaHealthy();
       if (categoryExists === 0) {
-        redirectWithError(basePath, msg.categoryInvalid);
+        redirectWithError(basePath, msg.categoryInvalid, "categoryId");
       }
       if (cityExists === 0) {
-        redirectWithError(basePath, msg.cityInvalid);
+        redirectWithError(basePath, msg.cityInvalid, "cityId");
       }
     } catch (error) {
       if (isPrismaConnectionError(error)) {
@@ -401,7 +476,7 @@ async function createListingWithBase(
   if (listingId) revalidatePath(`/listing/${listingId}`);
 
   if (status === ListingStatus.ACTIVE && isFirstPublishedPost) {
-    redirect(`${basePath}?free=1`);
+    redirect(`/listing/${listingId}?created=1`);
   }
   if (
     status === ListingStatus.ACTIVE &&
@@ -409,7 +484,10 @@ async function createListingWithBase(
     !hasActiveSubscription &&
     chargedWithDummyPayment
   ) {
-    redirect(`${basePath}?paid=1`);
+    redirect(`/listing/${listingId}?created=1&paid=1`);
+  }
+  if (status === ListingStatus.ACTIVE) {
+    redirect(`/listing/${listingId}?created=1`);
   }
   if (status === ListingStatus.DRAFT) {
     if (listingId) {
@@ -431,10 +509,10 @@ export async function createListingFromSell(formData: FormData) {
 
 export async function createListingFromAnalytics(formData: FormData) {
   "use server";
-  await createListingWithBase(formData, "/sell/analytics");
+  await createListingWithBase(formData, "/sell");
 }
 
 export async function createListingFromDashboard(formData: FormData) {
   "use server";
-  await createListingWithBase(formData, "/dashboard");
+  await createListingWithBase(formData, "/sell");
 }

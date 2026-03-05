@@ -11,6 +11,7 @@ import {
   LogIn,
   Search,
 } from "lucide-react";
+import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ type NavItem = {
 
 export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
   const pathname = usePathname();
+  const sellHref = buildCreateListingHref();
   const currentPath = pathname;
   const safeNextPath =
     currentPath.startsWith("/") &&
@@ -53,7 +55,7 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
   const items: NavItem[] = [
     { href: "/", label: labels.home, icon: House, show: true },
     { href: "/browse", label: labels.browse, icon: Search, show: true },
-    { href: "/sell", label: labels.sell, icon: CirclePlus, show: true },
+    { href: sellHref, label: labels.sell, icon: CirclePlus, show: true },
     {
       href: isAdmin ? "/admin" : profileOrLoginHref,
       label: isAdmin ? labels.dashboard : profileOrLoginLabel,
@@ -68,6 +70,7 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
         {items
           .filter((item) => item.show !== false)
           .map((item) => {
+            const itemPath = item.href.split("?")[0];
             const active =
               item.href === "/admin"
                 ? isActivePath(pathname, "/admin")
@@ -75,7 +78,7 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
                   ? isActivePath(pathname, "/dashboard") || isActivePath(pathname, "/profile")
                 : item.href.startsWith("/login")
                   ? isActivePath(pathname, "/profile") || isActivePath(pathname, "/dashboard")
-                  : isActivePath(pathname, item.href);
+                  : isActivePath(pathname, itemPath);
 
             return (
               <Link

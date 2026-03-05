@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CategoryFieldType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ type Props = {
   categoryId: string;
   templatesByCategory: Record<string, Template[]>;
   initialValues?: Record<string, string>;
+  suggestedValues?: Record<string, string>;
   locale?: "en" | "mk";
 };
 
@@ -103,6 +104,7 @@ export function DynamicFieldsEditor({
   categoryId,
   templatesByCategory,
   initialValues = {},
+  suggestedValues = {},
   locale = "en",
 }: Props) {
   const isMk = locale === "mk";
@@ -142,6 +144,31 @@ export function DynamicFieldsEditor({
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(
     initialTemplateValues,
   );
+
+  useEffect(() => {
+    setFieldValues(initialTemplateValues);
+  }, [initialTemplateValues]);
+
+  useEffect(() => {
+    const entries = Object.entries(suggestedValues).filter(
+      ([key, value]) =>
+        templates.some((template) => template.key === key) &&
+        typeof value === "string" &&
+        value.trim().length > 0,
+    );
+    if (entries.length === 0) return;
+
+    setFieldValues((previous) => {
+      let changed = false;
+      const nextValues = { ...previous };
+      for (const [key, value] of entries) {
+        if (nextValues[key] === value) continue;
+        nextValues[key] = value;
+        changed = true;
+      }
+      return changed ? nextValues : previous;
+    });
+  }, [suggestedValues, templates]);
 
   function updateField(key: string, value: string) {
     setFieldValues((prev) => ({ ...prev, [key]: value }));
