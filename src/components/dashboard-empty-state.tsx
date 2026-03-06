@@ -7,7 +7,8 @@ type Props = {
   title: string;
   description: string;
   ctaLabel: string;
-  ctaHref: string;
+  ctaHref?: string;
+  onCtaClick?: () => void;
 };
 
 export function DashboardEmptyState({
@@ -15,6 +16,7 @@ export function DashboardEmptyState({
   description,
   ctaLabel,
   ctaHref,
+  onCtaClick,
 }: Props) {
   return (
     <Card className="border-border/70 bg-muted/20">
@@ -26,9 +28,18 @@ export function DashboardEmptyState({
           <p className="text-base font-semibold">{title}</p>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <Link href={ctaHref}>
-          <Button>{ctaLabel}</Button>
-        </Link>
+        {onCtaClick ? (
+          <Button
+            type="button"
+            onClick={onCtaClick}
+          >
+            {ctaLabel}
+          </Button>
+        ) : ctaHref ? (
+          <Link href={ctaHref}>
+            <Button>{ctaLabel}</Button>
+          </Link>
+        ) : null}
       </CardContent>
     </Card>
   );

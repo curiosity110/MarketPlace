@@ -1,0 +1,15 @@
+You have full control, but follow these hard rules:
+
+- Do NOT break translations (EN + MK already exist)
+- Do NOT change business logic
+- Do NOT change auth behavior
+- Do NOT change database schema
+- Do NOT change routes unless explicitly required
+- Do NOT add redirects
+- Preserve existing working functionality
+- This is an opinionated UI/UX redesign pass, not a logic pass
+- Prefer deleting clutter over adding more UI
+- Prefer fewer sections, fewer borders, fewer pills, fewer repeated labels
+- Avoid “card inside card inside card” design
+- Mobile-first
+- Strong hierarchy, calm spacing, fewer decorative elements

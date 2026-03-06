@@ -1,19 +1,34 @@
-import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  CategoryFieldType,
   type ListingCondition as ListingConditionType,
   ListingCondition,
   ListingStatus,
   Prisma,
 } from "@prisma/client";
-import { SlidersHorizontal } from "lucide-react";
+import type {
+  ActiveFilterChip,
+  BrowseTemplate,
+  CarMakeOption,
+  ListingSimilarityData,
+} from "@/app/browse/browse-page.types";
+import {
+  buildBrowseBaseParams,
+  buildBrowsePageHref,
+  getBrowseParam,
+  isCarsSlug,
+  parseBrowseSort,
+  parseOptionalNumberParam,
+  parseOptionalYearParam,
+} from "@/app/browse/browse-page.utils";
+import {
+  BrowseEmptyState,
+  BrowseHeader,
+  BrowsePagination,
+  BrowseResultsGrid,
+  BrowseSimilarityBar,
+} from "@/components/browse-page";
 import { BrowseFilters } from "@/components/browse-filters";
-import { ListingCard } from "@/components/listing-card";
-import { SaveSearchPopout } from "@/components/save-search-popout";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getSessionUser } from "@/lib/auth";
 import {
@@ -40,38 +55,6 @@ import { parseTemplateOptions } from "@/lib/listing-fields";
 
 const PAGE_SIZE = 10;
 export const revalidate = 60;
-type BrowseSort = "newest" | "price-asc" | "price-desc";
-type BrowseTemplate = {
-  key: string;
-  label: string;
-  type: CategoryFieldType;
-  options: string[];
-};
-type CarMakeOption = {
-  id: string;
-  name: string;
-  slug: string;
-  models: {
-    id: string;
-    name: string;
-    slug: string;
-    makeId: string;
-  }[];
-};
-type ActiveFilterChip = {
-  key: string;
-  label: string;
-  href: string;
-};
-type ListingSimilarityData = {
-  id: string;
-  city: { id: string };
-  carMake: { slug: string } | null;
-  carModel: { slug: string } | null;
-  carYear: number | null;
-  priceCents: number;
-  fieldValues: { key: string; value: string }[];
-};
 
 const getCachedBrowseParentCategories = unstable_cache(
   async () =>
@@ -130,45 +113,6 @@ const getCachedCarMakesWithModels = unstable_cache(
   { revalidate: 300 },
 );
 
-function getParam(
-  params: Record<string, string | string[] | undefined>,
-  key: string,
-) {
-  const value = params[key];
-  if (Array.isArray(value)) return value[0];
-  return value;
-}
-
-function parseOptionalNumberParam(value: string | undefined) {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function parseSort(value: string | undefined): BrowseSort {
-  if (value === "price-asc" || value === "price-desc") return value;
-  return "newest";
-}
-
-function parseOptionalYearParam(value: string | undefined) {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  if (!/^\d{4}$/.test(trimmed)) return undefined;
-  const year = Number(trimmed);
-  const currentYear = new Date().getFullYear() + 1;
-  if (!Number.isFinite(year) || year < 1950 || year > currentYear) return undefined;
-  return year;
-}
-
-function isCarsSlug(slug: string | undefined) {
-  if (!slug) return false;
-  const normalized = slug.toLowerCase();
-  return normalized === "cars" || normalized.includes("car");
-}
-
 function conditionLabelMap(locale: "en" | "mk"): Record<ListingConditionType, string> {
   if (locale === "mk") {
     return {
@@ -189,6 +133,7 @@ export default async function BrowsePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Browse container: URL-param driven data orchestration; filters/results are delegated components.
   const locale = await getServerLocale();
   const sessionUser = await getSessionUser();
   const createHref = buildCreateListingHref();
@@ -303,20 +248,20 @@ export default async function BrowsePage({
       };
   const sp = await searchParams;
   const similarityQuery = parseBrowseSimilarityQuery(sp);
-  const search = getParam(sp, "q")?.trim();
-  const cat = getParam(sp, "cat");
-  const sub = getParam(sp, "sub");
-  const city = getParam(sp, "city");
-  const condition = getParam(sp, "condition") || getParam(sp, "cond");
-  const favoritesOnlyRequested = getParam(sp, "fav") === "1";
-  const sort = parseSort(getParam(sp, "sort"));
-  const page = Math.max(1, Number(getParam(sp, "page") || 1));
-  const minRaw = parseOptionalNumberParam(getParam(sp, "min"));
-  const maxRaw = parseOptionalNumberParam(getParam(sp, "max"));
-  const makeSlugParam = (getParam(sp, "make") || "").trim().toLowerCase();
-  const modelSlugParam = (getParam(sp, "model") || "").trim().toLowerCase();
-  const yearFromParam = getParam(sp, "yearFrom");
-  const yearToParam = getParam(sp, "yearTo");
+  const search = getBrowseParam(sp, "q")?.trim();
+  const cat = getBrowseParam(sp, "cat");
+  const sub = getBrowseParam(sp, "sub");
+  const city = getBrowseParam(sp, "city");
+  const condition = getBrowseParam(sp, "condition") || getBrowseParam(sp, "cond");
+  const favoritesOnlyRequested = getBrowseParam(sp, "fav") === "1";
+  const sort = parseBrowseSort(getBrowseParam(sp, "sort"));
+  const page = Math.max(1, Number(getBrowseParam(sp, "page") || 1));
+  const minRaw = parseOptionalNumberParam(getBrowseParam(sp, "min"));
+  const maxRaw = parseOptionalNumberParam(getBrowseParam(sp, "max"));
+  const makeSlugParam = (getBrowseParam(sp, "make") || "").trim().toLowerCase();
+  const modelSlugParam = (getBrowseParam(sp, "model") || "").trim().toLowerCase();
+  const yearFromParam = getBrowseParam(sp, "yearFrom");
+  const yearToParam = getBrowseParam(sp, "yearTo");
 
   const minCents =
     minRaw !== undefined && minRaw >= 0 ? Math.round(minRaw * 100) : undefined;
@@ -883,16 +828,13 @@ export default async function BrowsePage({
   );
   const conditionLabels = conditionLabelMap(locale);
 
+  const params = buildBrowseBaseParams(sp);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const prevPage = page > 1 ? page - 1 : null;
   const nextPage = page < totalPages ? page + 1 : null;
+  const prevHref = prevPage ? buildBrowsePageHref(params, prevPage) : null;
+  const nextHref = nextPage ? buildBrowsePageHref(params, nextPage) : null;
 
-  const params = new URLSearchParams();
-  Object.entries(sp).forEach(([key, value]) => {
-    const single = Array.isArray(value) ? value[0] : value;
-    if (!single || key === "page") return;
-    params.set(key, single);
-  });
   const saveSearchQuery = Object.fromEntries(params.entries());
   const hrefWithout = (...keys: string[]) => {
     const next = new URLSearchParams(params.toString());
@@ -1121,79 +1063,36 @@ export default async function BrowsePage({
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <SlidersHorizontal size={14} />
-            {text.smartBrowse}
-          </p>
-          <h1 className="text-3xl font-bold">
-            {selectedCategoryLabel || text.allListings}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {totalCount} {text.resultsLine} {listings.length} {text.onThisPage}
-            {dynamicFilters.length > 0 && (
-              <span className="ml-2">
-                |{" "}
-                <Badge variant="secondary">
-                  {dynamicFilters.length} {text.extraFilters}
-                </Badge>
-              </span>
-            )}
-          </p>
-          {!hasAppliedFilters && (
-            <p className="text-xs text-muted-foreground">{text.showingAll}</p>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {Boolean(sessionUser) && hasFilterChips && (
-            <SaveSearchPopout locale={locale} query={saveSearchQuery} />
-          )}
-          {hasFilterChips && (
-            <Link href="/browse">
-              <Button variant="outline" type="button">
-                {text.resetFilters}
-              </Button>
-            </Link>
-          )}
-        </div>
-      </div>
+    <div className="max-w-full min-w-0 space-y-5 overflow-x-hidden">
+      <BrowseHeader
+        title={selectedCategoryLabel || text.allListings}
+        smartBrowseLabel={text.smartBrowse}
+        totalCount={totalCount}
+        resultsLineLabel={text.resultsLine}
+        listingsOnPageCount={listings.length}
+        onThisPageLabel={text.onThisPage}
+        extraFiltersCount={dynamicFilters.length}
+        extraFiltersLabel={text.extraFilters}
+        hasAppliedFilters={hasAppliedFilters}
+        showingAllLabel={text.showingAll}
+        canSaveSearch={Boolean(sessionUser)}
+        locale={locale}
+        hasFilterChips={hasFilterChips}
+        saveSearchQuery={saveSearchQuery}
+        resetHref="/browse"
+        resetLabel={text.resetFilters}
+      />
 
-      {hasSimilarityExplainBar && (
-        <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-foreground">
-              {similarityText.becauseClicked}{" "}
-              <span className="text-primary">
-                {seedListingTitle || similarityText.unknownListing}
-              </span>
-            </p>
-            <Link
-              href={clearSimilarityHref}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
-              {similarityText.clearSimilarity}
-            </Link>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {similarityText.similarityFilters}
-            </span>
-            {similarityChips.map((chip) => (
-              <Link
-                key={chip.key}
-                href={chip.href}
-                className="inline-flex max-w-full items-center gap-1 rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-primary/35 hover:text-primary"
-                aria-label={`${text.removeFilter}: ${chip.label}`}
-              >
-                <span className="truncate">{chip.label}</span>
-                <span aria-hidden>×</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+      <BrowseSimilarityBar
+        show={hasSimilarityExplainBar}
+        becauseClickedLabel={similarityText.becauseClicked}
+        selectedListingLabel={seedListingTitle || similarityText.unknownListing}
+        clearSimilarityHref={clearSimilarityHref}
+        clearSimilarityLabel={similarityText.clearSimilarity}
+        similarityFiltersLabel={similarityText.similarityFilters}
+        chips={similarityChips}
+        removeFilterLabel={text.removeFilter}
+      />
 
       <BrowseFilters
         categories={categoryOptions}
@@ -1213,86 +1112,40 @@ export default async function BrowsePage({
       )}
 
       {listings.length === 0 ? (
-        <Card>
-          <CardContent className="py-14 text-center">
-            <p className="text-muted-foreground">
-              {hasAppliedFilters ? text.noMatch : text.noListingsYet}
-            </p>
-            <Link href={createHref} className="mt-4 inline-block">
-              <Button>{text.firstList}</Button>
-            </Link>
-            {!hasAppliedFilters && parentCategories.length > 0 && (
-              <div className="mt-5 flex flex-wrap justify-center gap-2">
-                <span className="w-full text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {text.popularCategories}
-                </span>
-                {parentCategories.slice(0, 6).map((category) => (
-                  <Link key={category.id} href={`/browse?cat=${category.id}`}>
-                    <Button variant="outline" size="sm" className="rounded-full">
-                      {localizeCategoryName(category, locale)}
-                    </Button>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <BrowseEmptyState
+          hasAppliedFilters={hasAppliedFilters}
+          noMatchLabel={text.noMatch}
+          noListingsYetLabel={text.noListingsYet}
+          createHref={createHref}
+          firstListLabel={text.firstList}
+          showPopularCategories={!hasAppliedFilters && parentCategories.length > 0}
+          popularCategoriesLabel={text.popularCategories}
+          popularCategories={parentCategories.slice(0, 6).map((category) => ({
+            id: category.id,
+            name: localizeCategoryName(category, locale),
+          }))}
+        />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {listings.map((listing) => (
-            <ListingCard
-              key={listing.id}
-              listing={listing}
-              locale={locale}
-              currentAuthUserId={sessionUser?.authUserId}
-              isFavorited={favoriteListingIdSet.has(listing.id)}
-              browseQuery={params.toString()}
-              similarityData={similarityDataByListingId.get(listing.id)}
-            />
-          ))}
-        </div>
+        <BrowseResultsGrid
+          listings={listings}
+          locale={locale}
+          currentAuthUserId={sessionUser?.authUserId}
+          favoriteListingIdSet={favoriteListingIdSet}
+          browseQuery={params.toString()}
+          similarityDataByListingId={similarityDataByListingId}
+        />
       )}
 
-      <Card>
-        <CardContent className="flex items-center justify-between gap-3 py-4">
-          <p className="text-sm text-muted-foreground">
-            {text.page} {page} {text.of} {totalPages}
-          </p>
-          <div className="flex gap-2">
-            {prevPage ? (
-              <Link
-                href={`/browse?${new URLSearchParams({
-                  ...Object.fromEntries(params),
-                  page: String(prevPage),
-                }).toString()}`}
-              >
-                <Button variant="outline" type="button">
-                  {text.previous}
-                </Button>
-              </Link>
-            ) : (
-              <Button variant="outline" type="button" disabled>
-                {text.previous}
-              </Button>
-            )}
-
-            {nextPage ? (
-              <Link
-                href={`/browse?${new URLSearchParams({
-                  ...Object.fromEntries(params),
-                  page: String(nextPage),
-                }).toString()}`}
-              >
-                <Button type="button">{text.next}</Button>
-              </Link>
-            ) : (
-              <Button type="button" disabled>
-                {text.next}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <BrowsePagination
+        page={page}
+        totalPages={totalPages}
+        pageLabel={text.page}
+        ofLabel={text.of}
+        previousLabel={text.previous}
+        nextLabel={text.next}
+        previousHref={prevHref}
+        nextHref={nextHref}
+      />
     </div>
   );
 }

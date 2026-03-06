@@ -102,7 +102,7 @@ export function DashboardFilterBar({
       if (next.sort !== "newest") params.set("sort", next.sort);
       if (next.layout !== "grid") params.set("layout", next.layout);
 
-      router.push(`${pathname}?${params.toString()}`);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [current, pathname, router],
   );
@@ -124,9 +124,9 @@ export function DashboardFilterBar({
   ] as const satisfies Array<{ value: ListingSort; label: string }>;
 
   return (
-    <section className="lg:sticky lg:top-20 lg:z-20">
-      <div className="space-y-4 rounded-2xl border border-border/70 bg-card/95 p-4 shadow-sm backdrop-blur sm:p-5">
-        <div className="flex items-center justify-between gap-2">
+    <section className="max-w-full min-w-0 overflow-x-hidden lg:sticky lg:top-20 lg:z-20">
+      <div className="max-w-full min-w-0 space-y-3 overflow-x-hidden rounded-xl border border-border/60 bg-card p-3 sm:p-4">
+        <div className="flex max-w-full min-w-0 items-center justify-between gap-2">
           <p className="text-sm font-semibold">{labels.filtersTitle}</p>
           {!onChange && isPending && (
             <span className="text-xs text-muted-foreground">
@@ -135,8 +135,8 @@ export function DashboardFilterBar({
           )}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
-          <div className="space-y-2">
+        <div className="grid max-w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <div className="min-w-0 space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.categoriesLabel}
             </p>
@@ -157,7 +157,7 @@ export function DashboardFilterBar({
                       )}
                       onClick={() => applyChange({ cat: category.id })}
                     >
-                      <span>{category.label}</span>
+                      <span className="max-w-[12rem] truncate">{category.label}</span>
                       <span
                         className={cn(
                           "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-black leading-none",
@@ -175,7 +175,7 @@ export function DashboardFilterBar({
             </div>
           </div>
 
-          <div className="space-y-2 lg:justify-self-end">
+          <div className="min-w-0 space-y-2 lg:justify-self-end">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:text-right">
               {labels.statusLabel}
             </p>
@@ -199,7 +199,7 @@ export function DashboardFilterBar({
                       onClick={() => applyChange({ view: status.key })}
                     >
                       <Icon className="size-3.5" aria-hidden />
-                      <span>{status.label}</span>
+                      <span className="max-w-[9rem] truncate">{status.label}</span>
                       <span
                         className={cn(
                           "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black leading-none",
@@ -218,9 +218,9 @@ export function DashboardFilterBar({
           </div>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
+        <div className="grid max-w-full min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto]">
           <form
-            className="flex items-center gap-2"
+            className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap"
             onSubmit={(event) => {
               event.preventDefault();
               applyChange({ q: query });
@@ -229,7 +229,7 @@ export function DashboardFilterBar({
             <label htmlFor="dashboard-search" className="sr-only">
               {labels.searchLabel}
             </label>
-            <div className="relative flex-1">
+            <div className="relative min-w-0 flex-1">
               <Search
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden
@@ -280,7 +280,7 @@ export function DashboardFilterBar({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.viewMode}
             </p>
-            <div className="inline-flex rounded-xl border border-border/80 bg-muted/30 p-1">
+            <div className="inline-flex max-w-full min-w-0 flex-wrap rounded-xl border border-border/80 bg-muted/30 p-1">
               <button
                 type="button"
                 aria-label={labels.gridView}

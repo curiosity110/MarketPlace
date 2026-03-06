@@ -25,6 +25,7 @@ export function Button({
         "inline-flex items-center justify-center rounded-xl font-semibold transition-all duration-200 disabled:pointer-events-none disabled:opacity-50",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         "active:translate-y-px",
+        "whitespace-nowrap",
         sizeStyles[size],
 
         // Variants

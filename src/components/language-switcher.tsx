@@ -38,7 +38,7 @@ export function LanguageSwitcher({
   }
 
   return (
-    <label className="inline-flex max-w-[150px] items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-2 py-1 text-xs text-muted-foreground sm:max-w-none">
+    <label className="inline-flex min-w-0 w-full items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-2 py-1 text-xs text-muted-foreground sm:w-auto sm:max-w-none">
       <span className="hidden sm:inline">{label}</span>
       <select
         id="site-locale"
@@ -46,7 +46,7 @@ export function LanguageSwitcher({
         value={value}
         disabled={pending}
         onChange={(event) => onChange(event.target.value as Locale)}
-        className="max-w-[120px] rounded-full border border-border/70 bg-background px-2 py-1 text-xs font-medium text-foreground sm:max-w-none"
+        className="min-w-0 w-full max-w-[120px] truncate rounded-full border border-border/70 bg-background px-2 py-1 text-xs font-medium text-foreground sm:max-w-none"
         aria-label={label}
         autoComplete="off"
       >

@@ -212,7 +212,7 @@ export function AIHelper({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-20 right-3 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl md:bottom-6 md:right-6 md:h-auto md:w-auto md:gap-2 md:px-4 md:py-3 md:text-sm md:font-semibold"
+          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-auto sm:w-auto sm:gap-2 sm:px-4 sm:py-3 sm:text-sm sm:font-semibold"
           aria-label={text.openAssistant}
         >
           <MessageCircle size={18} />
@@ -221,7 +221,7 @@ export function AIHelper({
       )}
 
       {isOpen && (
-        <section className="fixed bottom-20 right-3 z-50 flex h-[70vh] w-[calc(100vw-1.5rem)] max-w-[430px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl md:bottom-6 md:right-6 md:h-[560px]">
+        <section className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-[70vh] w-[calc(100vw-2rem)] max-w-[430px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl sm:bottom-6 sm:right-6 sm:h-[560px]">
           <header className="flex items-center justify-between border-b border-border/80 bg-gradient-to-r from-orange-50 via-white to-blue-50 px-4 py-3 dark:from-orange-950/20 dark:via-card dark:to-blue-950/20">
             <div>
               <h3 className="text-base font-bold">{title}</h3>

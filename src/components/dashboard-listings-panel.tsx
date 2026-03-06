@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { localizeCategoryName } from "@/lib/category-label";
-import { buildCreateListingHref } from "@/lib/create-listing-href";
 import { DashboardEmptyState } from "@/components/dashboard-empty-state";
 import { DashboardFilterBar } from "@/components/dashboard-filter-bar";
 import {
@@ -14,6 +13,7 @@ import {
 type ListingView = "all" | "active" | "draft" | "expired" | "sold";
 type ListingSort = "newest" | "price-asc" | "price-desc";
 type ListingLayout = "grid" | "list";
+const OPEN_CREATE_MODAL_EVENT = "mkd:open-create-modal";
 
 type Props = {
   locale: "mk" | "en";
@@ -247,6 +247,17 @@ export function DashboardListingsPanel({
     { key: "expired", label: text.expired, count: statusCounts.expired },
     { key: "sold", label: text.sold, count: statusCounts.sold },
   ];
+  const openCreateModal = React.useCallback((categoryId?: string) => {
+    const params: Record<string, string> = {};
+    if (categoryId) {
+      params.cat = categoryId;
+    }
+    window.dispatchEvent(
+      new CustomEvent(OPEN_CREATE_MODAL_EVENT, {
+        detail: { params },
+      }),
+    );
+  }, []);
 
   return (
     <>
@@ -255,7 +266,7 @@ export function DashboardListingsPanel({
           title={text.noCategoryActivity}
           description={text.emptyListingsHint}
           ctaLabel={text.createFirstListing}
-          ctaHref={buildCreateListingHref()}
+          onCtaClick={() => openCreateModal()}
         />
       ) : (
         <>
@@ -281,14 +292,14 @@ export function DashboardListingsPanel({
             onChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))}
           />
 
-          <Card className="border-secondary/20">
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <CardTitle className="text-xl">
+          <Card className="max-w-full min-w-0 overflow-x-hidden border-border/70">
+            <CardHeader className="pb-2">
+              <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="break-words text-lg [overflow-wrap:anywhere]">
                     {selectedCategory ? selectedCategory.label : text.allCategories} {text.listings}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
                     {filteredListings.length} {text.results}
                   </p>
                 </div>
@@ -298,22 +309,20 @@ export function DashboardListingsPanel({
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-3">
+            <CardContent className="max-w-full min-w-0 space-y-2">
               {filteredListings.length === 0 ? (
                 <DashboardEmptyState
                   title={text.emptyListingsTitle}
                   description={text.emptyListingsHint}
                   ctaLabel={text.createNow}
-                  ctaHref={buildCreateListingHref({
-                    cat: selectedCategory?.id,
-                  })}
+                  onCtaClick={() => openCreateModal(selectedCategory?.id)}
                 />
               ) : (
                 <div
                   className={
                     filters.layout === "list"
-                      ? "space-y-3"
-                      : "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                      ? "max-w-full min-w-0 space-y-3"
+                      : "grid max-w-full min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3"
                   }
                 >
                   {filteredListings.map((listing) => (

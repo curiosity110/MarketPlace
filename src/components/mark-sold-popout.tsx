@@ -5,6 +5,10 @@ import { BadgeCheck, ChevronDown } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { markListingSold } from "@/lib/actions/sales";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ModalShell } from "@/components/ui/modal-shell";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -84,91 +88,77 @@ export function MarkSoldPopout({
         {!iconOnly && <span>{text.markSold}</span>}
       </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-3">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-background p-4 shadow-2xl">
-            <h3 className="text-lg font-bold">{text.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{text.subtitle}</p>
+      <ModalShell
+        open={open}
+        onClose={() => setOpen(false)}
+        closeLabel={text.cancel}
+        className="max-w-md"
+      >
+        <div className="p-4 sm:p-5">
+          <h3 className="text-lg font-semibold">{text.title}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{text.subtitle}</p>
 
-            <form action={markListingSold} className="mt-4 space-y-3">
-              <input type="hidden" name="listingId" value={listingId} />
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="returnTo" value={returnTo} />
+          <form action={markListingSold} className="mt-4 space-y-3">
+            <input type="hidden" name="listingId" value={listingId} />
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="returnTo" value={returnTo} />
 
-              <details className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold">
-                  {text.optionalDetails}
-                  <ChevronDown size={14} className="text-muted-foreground" />
-                </summary>
-                <div className="mt-3 space-y-2">
-                  <label className="space-y-1 text-xs font-medium text-muted-foreground">
-                    <span>{text.soldPrice}</span>
-                    <input
-                      type="text"
-                      name="soldPrice"
-                      defaultValue={defaultPriceValue}
-                      inputMode="decimal"
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                    />
-                  </label>
+            <details className="rounded-xl border border-border/70 bg-muted/20 p-3">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold">
+                {text.optionalDetails}
+                <ChevronDown size={14} className="text-muted-foreground" />
+              </summary>
+              <div className="mt-3 space-y-2">
+                <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                  <span>{text.soldPrice}</span>
+                  <Input
+                    type="text"
+                    name="soldPrice"
+                    defaultValue={defaultPriceValue}
+                    inputMode="decimal"
+                  />
+                </label>
 
-                  <label className="space-y-1 text-xs font-medium text-muted-foreground">
-                    <span>{text.method}</span>
-                    <select
-                      name="method"
-                      defaultValue=""
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                    >
-                      <option value="">-</option>
-                      <option value="CASH">{text.methodCash}</option>
-                      <option value="BANK">{text.methodBank}</option>
-                      <option value="CARD">{text.methodCard}</option>
-                      <option value="OTHER">{text.methodOther}</option>
-                    </select>
-                  </label>
+                <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                  <span>{text.method}</span>
+                  <Select name="method" defaultValue="">
+                    <option value="">-</option>
+                    <option value="CASH">{text.methodCash}</option>
+                    <option value="BANK">{text.methodBank}</option>
+                    <option value="CARD">{text.methodCard}</option>
+                    <option value="OTHER">{text.methodOther}</option>
+                  </Select>
+                </label>
 
-                  <label className="space-y-1 text-xs font-medium text-muted-foreground">
-                    <span>{text.buyerName}</span>
-                    <input
-                      type="text"
-                      name="buyerName"
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                    />
-                  </label>
+                <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                  <span>{text.buyerName}</span>
+                  <Input type="text" name="buyerName" />
+                </label>
 
-                  <label className="space-y-1 text-xs font-medium text-muted-foreground">
-                    <span>{text.buyerPhone}</span>
-                    <input
-                      type="text"
-                      name="buyerPhone"
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                    />
-                  </label>
+                <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                  <span>{text.buyerPhone}</span>
+                  <Input type="text" name="buyerPhone" />
+                </label>
 
-                  <label className="space-y-1 text-xs font-medium text-muted-foreground">
-                    <span>{text.notes}</span>
-                    <textarea
-                      name="notes"
-                      maxLength={400}
-                      className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
-                    />
-                  </label>
-                </div>
-              </details>
-
-              <div className="flex justify-end gap-2 pt-1">
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                  {text.cancel}
-                </Button>
-                <Button type="submit" className="gap-2">
-                  <BadgeCheck size={14} />
-                  {text.confirm}
-                </Button>
+                <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                  <span>{text.notes}</span>
+                  <Textarea name="notes" maxLength={400} className="min-h-20" />
+                </label>
               </div>
-            </form>
-          </div>
+            </details>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                {text.cancel}
+              </Button>
+              <Button type="submit" className="gap-2">
+                <BadgeCheck size={14} />
+                {text.confirm}
+              </Button>
+            </div>
+          </form>
         </div>
-      )}
+      </ModalShell>
     </>
   );
 }

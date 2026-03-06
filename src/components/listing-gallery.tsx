@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -15,16 +15,16 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        noPhotos: "Нема прикачени фотографии",
-        openLightbox: "Отвори галерија",
-        openImage: "Отвори слика",
-        closeLightbox: "Затвори галерија",
-        prevImage: "Претходна слика",
-        nextImage: "Следна слика",
-        listingPhoto: "Слика од оглас",
-        thumbnail: "Минијатура",
-        imageOf: "Слика",
-        of: "од",
+        noPhotos: "No photos uploaded",
+        openLightbox: "Open photo lightbox",
+        openImage: "Open image",
+        closeLightbox: "Close lightbox",
+        prevImage: "Previous image",
+        nextImage: "Next image",
+        listingPhoto: "Listing photo",
+        thumbnail: "Thumbnail",
+        imageOf: "Image",
+        of: "of",
       }
     : {
         noPhotos: "No photos uploaded",
@@ -85,8 +85,13 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
 
   if (normalizedImages.length === 0) {
     return (
-      <div className="flex aspect-[5/3] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-        {text.noPhotos}
+      <div className="relative flex aspect-[16/10] w-full max-w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+        <div className="flex max-w-full flex-col items-center gap-2 text-center">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/75">
+            <ImageOff size={18} />
+          </span>
+          <p className="max-w-full break-words [overflow-wrap:anywhere]">{text.noPhotos}</p>
+        </div>
       </div>
     );
   }
@@ -108,7 +113,7 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
   const overflowThumbCount = Math.max(0, normalizedImages.length - thumbnailSources.length);
 
   return (
-    <div className="space-y-3">
+    <div className="w-full min-w-0 max-w-full space-y-3 overflow-hidden">
       <button
         type="button"
         onClick={() => openLightbox(safeActiveIndex)}
@@ -127,7 +132,7 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
         </div>
       </button>
 
-      <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
+      <div className="grid max-w-full grid-cols-5 gap-2 sm:grid-cols-6">
         {thumbnailSources.map((thumbSrc, index) => {
           const isActive = index === activeIndex;
           const label = `${text.openImage} ${index + 1}`;

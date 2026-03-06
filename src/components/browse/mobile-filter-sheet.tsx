@@ -2,47 +2,22 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { CategoryFieldType } from "@prisma/client";
 import { Search, SlidersHorizontal, X } from "lucide-react";
+import { BrowseFilters } from "@/components/browse-filters";
+import type {
+  BrowseCarMake as CarMakeOption,
+  BrowseCity as CityOption,
+  BrowseFilterState,
+  BrowseParentCategory as CategoryOption,
+  BrowseTemplate as Template,
+} from "@/components/browse/filters.types";
 import {
-  BrowseFilters,
+  EMPTY_BROWSE_FILTER_STATE,
   getBrowseDynamicValues,
   getBrowseFilterState,
-  type BrowseFilterState,
-} from "@/components/browse-filters";
+} from "@/components/browse/filters.utils";
 import { Button } from "@/components/ui/button";
-
-type CategoryOption = {
-  id: string;
-  slug: string;
-  name: string;
-  children: {
-    id: string;
-    slug: string;
-    name: string;
-  }[];
-};
-
-type CityOption = { id: string; name: string };
-
-type CarMakeOption = {
-  id: string;
-  name: string;
-  slug: string;
-  models: {
-    id: string;
-    name: string;
-    slug: string;
-    makeId: string;
-  }[];
-};
-
-type Template = {
-  key: string;
-  label: string;
-  type: CategoryFieldType;
-  options: string[];
-};
+import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
 
 type Props = {
   categories: CategoryOption[];
@@ -52,8 +27,6 @@ type Props = {
   locale?: "en" | "mk";
   canUseFavoritesFilter?: boolean;
 };
-
-const EMPTY_FILTER_STATE = getBrowseFilterState(new URLSearchParams());
 
 function normalizeNumeric(value: string) {
   return value.replace(/[^\d]/g, "");
@@ -184,16 +157,16 @@ export function MobileFilterSheet({
   );
 
   const clearDraft = React.useCallback(() => {
-    setDraftState(EMPTY_FILTER_STATE);
+    setDraftState(EMPTY_BROWSE_FILTER_STATE);
     setDraftDynamicValues({});
   }, []);
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex max-w-full min-w-0 items-center gap-2 overflow-x-hidden">
         <button
           type="button"
-          className="inline-flex h-10 flex-1 items-center gap-2 rounded-xl border border-border bg-input px-3 text-left text-sm text-foreground transition-colors hover:border-primary/25"
+          className="inline-flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-input px-3 text-left text-sm text-foreground transition-colors hover:border-primary/25"
           onClick={() => setIsOpen(true)}
           aria-label={text.filters}
         >
@@ -205,7 +178,7 @@ export function MobileFilterSheet({
         <Button
           type="button"
           variant="outline"
-          className="h-10 rounded-xl px-3"
+          className="h-10 shrink-0 rounded-xl px-3"
           onClick={() => setIsOpen(true)}
         >
           <SlidersHorizontal size={15} className="mr-1.5" />
@@ -214,29 +187,38 @@ export function MobileFilterSheet({
       </div>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[90]">
+        <div className="fixed inset-0 z-[90] max-w-[100vw] overflow-hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-black/45"
+            className={uiModal.backdrop}
             aria-label={text.close}
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl">
+          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-2xl border border-border/70 bg-background shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/70 bg-background px-4 py-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className={uiTypography.eyebrow}>
                 {text.filters}
               </p>
-              <button
-                type="button"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground hover:text-foreground"
-                onClick={() => setIsOpen(false)}
-                aria-label={text.close}
-              >
-                <X size={14} />
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-primary hover:underline"
+                  onClick={clearDraft}
+                >
+                  {text.clearAll}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsOpen(false)}
+                  aria-label={text.close}
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
               <BrowseFilters
                 mode="mobile"
                 categories={categories}
@@ -255,7 +237,7 @@ export function MobileFilterSheet({
               />
             </div>
 
-            <div className="sticky bottom-0 z-10 grid grid-cols-2 gap-2 border-t border-border/70 bg-background p-4">
+            <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/70 bg-background p-4">
               <Button type="button" variant="outline" onClick={clearDraft}>
                 {text.clearAll}
               </Button>

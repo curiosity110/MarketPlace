@@ -1,5 +1,6 @@
 import type React from "react";
 import { cn } from "@/lib/utils";
+import { uiSpacing, uiSurface, uiTypography } from "@/components/ui/ui-patterns";
 
 export function Card({
   className,
@@ -7,10 +8,7 @@ export function Card({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        "rounded-2xl border border-border/80 bg-card text-card-foreground shadow-[0_8px_24px_-18px_rgba(15,23,42,0.35)]",
-        className,
-      )}
+      className={cn(uiSurface.card, className)}
       {...props}
     />
   );
@@ -20,14 +18,14 @@ export function CardContent({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5 sm:p-6", className)} {...props} />;
+  return <div className={cn(uiSpacing.cardPadding, className)} {...props} />;
 }
 
 export function CardHeader({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5 pb-3 sm:p-6 sm:pb-3", className)} {...props} />;
+  return <div className={cn(uiSpacing.cardHeaderPadding, className)} {...props} />;
 }
 
 export function CardTitle({
@@ -35,10 +33,7 @@ export function CardTitle({
   ...props
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h2
-      className={cn("text-xl font-bold text-card-foreground sm:text-2xl", className)}
-      {...props}
-    />
+    <h2 className={cn(uiTypography.cardTitle, "text-card-foreground", className)} {...props} />
   );
 }
 
@@ -46,7 +41,5 @@ export function CardDescription({
   className,
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return (
-    <p className={cn("text-sm text-muted-foreground", className)} {...props} />
-  );
+  return <p className={cn(uiTypography.muted, className)} {...props} />;
 }

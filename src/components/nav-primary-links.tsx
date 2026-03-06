@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import { isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -16,28 +16,34 @@ type Props = {
   isLoggedIn: boolean;
 };
 
+const OPEN_CREATE_MODAL_EVENT = "mkd:open-create-modal";
+
 export function NavPrimaryLinks({
   labels,
   isLoggedIn,
 }: Props) {
-  const isDev = process.env.NODE_ENV !== "production";
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const dashboardHref = isLoggedIn ? "/dashboard" : "/login?next=%2Fdashboard";
   const openCreateListing = useCallback(() => {
+    const currentPath = pathname || "/browse";
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("create", "1");
+    const nextQuery = nextParams.toString();
+    const createHref = nextQuery ? `${currentPath}?${nextQuery}` : currentPath;
+    const openParams = Object.fromEntries(nextParams.entries());
+
     if (!isLoggedIn) {
-      const nextPath = pathname || "/browse";
-      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+      router.push(`/login?next=${encodeURIComponent(createHref)}`);
       return;
     }
-    if (isDev) {
-      console.log("MODAL_CLICK", {
-        source: "nav-primary-links",
-        time: Date.now(),
-      });
-    }
-    window.dispatchEvent(new CustomEvent("mkd:open-create-modal"));
-  }, [isDev, isLoggedIn, pathname, router]);
+    window.dispatchEvent(
+      new CustomEvent(OPEN_CREATE_MODAL_EVENT, {
+        detail: { params: openParams },
+      }),
+    );
+  }, [isLoggedIn, pathname, router, searchParams]);
 
   const links = [
     { href: "/browse", prefix: "/browse", label: labels.browse },

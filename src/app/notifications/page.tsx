@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/actions/notifications";
 import { getServerLocale } from "@/lib/i18n";
 import { NotificationsList } from "@/components/notifications-list";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState, PageContainer, PageHeader } from "@/components/ui/layout";
 
 export default async function NotificationsPage() {
   await requireUser();
@@ -23,21 +23,18 @@ export default async function NotificationsPage() {
   const { items } = await listNotifications({ limit: 100 });
 
   return (
-    <div className="space-y-5">
-      <section className="hero-surface rounded-3xl border border-border/70 p-6 sm:p-8">
-        <h1 className="text-4xl font-black">{text.title}</h1>
-        <p className="mt-2 max-w-2xl text-muted-foreground">{text.subtitle}</p>
-      </section>
+    <PageContainer className="space-y-5">
+      <PageHeader
+        title={text.title}
+        subtitle={text.subtitle}
+        className="hero-surface"
+      />
 
       {items.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {text.empty}
-          </CardContent>
-        </Card>
+        <EmptyState title={text.empty} className="py-10" />
       ) : (
         <NotificationsList locale={locale} items={items} />
       )}
-    </div>
+    </PageContainer>
   );
 }

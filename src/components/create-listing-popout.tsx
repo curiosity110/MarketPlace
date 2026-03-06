@@ -3,36 +3,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { PlusCircle, X } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { Currency, ListingCondition } from "@prisma/client";
 import { Button } from "@/components/ui/button";
+import type {
+  CreateListingCategory,
+  CreateListingCity as City,
+  CreateListingPlan as ListingPlan,
+  CreateListingTemplate as Template,
+} from "@/components/create-listing/types";
+import { CreateListingCategoryGate } from "@/components/create-listing/category-gate/category-gate";
+import { CreateListingModalHeader } from "@/components/create-listing/modal-header";
+import { CreateListingModalShell } from "@/components/create-listing/modal-shell";
+import {
+  collectAllLabelStrings,
+  normalizeCreateCategorySearchText,
+  scoreCreateCategoryQuery,
+} from "@/components/create-listing/popout.utils";
 import { CreateListingWizardForm } from "@/components/create-listing-wizard-form";
 import { ListingForm } from "@/components/listing-form";
-import { Input } from "@/components/ui/input";
+import { uiSurface } from "@/components/ui/ui-patterns";
 import { localizeCategoryName } from "@/lib/category-label";
 
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-  parentId?: string | null;
-  [key: string]: unknown;
-};
-type City = { id: string; name: string };
-type Template = {
-  id: string;
-  key: string;
-  label: string;
-  type: "TEXT" | "NUMBER" | "SELECT" | "BOOLEAN";
-  required: boolean;
-  order: number;
-  options: string[];
-};
-
-type ListingPlan = "pay-per-listing" | "subscription";
+type Category = CreateListingCategory & { [key: string]: unknown };
 
 type Props = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<unknown> | unknown;
   categories: Category[];
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
@@ -77,55 +73,6 @@ type CategorySearchEntry = {
   hasSelectableChildren: boolean;
 };
 
-function normalizeSearchText(value: string) {
-  return value
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function scoreCategoryQuery(searchText: string, query: string, tokens: string[]) {
-  if (!searchText) return 0;
-  if (searchText === query) return 140;
-  if (searchText.startsWith(query)) return 110;
-  if (searchText.includes(` ${query}`)) return 95;
-  if (searchText.includes(query)) return 82;
-  if (tokens.length > 1 && tokens.every((token) => searchText.includes(token))) {
-    return 74 + Math.min(tokens.length, 6);
-  }
-  return 0;
-}
-
-function collectAllLabelStrings(input: unknown, out: Set<string>) {
-  if (!input) return;
-  if (typeof input === "string") {
-    out.add(input);
-    return;
-  }
-  if (Array.isArray(input)) {
-    input.forEach((value) => collectAllLabelStrings(value, out));
-    return;
-  }
-  if (typeof input === "object") {
-    Object.entries(input as Record<string, unknown>).forEach(([key, value]) => {
-      if (
-        typeof value === "string" &&
-        /(name|label|title|locale|translation|i18n|en|mk)/i.test(key)
-      ) {
-        out.add(value);
-      } else if (
-        value &&
-        typeof value === "object" &&
-        /(name|label|title|locale|translation|i18n)/i.test(key)
-      ) {
-        collectAllLabelStrings(value, out);
-      }
-    });
-  }
-}
-
 export function CreateListingPopout({
   action,
   categories,
@@ -150,6 +97,7 @@ export function CreateListingPopout({
   serverError,
   serverErrorField,
 }: Props) {
+  // Modal orchestrator: open/close lifecycle + gate/wizard selection; form logic lives in child forms.
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryError = searchParams.get("error");
@@ -160,24 +108,24 @@ export function CreateListingPopout({
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        createListing: "Креирај оглас",
-        openWhenNeeded: "Отвори ја формата кога ти треба.",
-        closeCreateListingForm: "Затвори форма за креирање оглас",
-        createNewListing: "Креирај нов оглас",
-        fillAndPublish: "Воден процес во 4 чекори: фотографии, основи, детали и преглед.",
-        close: "Затвори",
-        chooseCategoryTitle: "Избери категорија за почеток",
+        createListing: "Create listing",
+        openWhenNeeded: "Open the form only when you need it.",
+        closeCreateListingForm: "Close create listing form",
+        createNewListing: "Create a new listing",
+        fillAndPublish: "Guided in 4 steps: photos, basics, details, and review.",
+        close: "Close",
+        chooseCategoryTitle: "Choose a category to start",
         chooseCategoryHint:
-          "Избери категорија за да се вчитаат точните полиња за објавување.",
-        categorySearchLabel: "Брзо пребарување",
-        categorySearchPlaceholder: "Почни да пишуваш (пр. кола, авто, cars)",
-        category: "Категорија",
-        subcategories: "Поткатегории",
-        noCategoriesAvailable: "Нема достапни категории за објава.",
-        noCategoryMatch: "Нема совпаѓања за ова пребарување.",
+          "Pick a category first so the form loads with the correct templates.",
+        categorySearchLabel: "Live category search",
+        categorySearchPlaceholder: "Start typing (ex. cars, auto, kola)",
+        category: "Category",
+        subcategories: "Subcategories",
+        noCategoriesAvailable: "No categories are currently available for posting.",
+        noCategoryMatch: "No categories match this search.",
         noTemplatesForCategory:
-          "Оваа категорија нема полиња за објава. Избери друга.",
-        needsSubcategory: "Избери поткатегорија за продолжување.",
+          "This category has no listing fields yet. Choose another.",
+        needsSubcategory: "Choose a subcategory to continue.",
       }
     : {
         createListing: "Create listing",
@@ -190,7 +138,7 @@ export function CreateListingPopout({
         chooseCategoryHint:
           "Pick a category first so the form loads with the correct templates.",
         categorySearchLabel: "Live category search",
-        categorySearchPlaceholder: "Start typing (ex. cars, авто, кола)",
+        categorySearchPlaceholder: "Start typing (ex. cars, auto, kola)",
         category: "Category",
         subcategories: "Subcategories",
         noCategoriesAvailable: "No categories are currently available for posting.",
@@ -200,9 +148,9 @@ export function CreateListingPopout({
         needsSubcategory: "Choose a subcategory to continue.",
       };
 
-  const resolvedButtonLabel = buttonLabel ?? (isMk ? "Нов оглас" : "New listing");
+  const resolvedButtonLabel = buttonLabel ?? "New listing";
   const resolvedPublishLabel =
-    publishLabel ?? (isMk ? "Објави оглас" : "Publish listing");
+    publishLabel ?? "Publish listing";
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpenControlled = typeof open === "boolean";
   const isOpen = isOpenControlled ? open : internalOpen;
@@ -320,7 +268,7 @@ export function CreateListingPopout({
           localizeCategoryName(category, "mk"),
         ]);
         collectAllLabelStrings(category, labelValues);
-        const normalizedSearchText = normalizeSearchText(
+        const normalizedSearchText = normalizeCreateCategorySearchText(
           [...labelValues].join(" "),
         );
         return {
@@ -334,7 +282,7 @@ export function CreateListingPopout({
     [hasSelectableChildren, locale, pickerCategories, selectableCategoryIds],
   );
 
-  const normalizedCategoryQuery = normalizeSearchText(categorySearch);
+  const normalizedCategoryQuery = normalizeCreateCategorySearchText(categorySearch);
   const categoryQueryTokens = useMemo(
     () => normalizedCategoryQuery.split(" ").filter(Boolean),
     [normalizedCategoryQuery],
@@ -350,7 +298,7 @@ export function CreateListingPopout({
     return categorySearchIndex
       .map((entry) => ({
         ...entry,
-        score: scoreCategoryQuery(
+        score: scoreCreateCategoryQuery(
           entry.normalizedSearchText,
           normalizedCategoryQuery,
           categoryQueryTokens,
@@ -408,9 +356,8 @@ export function CreateListingPopout({
         : [],
     [resolvedCreateCategoryId, templatesByCategory],
   );
-  const shouldShowCreateCategoryGate =
-    !initial?.id &&
-    (!resolvedCreateCategoryId || selectedCategoryTemplates.length === 0);
+  // Keep the picker implementation available, but default to opening the full form directly.
+  const shouldShowCreateCategoryGate = false;
   const createInitial = useMemo(() => {
     if (initial?.id) return initial;
     return {
@@ -557,240 +504,133 @@ export function CreateListingPopout({
         )
       )}
 
-      {isOpen && (
+      <CreateListingModalShell
+        isOpen={isOpen}
+        isActive={isActive}
+        closeLabel={text.closeCreateListingForm}
+        onClose={closePopout}
+      >
         <div
-          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto p-0 sm:p-4 sm:pt-5"
-          role="dialog"
-          aria-modal="true"
+          className={`relative mx-auto flex max-h-[100dvh] w-full min-w-0 max-w-[760px] flex-col overflow-hidden rounded-2xl border border-border/50 bg-background/98 shadow-[0_24px_64px_-36px_rgba(2,6,23,0.45)] transition-all duration-200 sm:max-h-[92dvh] sm:rounded-3xl ${
+            isActive
+              ? "translate-y-0 scale-100 opacity-100"
+              : "translate-y-2 scale-[0.99] opacity-0"
+          }`}
         >
-          <button
-            type="button"
-            aria-label={text.closeCreateListingForm}
-            onClick={closePopout}
-            className={`absolute inset-0 bg-black/45 transition-opacity duration-200 ${
-              isActive ? "opacity-100" : "opacity-0"
-            }`}
+          <CreateListingModalHeader
+            title={text.createNewListing}
+            subtitle={text.fillAndPublish}
+            closeLabel={text.close}
+            onClose={closePopout}
           />
 
-          <div
-            className={`relative mx-auto flex min-h-dvh w-full max-w-[980px] flex-col border border-border bg-background shadow-2xl transition-all duration-200 sm:min-h-[92vh] sm:rounded-3xl ${
-              isActive
-                ? "translate-y-0 scale-100 opacity-100"
-                : "translate-y-2 scale-[0.99] opacity-0"
-            }`}
-          >
-            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-6 sm:py-4">
-              <div>
-                <p className="text-lg font-black sm:text-2xl">{text.createNewListing}</p>
-                <p className="text-xs text-muted-foreground sm:text-sm">
-                  {text.fillAndPublish}
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closePopout}
-                className="gap-1"
-              >
-                <X size={15} />
-                {text.close}
-              </Button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-6 sm:pb-6">
-              {initial?.id ? (
-                <ListingForm
-                  action={action}
-                  categories={categories}
-                  cities={cities}
-                  templatesByCategory={templatesByCategory}
-                  allowDraft={allowDraft}
-                  showPlanSelector={showPlanSelector}
-                  publishLabel={resolvedPublishLabel}
-                  paymentProvider={paymentProvider}
-                  initial={initial}
-                  locale={locale}
-                />
-              ) : shouldShowCreateCategoryGate ? (
-                <section className="mx-auto w-full max-w-2xl space-y-5 rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/30 p-5 shadow-sm sm:p-6">
-                  <div className="space-y-2">
-                    <span className="inline-flex rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                      {text.category}
-                    </span>
-                    <p className="text-lg font-black sm:text-xl">{text.chooseCategoryTitle}</p>
-                    <p className="text-sm text-muted-foreground">{text.chooseCategoryHint}</p>
-                  </div>
-
-                  <div className="space-y-1" ref={pickerContainerRef}>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {text.categorySearchLabel}
-                    </span>
-                    <div className="relative">
-                      <Input
-                        value={categorySearch}
-                        onFocus={() => setIsCategoryDropdownOpen(true)}
-                        onChange={(event) => {
-                          setCategorySearch(event.target.value);
-                          setIsCategoryDropdownOpen(true);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "ArrowDown") {
-                            event.preventDefault();
-                            setIsCategoryDropdownOpen(true);
-                            if (displayedCategoryResults.length === 0) return;
-                            setActiveCategoryResultIndex((previous) =>
-                              Math.min(previous + 1, displayedCategoryResults.length - 1),
-                            );
-                            return;
-                          }
-                          if (event.key === "ArrowUp") {
-                            event.preventDefault();
-                            setIsCategoryDropdownOpen(true);
-                            if (displayedCategoryResults.length === 0) return;
-                            setActiveCategoryResultIndex((previous) =>
-                              Math.max(previous - 1, 0),
-                            );
-                            return;
-                          }
-                          if (event.key === "Enter") {
-                            if (!isCategoryDropdownOpen) return;
-                            event.preventDefault();
-                            const activeResult =
-                              displayedCategoryResults[safeActiveCategoryResultIndex];
-                            if (!activeResult) return;
-                            handleCategorySelection(activeResult.category.id);
-                            return;
-                          }
-                          if (event.key === "Escape") {
-                            setIsCategoryDropdownOpen(false);
-                          }
-                        }}
-                        placeholder={text.categorySearchPlaceholder}
-                      />
-
-                      {isCategoryDropdownOpen && (
-                        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border/80 bg-card p-1 shadow-lg">
-                          {displayedCategoryResults.length === 0 ? (
-                            <p className="px-2 py-2 text-sm text-muted-foreground">
-                              {text.noCategoryMatch}
-                            </p>
-                          ) : (
-                            displayedCategoryResults.map((entry, index) => {
-                              const parentLabel = entry.category.parentId
-                                ? localizeCategoryName(
-                                    categoryById.get(entry.category.parentId),
-                                    locale,
-                                  )
-                                : "";
-                              const isActive = safeActiveCategoryResultIndex === index;
-                              return (
-                                <button
-                                  key={`picker-result-${entry.category.id}`}
-                                  type="button"
-                                  className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors ${
-                                    isActive
-                                      ? "bg-primary/10 text-foreground"
-                                      : "hover:bg-muted/60"
-                                  }`}
-                                  onMouseEnter={() => setActiveCategoryResultIndex(index)}
-                                  onClick={() => handleCategorySelection(entry.category.id)}
-                                >
-                                  <span className="min-w-0">
-                                    <span className="block truncate font-medium">
-                                      {entry.localizedName}
-                                    </span>
-                                    {parentLabel ? (
-                                      <span className="block truncate text-xs text-muted-foreground">
-                                        {parentLabel}
-                                      </span>
-                                    ) : null}
-                                  </span>
-                                  {!entry.selectable && entry.hasSelectableChildren ? (
-                                    <span className="rounded-full border border-border/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                      {text.subcategories}
-                                    </span>
-                                  ) : null}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedParentSubcategories.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {text.subcategories}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedParentSubcategories.map((subcategory) => (
-                          <button
-                            key={`subcategory-${subcategory.id}`}
-                            type="button"
-                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                              selectedCreateCategoryId === subcategory.id
-                                ? "border-primary/50 bg-primary/10"
-                                : "border-border/70 bg-card hover:border-primary/35"
-                            }`}
-                            onClick={() => {
-                              setSelectedCreateCategoryId(subcategory.id);
-                              setSelectedParentCategoryId(subcategory.parentId || subcategory.id);
-                            }}
-                          >
-                            {localizeCategoryName(subcategory, locale)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {categoriesWithTemplates.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {text.noCategoriesAvailable}
-                    </p>
-                  ) : normalizedCategoryQuery && displayedCategoryResults.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{text.noCategoryMatch}</p>
-                  ) : null}
-
-                  {!resolvedCreateCategoryId && selectedParentSubcategories.length > 0 ? (
-                    <p className="rounded-xl border border-border/70 bg-card px-3 py-2 text-sm text-muted-foreground">
-                      {text.needsSubcategory}
-                    </p>
-                  ) : null}
-
-                  {selectedCreateCategoryId && selectedCategoryTemplates.length === 0 ? (
-                    <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                      {text.noTemplatesForCategory}
-                    </p>
-                  ) : null}
-                </section>
-              ) : (
-                <CreateListingWizardForm
-                  action={action}
-                  categories={categories}
-                  cities={cities}
-                  templatesByCategory={templatesByCategory}
-                  allowDraft={allowDraft}
-                  showPlanSelector={showPlanSelector}
-                  publishLabel={resolvedPublishLabel}
-                  paymentProvider={paymentProvider}
-                  initial={createInitial}
-                  locale={locale}
-                  serverError={resolvedServerError}
-                  serverErrorField={resolvedServerErrorField}
-                  defaultsSaved={queryDefaultsSaved}
-                />
-              )}
-            </div>
+          <div className="flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain px-3 pb-3 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
+            {initial?.id ? (
+              <ListingForm
+                action={action}
+                categories={categories}
+                cities={cities}
+                templatesByCategory={templatesByCategory}
+                allowDraft={allowDraft}
+                showPlanSelector={showPlanSelector}
+                publishLabel={resolvedPublishLabel}
+                paymentProvider={paymentProvider}
+                initial={initial}
+                locale={locale}
+              />
+            ) : shouldShowCreateCategoryGate ? (
+              <CreateListingCategoryGate
+                text={{
+                  category: text.category,
+                  subcategories: text.subcategories,
+                  chooseCategoryTitle: text.chooseCategoryTitle,
+                  chooseCategoryHint: text.chooseCategoryHint,
+                  categorySearchLabel: text.categorySearchLabel,
+                  categorySearchPlaceholder: text.categorySearchPlaceholder,
+                  noCategoryMatch: text.noCategoryMatch,
+                  noCategoriesAvailable: text.noCategoriesAvailable,
+                  needsSubcategory: text.needsSubcategory,
+                  noTemplatesForCategory: text.noTemplatesForCategory,
+                }}
+                locale={locale}
+                pickerContainerRef={pickerContainerRef}
+                categoryById={categoryById}
+                categorySearch={categorySearch}
+                isCategoryDropdownOpen={isCategoryDropdownOpen}
+                displayedCategoryResults={displayedCategoryResults}
+                safeActiveCategoryResultIndex={safeActiveCategoryResultIndex}
+                selectedParentSubcategories={selectedParentSubcategories}
+                categoriesWithTemplatesLength={categoriesWithTemplates.length}
+                normalizedCategoryQuery={normalizedCategoryQuery}
+                selectedCreateCategoryId={selectedCreateCategoryId}
+                resolvedCreateCategoryId={resolvedCreateCategoryId}
+                selectedCategoryTemplatesLength={selectedCategoryTemplates.length}
+                onCategorySearchChange={(value) => {
+                  setCategorySearch(value);
+                  setIsCategoryDropdownOpen(true);
+                }}
+                onCategorySearchFocus={() => setIsCategoryDropdownOpen(true)}
+                onCategorySearchKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    setIsCategoryDropdownOpen(true);
+                    if (displayedCategoryResults.length === 0) return;
+                    setActiveCategoryResultIndex((previous) =>
+                      Math.min(previous + 1, displayedCategoryResults.length - 1),
+                    );
+                    return;
+                  }
+                  if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setIsCategoryDropdownOpen(true);
+                    if (displayedCategoryResults.length === 0) return;
+                    setActiveCategoryResultIndex((previous) => Math.max(previous - 1, 0));
+                    return;
+                  }
+                  if (event.key === "Enter") {
+                    if (!isCategoryDropdownOpen) return;
+                    event.preventDefault();
+                    const activeResult = displayedCategoryResults[safeActiveCategoryResultIndex];
+                    if (!activeResult) return;
+                    handleCategorySelection(activeResult.category.id);
+                    return;
+                  }
+                  if (event.key === "Escape") {
+                    setIsCategoryDropdownOpen(false);
+                  }
+                }}
+                onCategoryResultHover={setActiveCategoryResultIndex}
+                onCategorySelection={handleCategorySelection}
+                onSetParentAndCategory={(parentId, categoryId) => {
+                  setSelectedCreateCategoryId(categoryId);
+                  setSelectedParentCategoryId(parentId);
+                }}
+              />
+            ) : (
+              <CreateListingWizardForm
+                action={action}
+                categories={categories}
+                cities={cities}
+                templatesByCategory={templatesByCategory}
+                allowDraft={allowDraft}
+                showPlanSelector={showPlanSelector}
+                publishLabel={resolvedPublishLabel}
+                paymentProvider={paymentProvider}
+                initial={createInitial}
+                locale={locale}
+                serverError={resolvedServerError}
+                serverErrorField={resolvedServerErrorField}
+                defaultsSaved={queryDefaultsSaved}
+                onPublished={() => closePopout()}
+              />
+            )}
           </div>
         </div>
-      )}
+      </CreateListingModalShell>
     </>
   );
 }
 
 function CardLike({ children }: { children: ReactNode }) {
-  return <div className="rounded-2xl border border-primary/20 bg-card p-4">{children}</div>;
+  return <div className={`${uiSurface.cardStrong} border-primary/20 p-4`}>{children}</div>;
 }

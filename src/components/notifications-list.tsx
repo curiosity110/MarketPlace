@@ -49,7 +49,7 @@ export function NotificationsList({ locale, items }: Props) {
           type="button"
           size="sm"
           variant="outline"
-          className="gap-1.5"
+          className="h-8 max-w-full gap-1.5 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
           disabled={isPending}
           onClick={() => {
             startTransition(async () => {
@@ -71,14 +71,14 @@ export function NotificationsList({ locale, items }: Props) {
           <div
             key={item.id}
             className={cn(
-              "rounded-2xl border border-border/70 p-4",
+              "rounded-xl border border-border/70 p-3 sm:rounded-2xl sm:p-4",
               isRead ? "bg-muted/20" : "bg-card",
             )}
           >
             <Link href={href} className="block">
-              <p className="text-sm font-bold">{item.title}</p>
+              <p className="text-sm font-bold [overflow-wrap:anywhere]">{item.title}</p>
               {item.body ? (
-                <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
+                <p className="mt-1 text-sm text-muted-foreground [overflow-wrap:anywhere]">{item.body}</p>
               ) : null}
               <p className="mt-1 text-xs text-muted-foreground">
                 {new Date(item.createdAt).toLocaleDateString(

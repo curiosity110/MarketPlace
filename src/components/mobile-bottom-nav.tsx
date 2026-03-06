@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import type { ComponentType } from "react";
 import {
@@ -36,9 +36,11 @@ type NavItem = {
   show?: boolean;
 };
 
+const OPEN_CREATE_MODAL_EVENT = "mkd:open-create-modal";
+
 export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
-  const isDev = process.env.NODE_ENV !== "production";
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const currentPath = pathname;
   const safeNextPath =
@@ -56,19 +58,23 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
   const profileOrLoginIcon = isLoggedIn ? LayoutDashboard : LogIn;
 
   const openCreateListing = useCallback(() => {
-    const nextPath = pathname || "/browse";
+    const basePath = pathname || "/browse";
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("create", "1");
+    const nextQuery = nextParams.toString();
+    const createHref = nextQuery ? `${basePath}?${nextQuery}` : basePath;
+    const openParams = Object.fromEntries(nextParams.entries());
+
     if (!isLoggedIn) {
-      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+      router.push(`/login?next=${encodeURIComponent(createHref)}`);
       return;
     }
-    if (isDev) {
-      console.log("MODAL_CLICK", {
-        source: "mobile-bottom-nav",
-        time: Date.now(),
-      });
-    }
-    window.dispatchEvent(new CustomEvent("mkd:open-create-modal"));
-  }, [isDev, isLoggedIn, pathname, router]);
+    window.dispatchEvent(
+      new CustomEvent(OPEN_CREATE_MODAL_EVENT, {
+        detail: { params: openParams },
+      }),
+    );
+  }, [isLoggedIn, pathname, router, searchParams]);
 
   const items: NavItem[] = [
     { key: "home", href: "/", label: labels.home, icon: House, show: true },

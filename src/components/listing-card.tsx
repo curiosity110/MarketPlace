@@ -108,11 +108,12 @@ export function ListingCard({
           set: exclusionParams,
         })
       : null;
+  const listingHref = browseQuery ? `/listing/${listing.id}?${browseQuery}` : `/listing/${listing.id}`;
 
   return (
     <Card className="h-full min-w-0 overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
       <div className="group relative aspect-[4/3] w-full overflow-hidden bg-muted sm:aspect-video">
-        <Link href={`/listing/${listing.id}`} className="absolute inset-0 z-0">
+        <Link href={listingHref} className="absolute inset-0 z-0">
           <span className="sr-only">{listing.title}</span>
         </Link>
 
@@ -191,7 +192,7 @@ export function ListingCard({
       </div>
 
       <CardContent className="space-y-2.5 p-3.5 sm:p-4">
-        <Link href={`/listing/${listing.id}`}>
+        <Link href={listingHref}>
           <h3 className="line-clamp-2 min-h-[2.5rem] text-lg font-extrabold leading-tight tracking-tight transition-colors hover:text-primary sm:text-base">
             {listing.title}
           </h3>
@@ -204,13 +205,13 @@ export function ListingCard({
 
         {moreLikeHref && (
           <div className="grid grid-cols-2 gap-2">
-            <Link href={moreLikeHref} className="min-w-0">
+            <Link href={moreLikeHref} className="min-w-0" scroll={false}>
               <Button size="sm" variant="outline" className="w-full">
                 <span className="truncate">{text.moreLikeThis}</span>
               </Button>
             </Link>
             {excludeLikeHref ? (
-              <Link href={excludeLikeHref} className="min-w-0">
+              <Link href={excludeLikeHref} className="min-w-0" scroll={false}>
                 <Button size="sm" variant="outline" className="w-full">
                   <span className="truncate">{text.excludeLikeThis}</span>
                 </Button>

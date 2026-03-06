@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { Bell } from "lucide-react";
 import { canAccessControl, getSessionUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/actions/notifications";
 import { AuthCtaLinks } from "@/components/auth-cta-links";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { NavMobileMenu } from "@/components/nav-mobile-menu";
 import { NavAccountLinks } from "@/components/nav-account-links";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { NavPrimaryLinks } from "@/components/nav-primary-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Container } from "@/components/ui/container";
+import { Button } from "@/components/ui/button";
 import { getMessages, getServerLocale } from "@/lib/i18n";
 
 export async function Nav() {
@@ -23,13 +26,14 @@ export async function Nav() {
   return (
     <>
       <nav className="sticky top-0 z-50 border-b border-border/70 bg-background/95 backdrop-blur-sm">
-        <Container className="flex flex-wrap items-center gap-2 py-3">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-6">
+        <Container className="flex items-center gap-2 px-2 py-2 min-[320px]:px-3 sm:gap-3 sm:px-5 sm:py-3 lg:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-6">
             <Link
               href="/"
-              className="shrink-0 rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 px-3 py-1.5 text-sm font-bold tracking-wide text-white shadow-sm transition-opacity hover:opacity-90 sm:px-4"
+              className="inline-flex h-8 min-w-0 max-w-[min(50vw,9rem)] items-center whitespace-nowrap rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 px-2.5 py-0.5 text-[10px] font-bold leading-none tracking-[0.04em] text-white shadow-sm transition-opacity hover:opacity-90 sm:h-auto sm:max-w-none sm:px-4 sm:py-1.5 sm:text-sm"
             >
-              {messages.appName}
+              <span className="truncate sm:hidden">MP MKD</span>
+              <span className="hidden truncate sm:inline">{messages.appName}</span>
             </Link>
 
             <NavPrimaryLinks
@@ -43,7 +47,7 @@ export async function Nav() {
             />
           </div>
 
-          <div className="ml-auto flex min-w-0 items-center gap-2">
+          <div className="ml-auto hidden min-w-0 shrink-0 items-center gap-2 sm:flex">
             <LanguageSwitcher
               locale={locale}
               label={messages.language.label}
@@ -71,6 +75,47 @@ export async function Nav() {
                 loginLabel={messages.nav.login}
               />
             )}
+          </div>
+
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:hidden">
+            {user ? (
+              <NotificationsBell
+                locale={locale}
+                items={notifications.items}
+                unreadCount={notifications.unreadCount}
+              />
+            ) : (
+              <Link href="/notifications">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  aria-label={messages.market.notifications}
+                >
+                  <Bell size={16} />
+                </Button>
+              </Link>
+            )}
+
+            <NavMobileMenu
+              isLoggedIn={Boolean(user)}
+              isAdmin={isAdmin}
+              locale={locale}
+              labels={{
+                menu: messages.nav.menu,
+                profile: messages.market.profile,
+                dashboard: messages.nav.dashboard,
+                admin: messages.nav.admin,
+                login: messages.nav.login,
+                register: messages.nav.register,
+                logout: messages.nav.logout,
+                language: messages.language.label,
+                english: messages.language.english,
+                macedonian: messages.language.macedonian,
+                toggleTheme: messages.theme.toggle,
+              }}
+            />
           </div>
         </Container>
       </nav>

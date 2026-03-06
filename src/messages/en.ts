@@ -36,6 +36,7 @@
     sell: "Sell",
     dashboard: "Dashboard",
     admin: "Admin",
+    menu: "Menu",
     login: "Login",
     register: "Register",
     logout: "Logout",

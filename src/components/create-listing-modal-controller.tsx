@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Currency, ListingCondition } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CreateListingPopout } from "@/components/create-listing-popout";
@@ -19,7 +19,7 @@ type Template = {
 type ListingPlan = "pay-per-listing" | "subscription";
 
 type Props = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<unknown> | unknown;
   categories: Category[];
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
@@ -62,9 +62,7 @@ export function CreateListingModalController({
   initial,
   forceOpen = false,
 }: Props) {
-  const isDev = process.env.NODE_ENV !== "production";
-  // TEMP (DEV only): set to true for a single run to force the dialog open.
-  const DEV_FORCE_OPEN = isDev && false;
+  // Client orchestrator: merges event/query/manual open triggers and prepares initial form defaults.
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,42 +71,17 @@ export function CreateListingModalController({
     null,
   );
   const queryCreateRequested = searchParams.get("create") === "1";
-  const createRequested =
-    forceOpen || DEV_FORCE_OPEN || manualOpen || queryCreateRequested;
-  const modalOpenRef = useRef(createRequested);
-
-  if (isDev) {
-    console.log("MODAL_RENDER", { open: createRequested });
-  }
+  const createRequested = forceOpen || manualOpen || queryCreateRequested;
 
   const openModal = useCallback(
-    (source: string, params?: URLSearchParams | null) => {
-      if (isDev) {
-        console.log("MODAL_CLICK", Date.now());
-        queueMicrotask(() => {
-          console.log("AFTER_CLICK_MICROTASK", {
-            source,
-            open_now: modalOpenRef.current,
-          });
-        });
-        requestAnimationFrame(() => {
-          console.log("AFTER_CLICK_RAF", {
-            source,
-            open_now: modalOpenRef.current,
-          });
-        });
-      }
+    (params?: URLSearchParams | null) => {
       if (params) {
         setPendingOpenParams(new URLSearchParams(params.toString()));
       }
       setManualOpen(true);
     },
-    [isDev],
+    [],
   );
-
-  useEffect(() => {
-    modalOpenRef.current = createRequested;
-  }, [createRequested]);
 
   const mergedQueryParams = useMemo(() => {
     const next = new URLSearchParams(searchParams.toString());
@@ -116,6 +89,7 @@ export function CreateListingModalController({
       if (key === "closed") return;
       next.set(key, value);
     });
+    next.delete("closed");
     return next;
   }, [pendingOpenParams, searchParams]);
 
@@ -200,15 +174,12 @@ export function CreateListingModalController({
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      if (isDev) {
-        console.log("MODAL_ON_OPEN_CHANGE", nextOpen);
-      }
       setManualOpen(nextOpen);
       if (!nextOpen) {
         cleanModalQueryParams();
       }
     },
-    [cleanModalQueryParams, isDev],
+    [cleanModalQueryParams],
   );
 
   useEffect(() => {
@@ -222,7 +193,8 @@ export function CreateListingModalController({
           params.set(key, value);
         });
       }
-      openModal("custom-event", params);
+      params.set("create", "1");
+      openModal(params);
     }
 
     window.addEventListener(OPEN_EVENT_NAME, handleOpenRequest as EventListener);
@@ -260,7 +232,7 @@ export function CreateListingModalController({
       if (!shouldOpenModal) return;
 
       event.preventDefault();
-      openModal("anchor-link", url.searchParams);
+      openModal(url.searchParams);
     }
 
     document.addEventListener("click", handleSellLinkClick, true);
@@ -268,6 +240,29 @@ export function CreateListingModalController({
       document.removeEventListener("click", handleSellLinkClick, true);
     };
   }, [openModal]);
+
+  useEffect(() => {
+    if (!manualOpen) return;
+    if (queryCreateRequested) return;
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("create", "1");
+    pendingOpenParams?.forEach((value, key) => {
+      if (key === "closed") return;
+      nextParams.set(key, value);
+    });
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }, [
+    manualOpen,
+    pathname,
+    pendingOpenParams,
+    queryCreateRequested,
+    router,
+    searchParams,
+  ]);
 
   return (
     <CreateListingPopout

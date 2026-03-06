@@ -79,7 +79,7 @@ html {
   scroll-behavior: smooth;
   width: 100%;
   max-width: 100%;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 body {
@@ -99,7 +99,7 @@ body {
   line-height: 1.55;
   width: 100%;
   max-width: 100%;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 /* Improve readability for tiny metadata text across the app. */

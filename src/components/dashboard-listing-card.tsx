@@ -115,7 +115,7 @@ export function DashboardListingCard({
   return (
     <article
       className={cn(
-        "group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-primary/30",
+        "group max-w-full min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-primary/30",
         layout === "list"
           ? "grid gap-0 lg:grid-cols-[260px_1fr]"
           : "flex flex-col",
@@ -177,8 +177,8 @@ export function DashboardListingCard({
         </div>
       </div>
 
-      <div className="flex min-h-full flex-col gap-3 p-4">
-        <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+      <div className="flex min-h-full min-w-0 flex-col gap-3 p-4">
+        <div className="flex max-w-full min-w-0 flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
           <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5">
             {listing.city.name}
           </span>

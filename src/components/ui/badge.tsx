@@ -1,5 +1,6 @@
 import type React from "react";
 import { cn } from "@/lib/utils";
+import { uiTypography } from "@/components/ui/ui-patterns";
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?:
@@ -33,7 +34,9 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-[0.8125rem] font-semibold leading-tight transition-colors",
+        "inline-flex items-center rounded-full border px-2.5 py-1 font-semibold leading-tight transition-colors",
+        uiTypography.label,
+        "tracking-normal",
         variantStyles[variant],
         className,
       )}

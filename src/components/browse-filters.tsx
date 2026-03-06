@@ -4,218 +4,45 @@ import type { ChangeEvent } from "react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CategoryFieldType, ListingCondition } from "@prisma/client";
-import { Filter, Search, X } from "lucide-react";
+import { X } from "lucide-react";
+import { BrowseDesktopFiltersRow } from "@/components/browse/desktop-filters-row";
+import { BrowseFiltersActiveChips } from "@/components/browse/filters-active-chips";
+import type {
+  BrowseFilterState,
+  BrowseFiltersProps,
+  BrowseSort,
+  BrowseTemplate as Template,
+} from "@/components/browse/filters.types";
+import { useDebouncedValue } from "@/components/browse/filters.hooks";
+import {
+  TYPING_DEBOUNCE_MS,
+  areBrowseStatesEqual,
+  areStringRecordsEqual,
+  buildBrowseQueryFromState,
+  getBrowseDynamicValues,
+  getBrowseFilterState,
+  hasAnyBrowseFilter,
+  isCarCoreTemplate,
+  isCarExtraTemplate,
+  isCarIdentityTemplate,
+  isCarsSlug,
+  normalizeMinMax,
+  normalizeNumericInput,
+  parseBrowseSort,
+  shouldSkipBrowseNavigation,
+  toPositiveInteger,
+} from "@/components/browse/filters.utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
 import { cn } from "@/lib/utils";
 
-type Template = {
-  key: string;
-  label: string;
-  type: CategoryFieldType;
-  options: string[];
-};
-
-type ParentCategory = {
-  id: string;
-  slug: string;
-  name: string;
-  children: { id: string; slug: string; name: string }[];
-};
-
-type City = { id: string; name: string };
-type CarMake = {
-  id: string;
-  name: string;
-  slug: string;
-  models: {
-    id: string;
-    name: string;
-    slug: string;
-    makeId: string;
-  }[];
-};
-
-export type BrowseSort = "newest" | "price-asc" | "price-desc";
-
-export type BrowseFilterState = {
-  q: string;
-  cat: string;
-  sub: string;
-  city: string;
-  condition: string;
-  make: string;
-  model: string;
-  yearFrom: string;
-  yearTo: string;
-  fav: string;
-  min: string;
-  max: string;
-  sort: BrowseSort;
-};
-
-type BrowseFiltersMode = "desktop" | "mobile";
-
-type Props = {
-  categories: ParentCategory[];
-  cities: City[];
-  templatesByCategory: Record<string, Template[]>;
-  carMakes: CarMake[];
-  locale?: "en" | "mk";
-  canUseFavoritesFilter?: boolean;
-  showActiveChips?: boolean;
-  mode?: BrowseFiltersMode;
-  value?: BrowseFilterState;
-  dynamicValues?: Record<string, string>;
-  onChange?: React.Dispatch<React.SetStateAction<BrowseFilterState>>;
-  onDynamicValuesChange?: React.Dispatch<
-    React.SetStateAction<Record<string, string>>
-  >;
-  onApply?: (
-    nextState: BrowseFilterState,
-    nextDynamicValues: Record<string, string>,
-  ) => void;
-  showResetButton?: boolean;
-};
-
-const TYPING_DEBOUNCE_MS = 320;
-
-function parseSort(value: string | null): BrowseSort {
-  if (value === "price-asc" || value === "price-desc") return value;
-  return "newest";
-}
-
-export function getBrowseFilterState(sp: URLSearchParams): BrowseFilterState {
-  return {
-    q: sp.get("q") ?? "",
-    cat: sp.get("cat") ?? "",
-    sub: sp.get("sub") ?? "",
-    city: sp.get("city") ?? "",
-    condition: sp.get("condition") ?? sp.get("cond") ?? "",
-    make: sp.get("make") ?? "",
-    model: sp.get("model") ?? "",
-    yearFrom: sp.get("yearFrom") ?? "",
-    yearTo: sp.get("yearTo") ?? "",
-    fav: sp.get("fav") === "1" ? "1" : "",
-    min: sp.get("min") ?? "",
-    max: sp.get("max") ?? "",
-    sort: parseSort(sp.get("sort")),
-  };
-}
-
-function isCarsSlug(slug: string | undefined) {
-  if (!slug) return false;
-  const normalized = slug.toLowerCase();
-  return normalized === "cars" || normalized.includes("car");
-}
-
-function isCarCoreTemplate(template: Template) {
-  const source = `${template.key} ${template.label}`.toLowerCase();
-  return /(brand|make|manufacturer|model|year|fuel|transmission|gearbox|km|mileage|kilomet)/.test(
-    source,
-  );
-}
-
-function isCarExtraTemplate(template: Template) {
-  const source = `${template.key} ${template.label}`.toLowerCase();
-  return /(fuel|transmission|gearbox|km|mileage|kilomet)/.test(source);
-}
-
-function isCarIdentityTemplate(template: Template) {
-  const source = `${template.key} ${template.label}`.toLowerCase();
-  return /(brand|make|manufacturer|model|year)/.test(source);
-}
-
-export function getBrowseDynamicValues(sp: URLSearchParams) {
-  const values: Record<string, string> = {};
-  for (const [key, value] of sp.entries()) {
-    if (!key.startsWith("df_")) continue;
-    values[key.slice(3)] = value;
-  }
-  return values;
-}
-
-function normalizeNumericInput(value: string) {
-  return value.replace(/[^\d]/g, "");
-}
-
-function toPositiveInteger(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
-  return Math.round(parsed);
-}
-
-function normalizeMinMax(minValue: string, maxValue: string) {
-  const minInt = toPositiveInteger(minValue);
-  const maxInt = toPositiveInteger(maxValue);
-
-  if (minInt !== undefined && maxInt !== undefined && minInt > maxInt) {
-    return {
-      min: String(maxInt),
-      max: String(minInt),
-      hasSwap: true,
-    };
-  }
-
-  return {
-    min: minInt === undefined ? "" : String(minInt),
-    max: maxInt === undefined ? "" : String(maxInt),
-    hasSwap: false,
-  };
-}
-
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = React.useState(value);
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(timer);
-  }, [delayMs, value]);
-
-  return debounced;
-}
-
-function areStatesEqual(a: BrowseFilterState, b: BrowseFilterState) {
-  return (
-    a.q === b.q &&
-    a.cat === b.cat &&
-    a.sub === b.sub &&
-    a.city === b.city &&
-    a.condition === b.condition &&
-    a.make === b.make &&
-    a.model === b.model &&
-    a.yearFrom === b.yearFrom &&
-    a.yearTo === b.yearTo &&
-    a.fav === b.fav &&
-    a.min === b.min &&
-    a.max === b.max &&
-    a.sort === b.sort
-  );
-}
-
-function areRecordsEqual(
-  a: Record<string, string>,
-  b: Record<string, string>,
-) {
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) return false;
-  for (const key of aKeys) {
-    if (a[key] !== b[key]) return false;
-  }
-  return true;
-}
-
-function canonicalizeQueryString(input: string) {
-  const entries = [...new URLSearchParams(input).entries()].sort((left, right) => {
-    if (left[0] === right[0]) return left[1].localeCompare(right[1]);
-    return left[0].localeCompare(right[0]);
-  });
-  return new URLSearchParams(entries).toString();
-}
+export {
+  getBrowseDynamicValues,
+  getBrowseFilterState,
+} from "@/components/browse/filters.utils";
+export type { BrowseFilterState, BrowseSort } from "@/components/browse/filters.types";
 
 export function BrowseFilters({
   categories,
@@ -232,7 +59,7 @@ export function BrowseFilters({
   onDynamicValuesChange,
   onApply,
   showResetButton = true,
-}: Props) {
+}: BrowseFiltersProps) {
   const isMobileMode = mode === "mobile";
   const router = useRouter();
   const spReadonly = useSearchParams();
@@ -421,9 +248,9 @@ export function BrowseFilters({
     const nextState = getBrowseFilterState(latest);
     const nextDynamicValues = getBrowseDynamicValues(latest);
 
-    setState((prev) => (areStatesEqual(prev, nextState) ? prev : nextState));
+    setState((prev) => (areBrowseStatesEqual(prev, nextState) ? prev : nextState));
     setDynamicValues((prev) =>
-      areRecordsEqual(prev, nextDynamicValues) ? prev : nextDynamicValues,
+      areStringRecordsEqual(prev, nextDynamicValues) ? prev : nextDynamicValues,
     );
   }, [isMobileMode, setDynamicValues, setState, spString]);
 
@@ -506,25 +333,10 @@ export function BrowseFilters({
     [carMakes],
   );
 
-  const hasAnyFilter = React.useMemo(() => {
-    const dynamicHasValue = Object.values(dynamicValues).some((value) => value.trim().length > 0);
-    return (
-      Boolean(state.q.trim()) ||
-      Boolean(state.cat) ||
-      Boolean(state.sub) ||
-      Boolean(state.city) ||
-      Boolean(state.condition) ||
-      Boolean(state.make) ||
-      Boolean(state.model) ||
-      Boolean(state.yearFrom) ||
-      Boolean(state.yearTo) ||
-      state.fav === "1" ||
-      Boolean(state.min.trim()) ||
-      Boolean(state.max.trim()) ||
-      state.sort !== "newest" ||
-      dynamicHasValue
-    );
-  }, [dynamicValues, state]);
+  const hasAnyFilter = React.useMemo(
+    () => hasAnyBrowseFilter(state, dynamicValues),
+    [dynamicValues, state],
+  );
 
   const applyFilters = React.useCallback(
     (nextState: BrowseFilterState, nextDynamicValues: Record<string, string>) => {
@@ -533,78 +345,12 @@ export function BrowseFilters({
         return;
       }
 
-      const normalizedRange = normalizeMinMax(nextState.min, nextState.max);
-
-      const params = new URLSearchParams(spString);
-      const cleanKeys = new Set([
-        "q",
-        "cat",
-        "sub",
-        "city",
-        "condition",
-        "cond",
-        "make",
-        "model",
-        "yearFrom",
-        "yearTo",
-        "fav",
-        "min",
-        "max",
-        "sort",
-        "page",
-      ]);
-
-      [...params.keys()].forEach((key) => {
-        if (cleanKeys.has(key) || key.startsWith("df_")) {
-          params.delete(key);
-        }
-      });
-
-      if (nextState.q.trim()) params.set("q", nextState.q.trim());
-      if (nextState.cat) params.set("cat", nextState.cat);
-      if (nextState.sub) params.set("sub", nextState.sub);
-      if (nextState.city) params.set("city", nextState.city);
-      if (nextState.condition) params.set("condition", nextState.condition);
-      if (nextState.make) params.set("make", nextState.make);
-      if (nextState.model) params.set("model", nextState.model);
-      if (nextState.yearFrom) params.set("yearFrom", nextState.yearFrom);
-      if (nextState.yearTo) params.set("yearTo", nextState.yearTo);
-      if (nextState.fav === "1") params.set("fav", "1");
-      if (normalizedRange.min) params.set("min", normalizedRange.min);
-      if (normalizedRange.max) params.set("max", normalizedRange.max);
-      if (nextState.sort !== "newest") params.set("sort", nextState.sort);
-
-      Object.entries(nextDynamicValues).forEach(([key, value]) => {
-        const trimmed = value.trim();
-        if (!trimmed) return;
-        params.set(`df_${key}`, trimmed);
-      });
-
-      const hasFilters =
-        Boolean(nextState.q.trim()) ||
-        Boolean(nextState.cat) ||
-        Boolean(nextState.sub) ||
-        Boolean(nextState.city) ||
-        Boolean(nextState.condition) ||
-        Boolean(nextState.make) ||
-        Boolean(nextState.model) ||
-        Boolean(nextState.yearFrom) ||
-        Boolean(nextState.yearTo) ||
-        nextState.fav === "1" ||
-        Boolean(normalizedRange.min) ||
-        Boolean(normalizedRange.max) ||
-        nextState.sort !== "newest" ||
-        Object.values(nextDynamicValues).some((value) => value.trim().length > 0);
-
-      if (hasFilters) {
-        params.set("page", "1");
-      }
-
-      const query = params.toString();
-      const nextCanonical = canonicalizeQueryString(query);
-      const currentCanonical = canonicalizeQueryString(spString);
-
-      if (nextCanonical === currentCanonical) {
+      const { query } = buildBrowseQueryFromState(
+        spString,
+        nextState,
+        nextDynamicValues,
+      );
+      if (shouldSkipBrowseNavigation(query, spString)) {
         return;
       }
 
@@ -666,7 +412,7 @@ export function BrowseFilters({
       const next = Object.fromEntries(
         Object.entries(prev).filter(([key]) => allowedKeys.has(key)),
       );
-      return areRecordsEqual(prev, next) ? prev : next;
+      return areStringRecordsEqual(prev, next) ? prev : next;
     });
   }, [dynamicTemplates, isCarsCategorySelected, setDynamicValues]);
 
@@ -1061,7 +807,7 @@ export function BrowseFilters({
 
   function renderDynamicInput(template: Template) {
     const value = dynamicValues[template.key] ?? "";
-    const commonClasses = "h-10";
+    const commonClasses = "h-10 min-w-0 w-full max-w-full";
 
     if (template.type === CategoryFieldType.SELECT) {
       return (
@@ -1105,7 +851,7 @@ export function BrowseFilters({
 
   if (isMobileMode) {
     return (
-      <div className="space-y-4">
+      <div className="max-w-full space-y-4 overflow-x-hidden">
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.search}
@@ -1125,7 +871,7 @@ export function BrowseFilters({
           <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.category}
           </summary>
-          <div className="mt-3 grid gap-3">
+          <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
             <label className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {text.category}
@@ -1233,7 +979,7 @@ export function BrowseFilters({
           <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {text.condition}
           </summary>
-          <div className="mt-3 grid gap-3">
+          <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
             <label className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {text.condition}
@@ -1261,7 +1007,7 @@ export function BrowseFilters({
                 onChange={(event) => {
                   const nextState: BrowseFilterState = {
                     ...state,
-                    sort: parseSort(event.target.value),
+                    sort: parseBrowseSort(event.target.value),
                   };
                   setState(nextState);
                 }}
@@ -1277,7 +1023,7 @@ export function BrowseFilters({
               <button
                 type="button"
                 className={cn(
-                  "inline-flex h-9 w-fit items-center rounded-full border px-3 text-xs font-semibold transition-colors",
+                  "inline-flex h-9 w-full items-center justify-center rounded-full border px-3 text-xs font-semibold transition-colors",
                   state.fav === "1"
                     ? "border-primary/40 bg-primary/10 text-primary"
                     : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
@@ -1300,7 +1046,7 @@ export function BrowseFilters({
             <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {text.carsFilters}
             </summary>
-            <div className="mt-3 grid gap-3">
+            <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
               <label className="space-y-1">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {text.make}
@@ -1379,7 +1125,7 @@ export function BrowseFilters({
 
   return (
     <form
-      className="space-y-4"
+      className="max-w-full min-w-0 space-y-4 overflow-x-hidden"
       onSubmit={(event) => {
         event.preventDefault();
         applyFilters(state, dynamicValues);
@@ -1390,117 +1136,49 @@ export function BrowseFilters({
       </button>
 
       {showActiveChips && (hasAnyFilter || activeFilterChips.length > 0) && (
-        <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {text.activeFilters}
-            </p>
-              <button
-                type="button"
-                className="text-xs font-semibold text-primary hover:underline"
-                onClick={resetAll}
-              >
-                {clearAllLabel}
-              </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {activeFilterChips.map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-primary/40 hover:text-primary"
-                onClick={chip.onRemove}
-                aria-label={`${text.removeFilter}: ${chip.label}`}
-              >
-                <span>{chip.label}</span>
-                <X size={13} />
-              </button>
-            ))}
-          </div>
-        </div>
+        <BrowseFiltersActiveChips
+          chips={activeFilterChips}
+          title={text.activeFilters}
+          clearAllLabel={clearAllLabel}
+          removeFilterLabel={text.removeFilter}
+          onClearAll={resetAll}
+        />
       )}
 
-      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]">
-        <label className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.search}
-          </span>
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              size={15}
-            />
-            <Input
-              name="q"
-              value={state.q}
-              onChange={(event) =>
-                setState((prev) => ({ ...prev, q: event.target.value }))
-              }
-              placeholder={text.searchPlaceholder}
-              className="pl-9"
-              autoComplete="off"
-            />
-          </div>
-        </label>
-
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.orderBy}
-          </p>
-          <div className="inline-flex rounded-xl border border-border/80 bg-muted/20 p-1">
-            {sortOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={cn(
-                  "h-8 flex-1 rounded-lg px-2 text-xs font-semibold transition-colors",
-                  state.sort === option.value
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => {
-                  const nextState: BrowseFilterState = {
-                    ...state,
-                    sort: option.value,
-                  };
-                  setState(nextState);
-                  applyFilters(nextState, dynamicValues);
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {filtersLabel}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 rounded-xl px-3"
-            onClick={() => setIsDrawerOpen(true)}
-          >
-            <Filter size={14} className="mr-1.5" />
-            {filtersLabel}
-            {activeFilterChips.length > 0 ? ` (${activeFilterChips.length})` : ""}
-          </Button>
-        </div>
-      </div>
+      <BrowseDesktopFiltersRow
+        searchLabel={text.search}
+        searchPlaceholder={text.searchPlaceholder}
+        searchValue={state.q}
+        onSearchChange={(value) =>
+          setState((prev) => ({ ...prev, q: value }))
+        }
+        orderByLabel={text.orderBy}
+        sortOptions={sortOptions}
+        sortValue={state.sort}
+        onSortChange={(value) => {
+          const nextState: BrowseFilterState = {
+            ...state,
+            sort: value,
+          };
+          setState(nextState);
+          applyFilters(nextState, dynamicValues);
+        }}
+        filtersLabel={filtersLabel}
+        activeFilterCount={activeFilterChips.length}
+        onOpenFilters={() => setIsDrawerOpen(true)}
+      />
 
       {isDrawerOpen && (
-        <div className="fixed inset-0 z-[95]">
+        <div className="fixed inset-0 z-[95] max-w-[100vw] overflow-hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-black/45"
+            className={uiModal.backdrop}
             aria-label={filtersLabel}
             onClick={() => setIsDrawerOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-[430px] md:rounded-none md:border-y-0 md:border-r-0 md:border-l">
-            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-2xl border border-border/70 bg-background shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:h-auto md:max-h-none md:w-[min(430px,100vw)] md:rounded-none md:border-y-0 md:border-r-0 md:border-l">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/70 bg-background px-4 py-3">
+              <p className={uiTypography.eyebrow}>
                 {filtersLabel}
               </p>
               <div className="flex items-center gap-3">
@@ -1524,12 +1202,12 @@ export function BrowseFilters({
               </div>
             </div>
 
-            <div className="space-y-4 overflow-y-auto p-4">
-              <section className="space-y-3">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4">
+              <section className="min-w-0 space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {basicsLabel}
                 </p>
-                <div className="grid gap-3">
+                <div className="grid max-w-full gap-3 [&>*]:min-w-0">
                   <label className="space-y-1">
                     <span className="text-xs font-semibold text-muted-foreground">
                       {text.category}
@@ -1606,7 +1284,7 @@ export function BrowseFilters({
                   <button
                     type="button"
                     className={cn(
-                      "inline-flex h-8 items-center rounded-full border px-3 text-xs font-semibold transition-colors",
+                      "inline-flex h-8 w-full items-center justify-center rounded-full border px-3 text-xs font-semibold transition-colors",
                       state.fav === "1"
                         ? "border-primary/40 bg-primary/10 text-primary"
                         : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
@@ -1625,11 +1303,11 @@ export function BrowseFilters({
                 )}
               </section>
 
-              <section className="space-y-2">
+              <section className="min-w-0 space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {priceLabel}
                 </p>
-                <div className="grid gap-2">
+                <div className="grid max-w-full gap-2">
                   <div className="relative">
                     <Input
                       name="min"
@@ -1677,11 +1355,11 @@ export function BrowseFilters({
               </section>
 
               {isCarsCategorySelected && (
-                <section className="space-y-3">
+                <section className="min-w-0 space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {vehicleDetailsLabel}
                   </p>
-                  <div className="grid gap-3">
+                  <div className="grid max-w-full gap-3 [&>*]:min-w-0">
                     <label className="space-y-1">
                       <span className="text-xs font-semibold text-muted-foreground">
                         {text.make}
@@ -1772,7 +1450,7 @@ export function BrowseFilters({
                   <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {moreFiltersLabel}
                   </summary>
-                  <div className="mt-3 grid gap-3">
+                  <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
                     {visibleDynamicTemplates.map((template) => (
                       <label key={template.key} className="space-y-1">
                         <span className="text-xs font-semibold text-muted-foreground">

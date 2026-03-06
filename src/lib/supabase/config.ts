@@ -8,6 +8,13 @@ type SupabaseServiceConfig = SupabasePublicConfig & {
   storageBucket: string;
 };
 
+function readEnvValue(rawValue: string | undefined) {
+  const trimmed = (rawValue || "").trim();
+  if (!trimmed) return "";
+  // Some env pull tools append literal "\r\n" to values. Strip only trailing escapes.
+  return trimmed.replace(/(?:\\r\\n|\\r|\\n)+$/g, "").trim();
+}
+
 function hasPlaceholder(value: string) {
   return (
     value.includes("YOUR_PROJECT") ||
@@ -27,8 +34,8 @@ function normalizeUrl(rawUrl: string) {
 }
 
 export function getSupabasePublicConfigError(): string | null {
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
+  const rawUrl = readEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const anonKey = readEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
   if (!rawUrl) return "Missing NEXT_PUBLIC_SUPABASE_URL.";
   if (hasPlaceholder(rawUrl)) return "NEXT_PUBLIC_SUPABASE_URL contains a placeholder value.";
@@ -48,8 +55,8 @@ export function getSupabasePublicConfig(): SupabasePublicConfig | null {
   const configError = getSupabasePublicConfigError();
   if (configError) return null;
 
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
+  const rawUrl = readEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const anonKey = readEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
   const url = normalizeUrl(rawUrl);
   if (!url) return null;
@@ -61,7 +68,7 @@ export function getSupabaseServiceConfigError(): string | null {
   const publicError = getSupabasePublicConfigError();
   if (publicError) return publicError;
 
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
+  const serviceRoleKey = readEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
   if (!serviceRoleKey) return "Missing SUPABASE_SERVICE_ROLE_KEY.";
   if (hasPlaceholder(serviceRoleKey)) {
     return "SUPABASE_SERVICE_ROLE_KEY contains a placeholder value.";
@@ -75,8 +82,9 @@ export function getSupabaseServiceConfig(): SupabaseServiceConfig | null {
   if (configError) return null;
 
   const publicConfig = getSupabasePublicConfig();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
-  const storageBucket = (process.env.SUPABASE_STORAGE_BUCKET || "listing-images").trim();
+  const serviceRoleKey = readEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const storageBucket =
+    readEnvValue(process.env.SUPABASE_STORAGE_BUCKET) || "listing-images";
   if (!publicConfig) {
     return null;
   }

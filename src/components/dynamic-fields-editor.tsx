@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CategoryFieldType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,49 +141,46 @@ export function DynamicFieldsEditor({
     return nextValues;
   }, [templates, initialValues]);
 
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>(
-    initialTemplateValues,
+  const [fieldOverrides, setFieldOverrides] = useState<Record<string, string>>({});
+  const templateKeySet = useMemo(
+    () => new Set(templates.map((template) => template.key)),
+    [templates],
   );
-
-  useEffect(() => {
-    setFieldValues((prev) => {
-      // Fast shallow compare: same keys + same values
-      const prevKeys = Object.keys(prev);
-      const nextKeys = Object.keys(initialTemplateValues);
-      if (prevKeys.length !== nextKeys.length) return initialTemplateValues;
-
-      for (const k of nextKeys) {
-        if ((prev[k] ?? "") !== (initialTemplateValues[k] ?? "")) {
-          return initialTemplateValues;
-        }
-      }
-      return prev;
+  const suggestedTemplateValues = useMemo(() => {
+    const nextValues: Record<string, string> = {};
+    Object.entries(suggestedValues).forEach(([key, value]) => {
+      if (!templateKeySet.has(key)) return;
+      if (typeof value !== "string") return;
+      const nextValue = value.trim();
+      if (!nextValue) return;
+      nextValues[key] = value;
     });
-  }, [initialTemplateValues]);
-
-  useEffect(() => {
-    const entries = Object.entries(suggestedValues).filter(
-      ([key, value]) =>
-        templates.some((template) => template.key === key) &&
-        typeof value === "string" &&
-        value.trim().length > 0,
-    );
-    if (entries.length === 0) return;
-
-    setFieldValues((previous) => {
-      let changed = false;
-      const nextValues = { ...previous };
-      for (const [key, value] of entries) {
-        if (nextValues[key] === value) continue;
-        nextValues[key] = value;
-        changed = true;
-      }
-      return changed ? nextValues : previous;
+    return nextValues;
+  }, [suggestedValues, templateKeySet]);
+  const baseFieldValues = useMemo(
+    () => ({ ...initialTemplateValues, ...suggestedTemplateValues }),
+    [initialTemplateValues, suggestedTemplateValues],
+  );
+  const fieldValues = useMemo(() => {
+    const nextValues = { ...baseFieldValues };
+    Object.entries(fieldOverrides).forEach(([key, value]) => {
+      if (!templateKeySet.has(key)) return;
+      nextValues[key] = value;
     });
-  }, [suggestedValues, templates]);
+    return nextValues;
+  }, [baseFieldValues, fieldOverrides, templateKeySet]);
 
   function updateField(key: string, value: string) {
-    setFieldValues((prev) => ({ ...prev, [key]: value }));
+    setFieldOverrides((prev) => {
+      const baseValue = baseFieldValues[key] ?? "";
+      if (value === baseValue) {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: value };
+    });
   }
 
   function clearFields() {
@@ -191,7 +188,7 @@ export function DynamicFieldsEditor({
     templates.forEach((template) => {
       cleared[template.key] = "";
     });
-    setFieldValues(cleared);
+    setFieldOverrides(cleared);
   }
 
   const selectedBrand = useMemo(() => {

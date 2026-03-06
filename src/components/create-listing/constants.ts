@@ -1,0 +1,3 @@
+export const MAX_CREATE_PHOTOS = 10;
+export const MAX_CREATE_SINGLE_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+export const MAX_CREATE_TOTAL_FILE_SIZE = 4 * 1024 * 1024; // 4MB

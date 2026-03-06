@@ -6,6 +6,7 @@ import { FolderPlus, X } from "lucide-react";
 import { CategoryRequestForm } from "@/components/category-request-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
 
 type Category = {
   id: string;
@@ -126,7 +127,7 @@ export function CategoryRequestPopout({
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto p-2 pt-3 sm:p-4 sm:pt-5"
+          className={`${uiModal.overlayTop} z-[80]`}
           role="dialog"
           aria-modal="true"
         >
@@ -134,13 +135,13 @@ export function CategoryRequestPopout({
             type="button"
             aria-label={text.closeRequestForm}
             onClick={closePopout}
-            className={`absolute inset-0 bg-black/45 transition-opacity duration-200 ${
+            className={`absolute inset-0 ${uiModal.backdrop} transition-opacity duration-200 ${
               isActive ? "opacity-100" : "opacity-0"
             }`}
           />
 
           <div
-            className={`relative mx-auto flex max-h-[94vh] w-full max-w-3xl flex-col rounded-2xl border border-border bg-background shadow-2xl transition-all duration-200 ${
+            className={`relative mx-auto flex max-h-[94vh] w-full max-w-3xl flex-col rounded-2xl border border-border/70 bg-background shadow-2xl transition-all duration-200 ${
               isActive
                 ? "translate-y-0 scale-100 opacity-100"
                 : "translate-y-2 scale-[0.99] opacity-0"
@@ -148,8 +149,8 @@ export function CategoryRequestPopout({
           >
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-6">
               <div>
-                <p className="text-xl font-black">{text.requestTitle}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className={uiTypography.sectionTitle}>{text.requestTitle}</p>
+                <p className={uiTypography.muted}>
                   {text.requestDescription}
                 </p>
               </div>

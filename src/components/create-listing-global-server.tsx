@@ -62,6 +62,7 @@ export async function CreateListingGlobalServer({
   sessionUser: providedSessionUser,
   ignoreCircuitBreaker = false,
 }: CreateListingGlobalServerProps = {}) {
+  // Server orchestrator: fetches create-modal metadata and passes auth-safe defaults to the client controller.
   const locale = await getServerLocale();
   const isMk = locale === "mk";
   const sessionUser = providedSessionUser ?? (await getSessionUser());

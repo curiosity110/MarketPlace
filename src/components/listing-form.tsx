@@ -20,9 +20,21 @@ import {
   Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  MAX_CREATE_PHOTOS,
+  MAX_CREATE_SINGLE_FILE_SIZE,
+  MAX_CREATE_TOTAL_FILE_SIZE,
+} from "@/components/create-listing/constants";
+import type {
+  CreateListingCategory as Category,
+  CreateListingCity as City,
+  CreateListingPlan as ListingPlan,
+  CreateListingTemplate as Template,
+} from "@/components/create-listing/types";
 import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
 import { ListingImageUpload } from "@/components/listing-image-upload";
 import {
   analyzeListingPhotos,
@@ -33,25 +45,6 @@ import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
 import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
 import { PHONE_COUNTRIES } from "@/lib/phone";
 
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-  parentId?: string | null;
-};
-type City = { id: string; name: string };
-type Template = {
-  id: string;
-  key: string;
-  label: string;
-  type: "TEXT" | "NUMBER" | "SELECT" | "BOOLEAN";
-  required: boolean;
-  order: number;
-  options: string[];
-};
-
-type ListingPlan = "pay-per-listing" | "subscription";
-
 type PersistedCreateDraft = {
   categoryId: string;
   plan: ListingPlan;
@@ -59,9 +52,6 @@ type PersistedCreateDraft = {
 };
 
 const CREATE_FORM_STORAGE_KEY = "mkd:create-listing-form:v1";
-const MAX_CREATE_PHOTOS = 10;
-const MAX_CREATE_SINGLE_FILE_SIZE = 4 * 1024 * 1024; // 4MB
-const MAX_CREATE_TOTAL_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -86,7 +76,7 @@ function readStoredCreateDraft(): PersistedCreateDraft | null {
 }
 
 type Props = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<unknown> | unknown;
   categories: Category[];
   cities: City[];
   templatesByCategory: Record<string, Template[]>;
@@ -861,8 +851,7 @@ export function ListingForm({
     <form
       id={formId}
       ref={formRef}
-      action={action}
-      encType="multipart/form-data"
+      action={action as (formData: FormData) => void | Promise<void>}
       className="space-y-4"
       onSubmit={(event) => {
         const photosError = validateCreatePhotos(photosInputRef.current?.files ?? null);
@@ -1450,7 +1439,6 @@ export function ListingForm({
                     maxLength={20}
                     inputMode="tel"
                     autoComplete="tel"
-                    pattern="[0-9+()\\-\\s]{6,20}"
                   />
                 </label>
               </div>
@@ -1696,7 +1684,7 @@ export function ListingForm({
             type="button"
             aria-label={text.closePaymentPopup}
             onClick={() => setShowPaymentPanel(false)}
-            className="absolute inset-0 bg-black/45"
+            className={uiModal.backdrop}
           />
 
           <div className="relative z-[1] w-full max-w-lg rounded-2xl border border-border/70 bg-card p-4 shadow-2xl sm:p-5">
@@ -1706,7 +1694,7 @@ export function ListingForm({
                   {text.secureCheckout}
                 </p>
                 <p className="text-2xl font-black">${paymentAmount}</p>
-                <p className="text-sm text-muted-foreground">{paymentLabel}</p>
+                <p className={uiTypography.muted}>{paymentLabel}</p>
               </div>
               <Button
                 type="button"

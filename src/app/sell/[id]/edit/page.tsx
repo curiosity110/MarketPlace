@@ -12,6 +12,7 @@ import {
 import { requireSeller } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CompactBackButton } from "@/components/compact-back-button";
 import { ListingForm } from "@/components/listing-form";
 import { isMarketplaceCurrency } from "@/lib/currency";
 import {
@@ -401,14 +402,12 @@ export default async function EditListing({
   if (!editData) {
     return (
       <div className="space-y-4">
+        <CompactBackButton label={text.backToDashboard} fallbackHref="/dashboard" />
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="py-5 text-sm text-foreground">
             {text.dbUnavailable}
           </CardContent>
         </Card>
-        <Link href="/dashboard">
-          <Button variant="outline">{text.backToDashboard}</Button>
-        </Link>
       </div>
     );
   }
@@ -438,6 +437,7 @@ export default async function EditListing({
 
   return (
     <div className="space-y-6">
+      <CompactBackButton label={text.backToDashboard} fallbackHref="/dashboard" />
       <section className="space-y-2">
         <h1 className="text-3xl font-bold">{text.editListing}</h1>
         <p className="text-sm text-muted-foreground">
