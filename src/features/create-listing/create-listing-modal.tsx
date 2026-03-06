@@ -1,0 +1,112 @@
+"use client";
+
+import { CreateListingModalShell } from "@/components/create-listing/modal-shell";
+import { ListingForm } from "@/components/listing-form";
+import type {
+  CreateListingCategory,
+  CreateListingCity,
+  CreateListingTemplate,
+} from "@/components/create-listing/types";
+import { CreateListingForm } from "@/features/create-listing/create-listing-form";
+import { CreateListingHeader } from "@/features/create-listing/create-listing-header";
+import type { CreateListingInitialValues } from "@/features/create-listing/types";
+import { getCreateListingModalText } from "@/features/create-listing/utils";
+
+type Props = {
+  isOpen: boolean;
+  isActive: boolean;
+  onClose: () => void;
+  action: (formData: FormData) => Promise<unknown> | unknown;
+  categories: CreateListingCategory[];
+  cities: CreateListingCity[];
+  templatesByCategory: Record<string, CreateListingTemplate[]>;
+  allowDraft?: boolean;
+  showPlanSelector?: boolean;
+  publishLabel?: string;
+  paymentProvider?: "none" | "stripe-dummy";
+  initial?: CreateListingInitialValues;
+  locale?: "en" | "mk";
+  serverError?: string | null;
+  serverErrorField?: string | null;
+  defaultsSaved?: boolean;
+};
+
+export function CreateListingModal({
+  isOpen,
+  isActive,
+  onClose,
+  action,
+  categories,
+  cities,
+  templatesByCategory,
+  allowDraft = true,
+  showPlanSelector = true,
+  publishLabel,
+  paymentProvider = "none",
+  initial,
+  locale = "en",
+  serverError,
+  serverErrorField,
+  defaultsSaved = false,
+}: Props) {
+  const text = getCreateListingModalText(locale);
+
+  return (
+    <CreateListingModalShell
+      isOpen={isOpen}
+      isActive={isActive}
+      closeLabel={text.closeCreateListingForm}
+      onClose={onClose}
+    >
+      <div
+        className={`relative mx-auto flex max-h-[100dvh] w-full min-w-0 max-w-[920px] flex-col overflow-hidden bg-background shadow-[0_30px_80px_-44px_rgba(2,6,23,0.5)] ring-1 ring-black/10 transition-all duration-200 sm:max-h-[92dvh] sm:rounded-[1.5rem] dark:ring-white/10 ${
+          isActive
+            ? "translate-y-0 scale-100 opacity-100"
+            : "translate-y-2 scale-[0.99] opacity-0"
+        }`}
+      >
+        <CreateListingHeader
+          title={text.createListing}
+          closeLabel={text.close}
+          onClose={onClose}
+        />
+
+        <div className="flex-1 min-w-0 overflow-y-auto overscroll-contain">
+          {initial?.id ? (
+            <div className="px-4 pb-4 pt-4 sm:px-6 sm:pb-6">
+              <ListingForm
+                action={action}
+                categories={categories}
+                cities={cities}
+                templatesByCategory={templatesByCategory}
+                allowDraft={allowDraft}
+                showPlanSelector={showPlanSelector}
+                publishLabel={publishLabel}
+                paymentProvider={paymentProvider}
+                initial={initial}
+                locale={locale}
+              />
+            </div>
+          ) : (
+            <CreateListingForm
+              action={action}
+              categories={categories}
+              cities={cities}
+              templatesByCategory={templatesByCategory}
+              allowDraft={allowDraft}
+              showPlanSelector={showPlanSelector}
+              publishLabel={publishLabel}
+              paymentProvider={paymentProvider}
+              initial={initial}
+              locale={locale}
+              serverError={serverError}
+              serverErrorField={serverErrorField}
+              defaultsSaved={defaultsSaved}
+              onPublished={onClose}
+            />
+          )}
+        </div>
+      </div>
+    </CreateListingModalShell>
+  );
+}

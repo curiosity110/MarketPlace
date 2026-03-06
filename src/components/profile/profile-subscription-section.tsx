@@ -48,6 +48,13 @@ export function ProfileSubscriptionSection({
 }: ProfileSubscriptionSectionProps) {
   void text.postingAndSubscriptionDesc;
   void text.subscriptionStateHint;
+  void text.listing30;
+  void text.monthlyUnlimited;
+  void text.successCards;
+  void text.failCards;
+  void successCards;
+  void failCards;
+
   return (
     <details className="max-w-full min-w-0 overflow-x-hidden rounded-2xl bg-card/70 p-4 ring-1 ring-black/5 dark:ring-white/10">
       <summary className="cursor-pointer list-none text-sm font-semibold">
@@ -73,7 +80,6 @@ export function ProfileSubscriptionSection({
           <div className="rounded-xl bg-background/85 p-3 ring-1 ring-black/5 dark:ring-white/10">
             <p className="text-sm font-semibold">{text.payPerListing}</p>
             <p className="text-2xl font-semibold tracking-tight text-primary">$4</p>
-            <p className="text-xs text-muted-foreground">{text.listing30}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {text.activeWithPlan}: {payPerListingActive}
             </p>
@@ -85,7 +91,6 @@ export function ProfileSubscriptionSection({
           <div className="rounded-xl bg-background/85 p-3 ring-1 ring-black/5 dark:ring-white/10">
             <p className="text-sm font-semibold">{text.subscription}</p>
             <p className="text-2xl font-semibold tracking-tight text-secondary">$30</p>
-            <p className="text-xs text-muted-foreground">{text.monthlyUnlimited}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {text.activeWithSubscription}: {subscriptionActive}
             </p>
@@ -136,10 +141,6 @@ export function ProfileSubscriptionSection({
               <Button type="submit">{text.runBillingTest}</Button>
             </div>
           </form>
-
-          <p className="mt-2 text-xs text-muted-foreground">
-            {text.successCards}: {successCards.join(", ")}. {text.failCards}: {failCards.join(", ")}.
-          </p>
         </details>
       </div>
     </details>

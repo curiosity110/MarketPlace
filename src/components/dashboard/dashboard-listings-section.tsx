@@ -1,12 +1,9 @@
-import type { ComponentProps } from "react";
-import { DashboardListingsPanel } from "@/components/dashboard-listings-panel";
+import { DashboardListings } from "@/features/dashboard/dashboard-listings";
 
-type DashboardListingsPanelProps = ComponentProps<typeof DashboardListingsPanel>;
-
-type DashboardListingsSectionProps = {
+type Props = {
   locale: "en" | "mk";
-  text: DashboardListingsPanelProps["text"];
-  allListingsForClient: DashboardListingsPanelProps["allListings"];
+  text: Parameters<typeof DashboardListings>[0]["text"];
+  allListingsForClient: Parameters<typeof DashboardListings>[0]["allListings"];
   selectedCategoryIdFromQuery?: string;
   selectedView: "all" | "active" | "draft" | "expired" | "sold";
   selectedSort: "newest" | "price-asc" | "price-desc";
@@ -15,7 +12,7 @@ type DashboardListingsSectionProps = {
   totalCount: number;
   requiresPaymentForCreate: boolean;
   hasActiveSubscription: boolean;
-  publishDraftAction: DashboardListingsPanelProps["publishDraftAction"];
+  publishDraftAction: Parameters<typeof DashboardListings>[0]["publishDraftAction"];
 };
 
 export function DashboardListingsSection({
@@ -31,33 +28,24 @@ export function DashboardListingsSection({
   requiresPaymentForCreate,
   hasActiveSubscription,
   publishDraftAction,
-}: DashboardListingsSectionProps) {
-  return (
-    <section className="max-w-full min-w-0 space-y-2 overflow-x-hidden">
-      <div className="flex items-end justify-between gap-2">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold tracking-tight">{text.myCategories}</h2>
-        </div>
-        <span className="text-sm text-muted-foreground">
-          {totalCount} {text.listings}
-        </span>
-      </div>
+}: Props) {
+  void totalCount;
 
-      <DashboardListingsPanel
-        locale={locale}
-        text={text}
-        allListings={allListingsForClient}
-        initialFilters={{
-          cat: selectedCategoryIdFromQuery || "all",
-          view: selectedView,
-          q: searchQuery,
-          sort: selectedSort,
-          layout: selectedLayout,
-        }}
-        requiresPaymentForCreate={requiresPaymentForCreate}
-        hasActiveSubscription={hasActiveSubscription}
-        publishDraftAction={publishDraftAction}
-      />
-    </section>
+  return (
+    <DashboardListings
+      locale={locale}
+      text={text}
+      allListings={allListingsForClient}
+      initialFilters={{
+        cat: selectedCategoryIdFromQuery || "all",
+        view: selectedView,
+        q: searchQuery,
+        sort: selectedSort,
+        layout: selectedLayout,
+      }}
+      requiresPaymentForCreate={requiresPaymentForCreate}
+      hasActiveSubscription={hasActiveSubscription}
+      publishDraftAction={publishDraftAction}
+    />
   );
 }

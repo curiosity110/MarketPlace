@@ -41,24 +41,17 @@ export function HomeLatestListingsSection({
           </CardContent>
         </Card>
       ) : (
-        <>
-          <div className="responsive-grid gap-4">
-            {latestListings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                locale={locale}
-                currentAuthUserId={currentAuthUserId}
-                isFavorited={favoriteListingIdSet.has(listing.id)}
-              />
-            ))}
-          </div>
-          <div className="text-center">
-            <Link href="/browse">
-              <Button variant="outline">{text.browseAll}</Button>
-            </Link>
-          </div>
-        </>
+        <div className="responsive-grid gap-4">
+          {latestListings.map((listing) => (
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              locale={locale}
+              currentAuthUserId={currentAuthUserId}
+              isFavorited={favoriteListingIdSet.has(listing.id)}
+            />
+          ))}
+        </div>
       )}
     </section>
   );

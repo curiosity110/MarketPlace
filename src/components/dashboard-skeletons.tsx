@@ -1,3 +1,4 @@
+import { ListingCardSkeleton } from "@/components/listing-card/shared";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function DashboardStatsSkeleton() {
@@ -45,14 +46,7 @@ export function DashboardListingsSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 6 }).map((_, idx) => (
-        <Card key={idx} className="overflow-hidden border-border/70">
-          <div className="h-40 animate-pulse bg-muted" />
-          <CardContent className="space-y-3 p-4">
-            <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-            <div className="h-7 w-20 animate-pulse rounded bg-muted" />
-            <div className="h-8 animate-pulse rounded bg-muted" />
-          </CardContent>
-        </Card>
+        <ListingCardSkeleton key={idx} />
       ))}
     </div>
   );

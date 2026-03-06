@@ -1,12 +1,10 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { ListingCardSkeleton } from "@/components/listing-card/shared";
 
 export default function LoadingBrowse() {
   return (
-    <div className="space-y-3">
-      {[...Array(3)].map((_, i) => (
-        <Card key={i}>
-          <CardContent className="h-24 animate-pulse bg-muted" />
-        </Card>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <ListingCardSkeleton key={i} />
       ))}
     </div>
   );

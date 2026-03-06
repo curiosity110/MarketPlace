@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SaveSearchPopout } from "@/components/save-search-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FilterToolbar, PageHeader } from "@/components/ui/layout";
 
 type Props = {
   title: string;
@@ -44,32 +45,40 @@ export function BrowseHeader({
   void showingAllLabel;
   void hasAppliedFilters;
   return (
-    <div className="flex max-w-full min-w-0 flex-wrap items-end justify-between gap-3 overflow-x-hidden">
-      <div className="min-w-0 max-w-full space-y-1">
-        <h1 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl [overflow-wrap:anywhere]">{title}</h1>
-        <p className="flex max-w-full flex-wrap items-center gap-1 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{totalCount}</span> {resultsLineLabel} {listingsOnPageCount} {onThisPageLabel}
-          {extraFiltersCount > 0 ? (
-            <span className="ml-1 inline-flex items-center gap-1">
-              <Badge variant="default" className="h-5 px-1.5 text-[0.65rem]">
-                {extraFiltersCount} {extraFiltersLabel}
-              </Badge>
+    <FilterToolbar
+      leading={
+        <PageHeader
+          title={title}
+          compact
+          subtitle={
+            <span className="flex max-w-full flex-wrap items-center gap-1 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{totalCount}</span> {resultsLineLabel}{" "}
+              {listingsOnPageCount} {onThisPageLabel}
+              {extraFiltersCount > 0 ? (
+                <span className="ml-1 inline-flex items-center gap-1">
+                  <Badge variant="default" className="h-5 px-1.5 text-[0.65rem]">
+                    {extraFiltersCount} {extraFiltersLabel}
+                  </Badge>
+                </span>
+              ) : null}
             </span>
+          }
+        />
+      }
+      trailing={
+        <>
+          {canSaveSearch && hasFilterChips ? (
+            <SaveSearchPopout locale={locale} query={saveSearchQuery} />
           ) : null}
-        </p>
-      </div>
-      <div className="flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2">
-        {canSaveSearch && hasFilterChips ? (
-          <SaveSearchPopout locale={locale} query={saveSearchQuery} />
-        ) : null}
-        {hasFilterChips ? (
-          <Link href={resetHref} scroll={false} className="min-w-0 max-w-full">
-            <Button variant="ghost" type="button" className="max-w-full">
-              {resetLabel}
-            </Button>
-          </Link>
-        ) : null}
-      </div>
-    </div>
+          {hasFilterChips ? (
+            <Link href={resetHref} scroll={false} className="min-w-0 max-w-full">
+              <Button variant="ghost" type="button" className="max-w-full">
+                {resetLabel}
+              </Button>
+            </Link>
+          ) : null}
+        </>
+      }
+    />
   );
 }

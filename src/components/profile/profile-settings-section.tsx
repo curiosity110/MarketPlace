@@ -51,16 +51,16 @@ export function ProfileSettingsSection({
 }: ProfileSettingsSectionProps) {
   void text.profileSettingsDesc;
   void text.phoneSavedHint;
+  void text.bioPlaceholder;
+  void storedPhoneE164;
+
   return (
     <details className="max-w-full min-w-0 overflow-x-hidden rounded-2xl bg-card/70 p-4 ring-1 ring-black/5 dark:ring-white/10">
       <summary className="cursor-pointer list-none text-sm font-semibold">
         {text.profileSettings}
       </summary>
       <div className="mt-4 space-y-4">
-        <form
-          action={updateProfileAction}
-          className="space-y-3"
-        >
+        <form action={updateProfileAction} className="space-y-3">
           <input type="hidden" name="locale" value={locale} />
           <div className="grid max-w-full min-w-0 gap-3 sm:grid-cols-2">
             <label className="space-y-1">
@@ -151,18 +151,12 @@ export function ProfileSettingsSection({
               <textarea
                 name="bio"
                 defaultValue={userRecord?.bio || ""}
-                placeholder={text.bioPlaceholder}
                 className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
                 maxLength={500}
               />
             </label>
           </div>
 
-          {storedPhoneE164 ? (
-            <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-foreground ring-1 ring-black/5 dark:ring-white/10">
-              {storedPhoneE164}
-            </div>
-          ) : null}
           <Button type="submit">{text.saveProfile}</Button>
         </form>
       </div>

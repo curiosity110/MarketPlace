@@ -1,0 +1,1824 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Currency, ListingCondition } from "@prisma/client";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CirclePlus,
+  Sparkles,
+  Wand2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  MAX_CREATE_PHOTOS,
+  MAX_CREATE_SINGLE_FILE_SIZE,
+  MAX_CREATE_TOTAL_FILE_SIZE,
+} from "@/components/create-listing/constants";
+import type {
+  CreateListingCategory as Category,
+  CreateListingCity as City,
+  CreateListingPlan as ListingPlan,
+  CreateListingTemplate as Template,
+} from "@/components/create-listing/types";
+import { DynamicFieldsEditor } from "@/components/dynamic-fields-editor";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
+import { ListingImageUpload } from "@/components/listing-image-upload";
+import {
+  analyzeListingPhotos,
+  type ListingPhotoSuggestions,
+} from "@/lib/actions/analyze-listing-photos";
+import { localizeCategoryName } from "@/lib/category-label";
+import { MARKETPLACE_CURRENCIES } from "@/lib/currency";
+import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
+import { PHONE_COUNTRIES } from "@/lib/phone";
+
+type PersistedCreateDraft = {
+  categoryId: string;
+  plan: ListingPlan;
+  values: Record<string, string>;
+};
+
+const CREATE_FORM_STORAGE_KEY = "mkd:create-listing-form:v1";
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function readStoredCreateDraft(): PersistedCreateDraft | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(CREATE_FORM_STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as PersistedCreateDraft;
+    if (!parsed || typeof parsed !== "object") {
+      window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
+    return null;
+  }
+}
+
+type Props = {
+  action: (formData: FormData) => Promise<unknown> | unknown;
+  categories: Category[];
+  cities: City[];
+  templatesByCategory: Record<string, Template[]>;
+  allowDraft?: boolean;
+  showPlanSelector?: boolean;
+  publishLabel?: string;
+  paymentProvider?: "none" | "stripe-dummy";
+  existingImages?: { id: string; url: string }[];
+  initial?: {
+    id?: string;
+    title?: string;
+    description?: string;
+    price?: number;
+    currency?: Currency;
+    condition?: ListingCondition;
+    categoryId?: string;
+    cityId?: string;
+    phone?: string;
+    phoneCountry?: string;
+    dynamicValues?: Record<string, string>;
+    plan?: ListingPlan;
+  };
+  locale?: "en" | "mk";
+};
+
+export function ListingForm({
+  action,
+  categories,
+  cities,
+  templatesByCategory,
+  allowDraft = true,
+  showPlanSelector = true,
+  publishLabel,
+  paymentProvider = "none",
+  existingImages = [],
+  initial,
+  locale = "en",
+}: Props) {
+  const isMk = locale === "mk";
+  const text = isMk
+    ? {
+        subscriptionCharge: "Претплата (месечно)",
+        perPostCharge: "Наплата по оглас (30 дена)",
+        savedDraftDetected: "Пронајдовме локален зачуван нацрт на овој уред.",
+        restoreSavedDraft: "Вчитај нацрт",
+        discardSavedDraft: "Избриши нацрт",
+        listingDetails: "Детали за оглас",
+        title: "Наслов",
+        titlePlaceholder: "Пример: Volkswagen Golf 7 2017",
+        condition: "Состојба",
+        categoryFields: "Полиња на категорија",
+        categoryFieldsExpand: "Прикажи полиња за категорија",
+        categoryAndLocation: "Категорија и локација",
+        pricingAndLocation: "Цена и локација",
+        categoryPriority: "Прво избери категорија за попрецизни филтри.",
+        requestCategory: "Побарај категорија",
+        price: "Цена",
+        pricePlaceholder: "Цена",
+        currency: "Валута",
+        description: "Опис",
+        descriptionPlaceholder:
+          "Опиши состојба, карактеристики, испорака и услови за плаќање.",
+        category: "Категорија",
+        mainCategory: "Главна категорија",
+        subcategory: "Поткатегорија",
+        allSubcategories: "Сите поткатегории",
+        useParentCategory: "Без поткатегорија (користи главна)",
+        city: "Град",
+        noCityAvailable: "Нема достапен град",
+        conditionNew: "Ново",
+        conditionUsed: "Користено",
+        conditionRefurbished: "Рефурбиширано",
+        sellerPhoneForPost: "Телефон за овој оглас",
+        useDifferentPhone: "Користи друг телефон за овој оглас",
+        useSavedPhone: "Користи зачуван телефон",
+        usingSavedPhone: "Се користи зачуван телефон",
+        country: "Држава",
+        phone: "Телефон",
+        phonePlaceholder: "Внеси телефонски број",
+        acceptedPhoneFormat:
+          "Прифатен формат: локален, +држава или 00држава.",
+        photos: "Фотографии",
+        photosHint: "Можеш да прикачиш до 10 слики веднаш при креирање.",
+        photosCountError: "Можеш да прикачиш најмногу 10 слики.",
+        photosSingleSizeError: "Секоја слика мора да е 4MB или помалку.",
+        photosTotalSizeError: "Вкупната големина на слики треба да биде до 4MB.",
+        sellerPackage: "Пакет за продавач",
+        assistantIncluded: "Assistant included",
+        payPerListing: "Плаќање по оглас",
+        daysActive30: "30 дена активно",
+        subscription: "Претплата",
+        monthlyUnlimited: "месечно, неограничени огласи",
+        secureCheckout: "Безбедно плаќање",
+        paymentAfterPublish: "Плаќањето се појавува откако ќе кликнеш објави.",
+        saveDraft: "Зачувај нацрт",
+        payAndPublish: "Плати $",
+        publishSuffix: " / Објави",
+        stripeValidated:
+          "Dummy Stripe плаќањето се проверува пред активирање.",
+        closePaymentPopup: "Затвори прозорец за плаќање",
+        close: "Затвори",
+        cardNumber: "Број на картичка",
+        expiry: "Важи до",
+        cvc: "CVC",
+        cardholder: "Носител на картичка",
+        cardholderPlaceholder: "Тест корисник",
+        successFailCards:
+          "Успешна картичка: 4242424242424242. Неуспешна: 4000000000000002.",
+        cancel: "Откажи",
+        wizardStepBasics: "Чекор 1: Основи",
+        wizardStepPhotos: "Чекор 2: Фотографии",
+        wizardStepDetails: "Чекор 3: Детали",
+        wizardBasicsHint: "Наслов, категорија, цена, град и состојба.",
+        wizardPhotosHint: "Додај слики и добиј брзи предлози.",
+        wizardDetailsHint: "Контакт, полиња, преглед и објава.",
+        wizardNext: "Следно",
+        wizardBack: "Назад",
+        wizardGoTo: "Оди на чекор",
+        smartFill: "Паметно пополнување",
+        smartFillHint:
+          "Од избраните фотографии ќе предложиме наслов, категорија и детали.",
+        smartFillAction: "Анализирај фотографии",
+        smartFillWorking: "Анализирам...",
+        smartFillApply: "Примени",
+        smartFillNoPhotos: "Додај барем една фотографија за анализа.",
+        smartFillError: "Предлозите не може да се генерираат моментално.",
+        smartFillNoSuggestions: "Нема доволно сигурни предлози од фотографиите.",
+        smartTitle: "Предложен наслов",
+        smartCategory: "Предложена категорија",
+        smartBrand: "Предложена марка",
+        smartModel: "Предложен модел",
+        smartYear: "Предложена година",
+        smartCondition: "Предложена состојба",
+        smartDescription: "Предложен опис",
+        review: "Преглед",
+        reviewTitle: "Наслов",
+        reviewCategory: "Категорија",
+        reviewPrice: "Цена",
+        reviewCity: "Град",
+        reviewCondition: "Состојба",
+      }
+    : {
+        subscriptionCharge: "Subscription charge (monthly)",
+        perPostCharge: "Per post charge (30 days)",
+        savedDraftDetected: "A locally saved draft was found on this device.",
+        restoreSavedDraft: "Restore draft",
+        discardSavedDraft: "Discard draft",
+        listingDetails: "Listing details",
+        title: "Title",
+        titlePlaceholder: "Example: Volkswagen Golf 7 2017",
+        condition: "Condition",
+        categoryFields: "Category fields",
+        categoryFieldsExpand: "Show category fields",
+        categoryAndLocation: "Category and location",
+        pricingAndLocation: "Pricing and location",
+        categoryPriority: "Pick category first for smarter field suggestions.",
+        requestCategory: "Request category",
+        price: "Price",
+        pricePlaceholder: "Price",
+        currency: "Currency",
+        description: "Description",
+        descriptionPlaceholder:
+          "Describe condition, features, delivery, and payment terms.",
+        category: "Category",
+        mainCategory: "Main category",
+        subcategory: "Subcategory",
+        allSubcategories: "All subcategories",
+        useParentCategory: "No subcategory (use main)",
+        city: "City",
+        noCityAvailable: "No city available",
+        conditionNew: "New",
+        conditionUsed: "Used",
+        conditionRefurbished: "Refurbished",
+        sellerPhoneForPost: "Seller phone for this post",
+        useDifferentPhone: "Use different phone for this post",
+        useSavedPhone: "Use saved phone",
+        usingSavedPhone: "Using saved phone",
+        country: "Country",
+        phone: "Phone",
+        phonePlaceholder: "Enter phone number",
+        acceptedPhoneFormat:
+          "Accepted format: local, +country, or 00country.",
+        photos: "Photos",
+        photosHint: "You can upload up to 10 images directly while creating.",
+        photosCountError: "You can upload up to 10 images.",
+        photosSingleSizeError: "Each image must be 4MB or smaller.",
+        photosTotalSizeError: "Total image size must be 4MB or less.",
+        sellerPackage: "Seller package",
+        assistantIncluded: "Assistant included",
+        payPerListing: "Pay per listing",
+        daysActive30: "30 days active",
+        subscription: "Subscription",
+        monthlyUnlimited: "monthly, unlimited listings",
+        secureCheckout: "Secure checkout",
+        paymentAfterPublish: "Payment appears only after you press publish.",
+        saveDraft: "Save draft",
+        payAndPublish: "Pay $",
+        publishSuffix: " / Publish",
+        stripeValidated:
+          "Stripe dummy payment is validated before activation.",
+        closePaymentPopup: "Close payment popup",
+        close: "Close",
+        cardNumber: "Card number",
+        expiry: "Expiry",
+        cvc: "CVC",
+        cardholder: "Cardholder",
+        cardholderPlaceholder: "Test User",
+        successFailCards:
+          "Success card: 4242424242424242. Fail card: 4000000000000002.",
+        cancel: "Cancel",
+        wizardStepBasics: "Step 1: Basics",
+        wizardStepPhotos: "Step 2: Photos",
+        wizardStepDetails: "Step 3: Details",
+        wizardBasicsHint: "Title, category, price, city, and condition.",
+        wizardPhotosHint: "Add images and get quick suggestions.",
+        wizardDetailsHint: "Contact, fields, review, and publish.",
+        wizardNext: "Next",
+        wizardBack: "Back",
+        wizardGoTo: "Go to step",
+        smartFill: "Smart Fill",
+        smartFillHint:
+          "We will suggest title, category, and details from selected photos.",
+        smartFillAction: "Analyze photos",
+        smartFillWorking: "Analyzing...",
+        smartFillApply: "Apply",
+        smartFillNoPhotos: "Add at least one photo to analyze.",
+        smartFillError: "Suggestions could not be generated right now.",
+        smartFillNoSuggestions: "No confident suggestions from selected photos.",
+        smartTitle: "Suggested title",
+        smartCategory: "Suggested category",
+        smartBrand: "Suggested brand",
+        smartModel: "Suggested model",
+        smartYear: "Suggested year",
+        smartCondition: "Suggested condition",
+        smartDescription: "Suggested description",
+        review: "Review",
+        reviewTitle: "Title",
+        reviewCategory: "Category",
+        reviewPrice: "Price",
+        reviewCity: "City",
+        reviewCondition: "Condition",
+      };
+  const resetDraftAndFormLabel = isMk ? "Ресетирај форма" : "Reset form";
+  const assistantIncludedLabel = isMk ? "Паметен асистент" : "Smart assistant";
+  const noValueLabel = isMk ? "\u041D/\u0414" : "N/A";
+  const selectCategoryToContinueLabel =
+    "Select a category with templates to continue.";
+  const categoryTemplateMissingLabel =
+    "This category has no templates yet. Select another category.";
+  const chooseMainCategoryLabel = "Select main category";
+  const formId = useId();
+  const resolvedPublishLabel =
+    publishLabel ?? (locale === "mk" ? "Објави оглас" : "Publish listing");
+  const isCreateMode = !initial?.id;
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const photosInputRef = useRef<HTMLInputElement | null>(null);
+
+  const categoryById = useMemo(
+    () =>
+      Object.fromEntries(
+        categories.map((category) => [category.id, category]),
+      ) as Record<string, Category>,
+    [categories],
+  );
+  const parentCategories = useMemo(() => {
+    const parentOnly = categories.filter((category) => !category.parentId);
+    return parentOnly.length > 0 ? parentOnly : categories;
+  }, [categories]);
+  const subcategoriesByParentId = useMemo(() => {
+    const grouped: Record<string, Category[]> = {};
+    categories.forEach((category) => {
+      if (!category.parentId) return;
+      if (!grouped[category.parentId]) grouped[category.parentId] = [];
+      grouped[category.parentId].push(category);
+    });
+    return grouped;
+  }, [categories]);
+
+  const initialCategory = initial?.categoryId ?? "";
+  const initialCategoryRecord = categoryById[initialCategory];
+  const defaultParentCategoryId = initialCategoryRecord?.parentId
+    ? initialCategoryRecord.parentId
+    : initialCategoryRecord?.id || "";
+  const defaultSubcategoryId = initialCategoryRecord?.parentId
+    ? initialCategoryRecord.id
+    : "";
+  const hasSavedProfilePhone = Boolean((initial?.phone ?? "").trim());
+  const [parentCategoryId, setParentCategoryId] = useState(
+    defaultParentCategoryId,
+  );
+  const [subcategoryId, setSubcategoryId] = useState(defaultSubcategoryId);
+  const [phoneCountry, setPhoneCountry] = useState(
+    initial?.phoneCountry ?? "MK",
+  );
+  const [useSavedPhone, setUseSavedPhone] = useState(hasSavedProfilePhone);
+  const [plan, setPlan] = useState<ListingPlan>(
+    initial?.plan ?? "pay-per-listing",
+  );
+  const [restoredValues, setRestoredValues] = useState<Record<string, string>>(
+    {},
+  );
+  const [savedDraft, setSavedDraft] = useState<PersistedCreateDraft | null>(
+    readStoredCreateDraft,
+  );
+  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
+  const [photoValidationError, setPhotoValidationError] = useState<string | null>(
+    null,
+  );
+  const [currentStep, setCurrentStep] = useState(1);
+  const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
+  const [isSmartFillPending, setIsSmartFillPending] = useState(false);
+  const [smartFillError, setSmartFillError] = useState<string | null>(null);
+  const [smartSuggestions, setSmartSuggestions] =
+    useState<ListingPhotoSuggestions | null>(null);
+  const [smartDynamicValues, setSmartDynamicValues] = useState<
+    Record<string, string>
+  >({});
+  const [dynamicFieldsSeed, setDynamicFieldsSeed] = useState(0);
+
+  const paymentAmount = plan === "subscription" ? 30 : 4;
+  const paymentLabel =
+    plan === "subscription"
+      ? text.subscriptionCharge
+      : text.perPostCharge;
+  const smartFillEnabled = false;
+  const requiresDummyPayment = paymentProvider === "stripe-dummy";
+  const wizardEnabled = isCreateMode;
+
+  const wizardSteps = useMemo(
+    () => [
+      {
+        id: 1,
+        label: text.wizardStepBasics,
+        hint: text.wizardBasicsHint,
+      },
+      {
+        id: 2,
+        label: text.wizardStepPhotos,
+        hint: text.wizardPhotosHint,
+      },
+      {
+        id: 3,
+        label: text.wizardStepDetails,
+        hint: text.wizardDetailsHint,
+      },
+    ],
+    [
+      text.wizardBasicsHint,
+      text.wizardDetailsHint,
+      text.wizardPhotosHint,
+      text.wizardStepBasics,
+      text.wizardStepDetails,
+      text.wizardStepPhotos,
+    ],
+  );
+
+  const subcategoriesForSelectedParent = useMemo(
+    () => subcategoriesByParentId[parentCategoryId] ?? [],
+    [parentCategoryId, subcategoriesByParentId],
+  );
+  const hasValidSubcategory =
+    Boolean(subcategoryId) &&
+    subcategoriesForSelectedParent.some((item) => item.id === subcategoryId);
+  const selectedCategoryId = (hasValidSubcategory ? subcategoryId : "") || parentCategoryId;
+  const selectedCategoryTemplates = templatesByCategory[selectedCategoryId] ?? [];
+  const hasTemplatesForSelectedCategory = selectedCategoryTemplates.length > 0;
+  const needsCategorySelection =
+    isCreateMode && (!selectedCategoryId || !hasTemplatesForSelectedCategory);
+  const conditionLabelByValue: Record<ListingCondition, string> = {
+    NEW: text.conditionNew,
+    USED: text.conditionUsed,
+    REFURBISHED: text.conditionRefurbished,
+  };
+
+  function validateCreatePhotos(files: FileList | null) {
+    if (!isCreateMode || !files || files.length === 0) return null;
+    if (files.length > MAX_CREATE_PHOTOS) return text.photosCountError;
+
+    let totalBytes = 0;
+    for (const file of Array.from(files)) {
+      totalBytes += file.size;
+      if (file.size > MAX_CREATE_SINGLE_FILE_SIZE) {
+        return text.photosSingleSizeError;
+      }
+    }
+
+    if (totalBytes > MAX_CREATE_TOTAL_FILE_SIZE) {
+      return text.photosTotalSizeError;
+    }
+
+    return null;
+  }
+
+  const dynamicInitialValues = useMemo(() => {
+    const base = { ...(initial?.dynamicValues ?? {}) };
+    if (!isCreateMode) return base;
+
+    Object.entries(restoredValues).forEach(([key, value]) => {
+      if (!key.startsWith(DYNAMIC_FIELD_PREFIX)) return;
+      base[key.slice(DYNAMIC_FIELD_PREFIX.length)] = value;
+    });
+    Object.entries(smartDynamicValues).forEach(([key, value]) => {
+      if (!value.trim()) return;
+      base[key] = value;
+    });
+    return base;
+  }, [initial?.dynamicValues, isCreateMode, restoredValues, smartDynamicValues]);
+
+  const restoredCondition = useMemo(() => {
+    if (!isCreateMode) return initial?.condition ?? ListingCondition.USED;
+    const value = restoredValues.condition as ListingCondition | undefined;
+    return Object.values(ListingCondition).includes(
+      value || ListingCondition.USED,
+    )
+      ? value || ListingCondition.USED
+      : ListingCondition.USED;
+  }, [initial?.condition, isCreateMode, restoredValues.condition]);
+
+  const restoredCityId = useMemo(() => {
+    if (!isCreateMode) return initial?.cityId ?? cities[0]?.id;
+    const value = restoredValues.cityId;
+    if (value && cities.some((city) => city.id === value)) return value;
+    return initial?.cityId ?? cities[0]?.id;
+  }, [cities, initial?.cityId, isCreateMode, restoredValues.cityId]);
+
+  const restoredCurrency = useMemo(() => {
+    if (!isCreateMode) return initial?.currency ?? Currency.MKD;
+    const value = restoredValues.currency as Currency | undefined;
+    if (value === Currency.MKD || value === Currency.EUR) return value;
+    return initial?.currency ?? Currency.MKD;
+  }, [initial?.currency, isCreateMode, restoredValues.currency]);
+
+  const readValue = useCallback(
+    (key: string, fallback = "") => {
+      if (isCreateMode && key in restoredValues) return restoredValues[key];
+      return fallback;
+    },
+    [isCreateMode, restoredValues],
+  );
+
+  const persistDraft = useCallback(() => {
+    if (!isCreateMode || !formRef.current || typeof window === "undefined")
+      return;
+
+    const formData = new FormData(formRef.current);
+    const values: Record<string, string> = {};
+
+    for (const [key, value] of formData.entries()) {
+      if (
+        key === "photo" ||
+        key === "photos" ||
+        key === "intent" ||
+        key === "id"
+      )
+        continue;
+      if (typeof value === "string") values[key] = value;
+    }
+
+    values.categoryId = selectedCategoryId;
+    values.plan = plan;
+
+    const payload: PersistedCreateDraft = {
+      categoryId: selectedCategoryId,
+      plan,
+      values,
+    };
+
+    window.localStorage.setItem(
+      CREATE_FORM_STORAGE_KEY,
+      JSON.stringify(payload),
+    );
+  }, [isCreateMode, plan, selectedCategoryId]);
+
+  function clearPersistedDraft() {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(CREATE_FORM_STORAGE_KEY);
+    setSavedDraft(null);
+  }
+
+  function restoreSavedDraft() {
+    if (!savedDraft) return;
+
+    const nextValues = savedDraft.values ?? {};
+    setRestoredValues(nextValues);
+
+    const nextCategory =
+      savedDraft.categoryId || nextValues.categoryId || initial?.categoryId;
+    if (nextCategory && categories.some((category) => category.id === nextCategory)) {
+      const selected = categoryById[nextCategory];
+      if (selected?.parentId) {
+        setParentCategoryId(selected.parentId);
+        setSubcategoryId(selected.id);
+      } else {
+        setParentCategoryId(nextCategory);
+        setSubcategoryId("");
+      }
+    }
+
+    if (savedDraft.plan === "subscription" || savedDraft.plan === "pay-per-listing") {
+      setPlan(savedDraft.plan);
+    }
+
+    const parsedCountry = savedDraft.values?.phoneCountry;
+    if (
+      parsedCountry &&
+      PHONE_COUNTRIES.some((country) => country.code === parsedCountry)
+    ) {
+      setPhoneCountry(parsedCountry);
+    }
+
+    if (hasSavedProfilePhone && savedDraft.values?.useSavedPhone === "false") {
+      setUseSavedPhone(false);
+    }
+
+    if (
+      savedDraft.values?.dummyCardNumber ||
+      savedDraft.values?.dummyCardExp ||
+      savedDraft.values?.dummyCardCvc
+    ) {
+      setShowPaymentPanel(true);
+    }
+
+    setSavedDraft(null);
+  }
+
+  function resetCreateDraftAndForm() {
+    if (!isCreateMode) return;
+    clearPersistedDraft();
+    setRestoredValues({});
+    setParentCategoryId(defaultParentCategoryId);
+    setSubcategoryId(defaultSubcategoryId);
+    setPhoneCountry(initial?.phoneCountry ?? "MK");
+    setUseSavedPhone(hasSavedProfilePhone);
+    setPlan(initial?.plan ?? "pay-per-listing");
+    setPhotoValidationError(null);
+    setShowPaymentPanel(false);
+    setCurrentStep(1);
+    setSmartFillError(null);
+    setSmartSuggestions(null);
+    setSmartDynamicValues({});
+    setDynamicFieldsSeed(0);
+    setPhotoPreviewUrls((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    });
+    if (photosInputRef.current) {
+      photosInputRef.current.value = "";
+    }
+    formRef.current?.reset();
+  }
+
+  function setFormFieldValue(name: string, value: string) {
+    const field = formRef.current?.elements.namedItem(name);
+    if (!field) return;
+    if (
+      field instanceof HTMLInputElement ||
+      field instanceof HTMLTextAreaElement ||
+      field instanceof HTMLSelectElement
+    ) {
+      field.value = value;
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
+  function getFormFieldValue(name: string, fallback = "") {
+    const field = formRef.current?.elements.namedItem(name);
+    if (
+      field instanceof HTMLInputElement ||
+      field instanceof HTMLTextAreaElement ||
+      field instanceof HTMLSelectElement
+    ) {
+      return field.value || fallback;
+    }
+    return fallback;
+  }
+
+  function resolveCategoryBySlug(slug: string) {
+    const normalized = slug.trim().toLowerCase();
+    if (!normalized) return null;
+    return (
+      categories.find((category) => category.slug.toLowerCase() === normalized) ??
+      categories.find((category) => {
+        const slugValue = category.slug.toLowerCase();
+        const nameValue = category.name.toLowerCase();
+        return (
+          slugValue.includes(normalized) ||
+          normalized.includes(slugValue) ||
+          nameValue.includes(normalized)
+        );
+      }) ??
+      null
+    );
+  }
+
+  function applyCategorySuggestion(slug: string) {
+    const category = resolveCategoryBySlug(slug);
+    if (!category) return;
+    if (category.parentId) {
+      setParentCategoryId(category.parentId);
+      setSubcategoryId(category.id);
+      return;
+    }
+    setParentCategoryId(category.id);
+    setSubcategoryId("");
+  }
+
+  function findTemplateKeyByIntent(intent: "brand" | "model" | "year") {
+    const templates = templatesByCategory[selectedCategoryId] ?? [];
+    const matcher =
+      intent === "brand"
+        ? /(brand|make|manufacturer|marka|\u043c\u0430\u0440\u043a\u0430)/i
+        : intent === "model"
+          ? /(model|model_name|\u043c\u043e\u0434\u0435\u043b)/i
+          : /(year|production year|yr|godina|\u0433\u043e\u0434\u0438\u043d\u0430)/i;
+    const matched = templates.find((template) =>
+      matcher.test(`${template.key} ${template.label}`),
+    );
+    return matched?.key;
+  }
+
+  function applyDynamicSuggestion(intent: "brand" | "model" | "year", value: string) {
+    const nextValue = value.trim();
+    if (!nextValue) return;
+
+    const templateKey = findTemplateKeyByIntent(intent);
+    if (templateKey) {
+      setSmartDynamicValues((prev) => ({ ...prev, [templateKey]: nextValue }));
+      setDynamicFieldsSeed((prev) => prev + 1);
+      return;
+    }
+
+    const currentTitle = getFormFieldValue("title").trim();
+    if (!currentTitle) {
+      setFormFieldValue("title", nextValue);
+      return;
+    }
+
+    const alreadyIncluded = new RegExp(`\\b${escapeRegExp(nextValue)}\\b`, "i").test(
+      currentTitle,
+    );
+    if (alreadyIncluded) return;
+
+    if (intent === "brand") {
+      setFormFieldValue("title", `${nextValue} ${currentTitle}`.trim());
+      return;
+    }
+
+    setFormFieldValue("title", `${currentTitle} ${nextValue}`.trim());
+  }
+
+  function conditionToLabel(condition: ListingCondition) {
+    return conditionLabelByValue[condition] ?? condition;
+  }
+
+  function goToStep(step: number) {
+    const safe = Math.min(3, Math.max(1, step));
+    setCurrentStep(safe);
+  }
+
+  function goNextStep() {
+    if (needsCategorySelection) return;
+    goToStep(currentStep + 1);
+  }
+
+  function goPrevStep() {
+    goToStep(currentStep - 1);
+  }
+
+  function refreshPhotoPreview(files: FileList | null) {
+    setPhotoPreviewUrls((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      if (!files || files.length === 0) return [];
+      return Array.from(files).slice(0, 6).map((file) => URL.createObjectURL(file));
+    });
+  }
+
+  function clearCreatePhotos() {
+    if (photosInputRef.current) {
+      photosInputRef.current.value = "";
+    }
+    setPhotoValidationError(null);
+    setSmartFillError(null);
+    setSmartSuggestions(null);
+    setPhotoPreviewUrls((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    });
+  }
+
+  async function runSmartFill() {
+    if (!smartFillEnabled) {
+      setSmartSuggestions(null);
+      setSmartFillError(null);
+      return;
+    }
+
+    const files = photosInputRef.current?.files;
+    if (!files || files.length === 0) {
+      setSmartFillError(text.smartFillNoPhotos);
+      return;
+    }
+
+    const nextError = validateCreatePhotos(files);
+    setPhotoValidationError(nextError);
+    if (nextError) {
+      setSmartFillError(nextError);
+      return;
+    }
+
+    setSmartFillError(null);
+    setIsSmartFillPending(true);
+    setSmartSuggestions(null);
+
+    try {
+      const payload = new FormData();
+      payload.set("locale", locale);
+      Array.from(files)
+        .slice(0, 4)
+        .forEach((file) => payload.append("photos", file));
+
+      const result = await analyzeListingPhotos(payload);
+      if (!result.ok) {
+        setSmartFillError(result.error || text.smartFillError);
+        setSmartSuggestions(result.suggestions);
+      } else {
+        setSmartSuggestions(result.suggestions);
+      }
+    } catch {
+      setSmartFillError(text.smartFillError);
+    } finally {
+      setIsSmartFillPending(false);
+    }
+  }
+
+  const hasSmartSuggestions = Boolean(
+    smartSuggestions &&
+      Object.values(smartSuggestions).some(
+        (value) => typeof value === "string" && value.trim().length > 0,
+      ),
+  );
+
+  useEffect(() => {
+    if (!showPaymentPanel) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowPaymentPanel(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showPaymentPanel]);
+
+  useEffect(() => {
+    return () => {
+      photoPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [photoPreviewUrls]);
+
+  useEffect(() => {
+    if (!wizardEnabled || !needsCategorySelection) return;
+    if (currentStep !== 1) {
+      setCurrentStep(1);
+    }
+  }, [currentStep, needsCategorySelection, wizardEnabled]);
+
+  return (
+    <form
+      id={formId}
+      ref={formRef}
+      action={action as (formData: FormData) => void | Promise<void>}
+      className="space-y-4"
+      onSubmit={(event) => {
+        const photosError = validateCreatePhotos(photosInputRef.current?.files ?? null);
+        setPhotoValidationError(photosError);
+        if (photosError) {
+          event.preventDefault();
+          return;
+        }
+
+        const submitter =
+          event.nativeEvent instanceof SubmitEvent
+            ? event.nativeEvent.submitter
+            : null;
+        const intent =
+          submitter instanceof HTMLButtonElement ||
+          submitter instanceof HTMLInputElement
+            ? submitter.value
+            : "publish";
+
+        if (!isCreateMode) return;
+        if (intent === "draft") {
+          persistDraft();
+          return;
+        }
+
+        clearPersistedDraft();
+      }}
+    >
+      {initial?.id && <input type="hidden" name="id" value={initial.id} />}
+      <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="plan" value={plan} />
+      {paymentProvider !== "none" && (
+        <input type="hidden" name="paymentProvider" value={paymentProvider} />
+      )}
+      {isCreateMode && savedDraft && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-blue-50/50 p-3 dark:bg-blue-500/10">
+          <p className="text-sm text-foreground">{text.savedDraftDetected}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={restoreSavedDraft}>
+              {text.restoreSavedDraft}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={clearPersistedDraft}
+            >
+              {text.discardSavedDraft}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {wizardEnabled && (
+        <section className="space-y-2 rounded-2xl border border-border/70 bg-card/70 p-3 sm:p-4">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <p className="text-base font-semibold">{isMk ? "Креирај оглас" : "Create listing"}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isMk ? "Чекор" : "Step"} {currentStep} {isMk ? "од" : "of"} {wizardSteps.length}
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {wizardSteps.map((step) => {
+              const isActive = currentStep === step.id;
+              const isCompleted = currentStep > step.id;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => {
+                    if (needsCategorySelection && step.id !== 1) return;
+                    goToStep(step.id);
+                  }}
+                  aria-label={`${text.wizardGoTo} ${step.id}`}
+                  disabled={needsCategorySelection && step.id !== 1}
+                  className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                    isActive
+                      ? "border-primary/45 bg-primary/10"
+                      : isCompleted
+                        ? "border-secondary/30 bg-secondary/10"
+                        : "border-border/70 bg-background hover:border-primary/25"
+                  } ${
+                    needsCategorySelection && step.id !== 1
+                      ? "cursor-not-allowed opacity-50"
+                      : ""
+                  }`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {step.label}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{step.hint}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
+          <h3 className="text-lg font-semibold">{text.listingDetails}</h3>
+
+          <label className={`space-y-1 ${wizardEnabled && currentStep !== 1 ? "hidden" : ""}`}>
+            <span className="text-sm font-medium">{text.title}</span>
+            <Input
+              name="title"
+              defaultValue={readValue("title", initial?.title ?? "")}
+              placeholder={text.titlePlaceholder}
+              required
+              minLength={5}
+              maxLength={120}
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">
+              {isMk
+                ? "\u041a\u0440\u0430\u0442\u043e\u043a \u0438 \u043a\u043e\u043d\u043a\u0440\u0435\u0442\u0435\u043d \u043d\u0430\u0441\u043b\u043e\u0432 \u0434\u043e\u0431\u0438\u0432\u0430 \u043f\u043e\u0432\u0435\u045c\u0435 \u043a\u043b\u0438\u043a\u043e\u0432\u0438."
+                : "Short and clear titles get more clicks."}
+            </p>
+          </label>
+
+          <label className={`space-y-1 ${wizardEnabled && currentStep !== 3 ? "hidden" : ""}`}>
+            <span className="text-sm font-medium">{text.description}</span>
+            <textarea
+              name="description"
+              defaultValue={readValue("description", initial?.description ?? "")}
+              className="min-h-36 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
+              placeholder={text.descriptionPlaceholder}
+              maxLength={2000}
+              autoComplete="off"
+            />
+          </label>
+
+          {!initial?.id && (
+            <div
+              className={`rounded-2xl border border-border/70 bg-card/95 p-4 ${
+                wizardEnabled && currentStep !== 2 ? "hidden" : ""
+              }`}
+            >
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-semibold">{text.photos}</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={clearCreatePhotos}
+                  disabled={photoPreviewUrls.length === 0}
+                >
+                  {isMk ? "\u0420\u0435\u0441\u0435\u0442\u0438\u0440\u0430\u0458 \u0441\u043b\u0438\u043a\u0438" : "Reset images"}
+                </Button>
+              </div>
+              <label className="space-y-2">
+                <input
+                  ref={photosInputRef}
+                  type="file"
+                  name="photos"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  multiple
+                  onChange={(event) => {
+                    const nextError = validateCreatePhotos(event.target.files);
+                    setPhotoValidationError(nextError);
+                    setSmartFillError(null);
+                    setSmartSuggestions(null);
+                    refreshPhotoPreview(event.target.files);
+                  }}
+                  className="block min-h-[180px] w-full rounded-2xl border-2 border-dashed border-border bg-muted/10 px-3 py-5 text-sm file:mr-3 file:rounded-lg file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                />
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {text.photosHint}
+              </p>
+              {photoValidationError && (
+                <p className="mt-1 text-xs font-medium text-destructive">
+                  {photoValidationError}
+                </p>
+              )}
+
+              {photoPreviewUrls.length > 0 && (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {photoPreviewUrls.map((previewUrl, index) => (
+                    <div
+                      key={`${previewUrl}-${index}`}
+                      className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted/20"
+                    >
+                      <Image
+                        src={previewUrl}
+                        alt={`${text.photos} ${index + 1}`}
+                        fill
+                        unoptimized
+                        sizes="112px"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {smartFillEnabled && (
+                <div className="mt-3 rounded-xl border border-primary/25 bg-orange-50/60 p-3 dark:bg-orange-500/10">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold">{text.smartFill}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {text.smartFillHint}
+                    </p>
+                    {(isSmartFillPending || (smartSuggestions && hasSmartSuggestions)) && (
+                      <span className="mt-1 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        {isSmartFillPending ? text.smartFillWorking : text.smartFillApply}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1"
+                    onClick={runSmartFill}
+                    disabled={isSmartFillPending}
+                  >
+                    <Wand2 size={14} />
+                    {isSmartFillPending ? text.smartFillWorking : text.smartFillAction}
+                  </Button>
+                </div>
+
+                {smartFillError && (
+                  <p className="mt-2 text-xs font-medium text-destructive">
+                    {smartFillError}
+                  </p>
+                )}
+
+                {smartSuggestions && hasSmartSuggestions && (
+                  <div className="mt-3 space-y-2">
+                    {smartSuggestions.suggestedTitle && (
+                      <SuggestionRow
+                        label={text.smartTitle}
+                        value={smartSuggestions.suggestedTitle}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          setFormFieldValue("title", smartSuggestions.suggestedTitle || "")
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedCategorySlug && (
+                      <SuggestionRow
+                        label={text.smartCategory}
+                        value={smartSuggestions.suggestedCategorySlug}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          applyCategorySuggestion(
+                            smartSuggestions.suggestedCategorySlug || "",
+                          )
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedBrand && (
+                      <SuggestionRow
+                        label={text.smartBrand}
+                        value={smartSuggestions.suggestedBrand}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          applyDynamicSuggestion(
+                            "brand",
+                            smartSuggestions.suggestedBrand || "",
+                          )
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedModel && (
+                      <SuggestionRow
+                        label={text.smartModel}
+                        value={smartSuggestions.suggestedModel}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          applyDynamicSuggestion(
+                            "model",
+                            smartSuggestions.suggestedModel || "",
+                          )
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedYear && (
+                      <SuggestionRow
+                        label={text.smartYear}
+                        value={smartSuggestions.suggestedYear}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          applyDynamicSuggestion("year", smartSuggestions.suggestedYear || "")
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedCondition && (
+                      <SuggestionRow
+                        label={text.smartCondition}
+                        value={conditionToLabel(smartSuggestions.suggestedCondition)}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          setFormFieldValue(
+                            "condition",
+                            smartSuggestions.suggestedCondition || "",
+                          )
+                        }
+                      />
+                    )}
+
+                    {smartSuggestions.suggestedDescription && (
+                      <SuggestionRow
+                        label={text.smartDescription}
+                        value={smartSuggestions.suggestedDescription}
+                        applyLabel={text.smartFillApply}
+                        onApply={() =>
+                          setFormFieldValue(
+                            "description",
+                            smartSuggestions.suggestedDescription || "",
+                          )
+                        }
+                      />
+                    )}
+                  </div>
+                )}
+
+                {smartSuggestions && !hasSmartSuggestions && !smartFillError && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {text.smartFillNoSuggestions}
+                  </p>
+                )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {initial?.id && (
+            <div
+              className={`rounded-xl border border-border/70 bg-card/90 p-3 ${
+                wizardEnabled && currentStep !== 2 ? "hidden" : ""
+              }`}
+            >
+              <ListingImageUpload
+                listingId={initial.id}
+                existingImages={existingImages}
+                locale={locale}
+              />
+            </div>
+          )}
+
+        </div>
+
+        <div
+          className={`space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4 ${
+            wizardEnabled && currentStep === 2 ? "hidden" : ""
+          }`}
+        >
+          <div
+            className={`space-y-2 rounded-xl border border-primary/30 bg-orange-50/70 p-3 dark:bg-orange-500/10 ${
+              wizardEnabled && currentStep !== 1 ? "hidden" : ""
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">{text.categoryAndLocation}</h3>
+              <Link
+                href="/categories#request-category"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <CirclePlus size={13} />
+                {text.requestCategory}
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground">{text.categoryPriority}</p>
+            {needsCategorySelection && (
+              <p className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-xs font-medium text-foreground">
+                {selectedCategoryId
+                  ? categoryTemplateMissingLabel
+                  : selectCategoryToContinueLabel}
+              </p>
+            )}
+
+            <input type="hidden" name="categoryId" value={selectedCategoryId} />
+
+            <div className="grid gap-2">
+              <label className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.mainCategory}
+                </span>
+                <Select
+                  name="parentCategoryId"
+                  value={parentCategoryId}
+                  onChange={(event) => {
+                    setParentCategoryId(event.target.value);
+                    setSubcategoryId("");
+                  }}
+                  required
+                >
+                  <option value="" disabled>
+                    {chooseMainCategoryLabel}
+                  </option>
+                  {parentCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {localizeCategoryName(category, locale)}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+
+              {subcategoriesForSelectedParent.length > 0 ? (
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {text.subcategory}
+                  </span>
+                  <Select
+                    name="subcategoryId"
+                    value={hasValidSubcategory ? subcategoryId : ""}
+                    onChange={(event) => setSubcategoryId(event.target.value)}
+                  >
+                    <option value="">{text.useParentCategory}</option>
+                    {subcategoriesForSelectedParent.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {localizeCategoryName(category, locale)}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  {text.subcategory}: 0
+                </p>
+              )}
+            </div>
+
+          </div>
+
+          <div
+            className={`space-y-3 rounded-xl border border-border/70 bg-card/90 p-3 ${
+              wizardEnabled && currentStep !== 1 ? "hidden" : ""
+            }`}
+          >
+            <h3 className="text-sm font-semibold">{isMk ? "Цена" : "Pricing"}</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-sm font-medium">{text.price}</span>
+                <Input
+                  type="number"
+                  step="1"
+                  min="1"
+                  name="price"
+                  defaultValue={readValue("price", String(initial?.price ?? 0))}
+                  placeholder={text.pricePlaceholder}
+                  required
+                  autoComplete="off"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isMk
+                    ? "\u0412\u043d\u0435\u0441\u0438 \u0444\u0438\u043d\u0430\u043b\u043d\u0430 \u0446\u0435\u043d\u0430 \u0448\u0442\u043e \u045c\u0435 \u0458\u0430 \u0432\u0438\u0434\u0430\u0442 \u043a\u0443\u043f\u0443\u0432\u0430\u0447\u0438\u0442\u0435."
+                    : "Enter the final public price buyers should see."}
+                </p>
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-sm font-medium">{text.currency}</span>
+                <Select name="currency" defaultValue={restoredCurrency}>
+                  {MARKETPLACE_CURRENCIES.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
+
+            <label className="space-y-1">
+              <span className="text-sm font-medium">{text.condition}</span>
+              <Select name="condition" defaultValue={restoredCondition}>
+                {Object.values(ListingCondition).map((condition) => (
+                  <option key={condition} value={condition}>
+                    {conditionLabelByValue[condition]}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+
+          <div
+            className={`space-y-2 rounded-xl border border-border/70 bg-card/90 p-3 ${
+              wizardEnabled && currentStep !== 1 ? "hidden" : ""
+            }`}
+          >
+            <h3 className="text-sm font-semibold">{isMk ? "Локација" : "Location"}</h3>
+            <label className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.city}
+              </span>
+              <Select name="cityId" defaultValue={restoredCityId} required>
+                {cities.length === 0 ? (
+                  <option value="" disabled>
+                    {text.noCityAvailable}
+                  </option>
+                ) : (
+                  cities.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))
+                )}
+              </Select>
+            </label>
+          </div>
+
+          <div
+            className={`space-y-2 rounded-xl border border-border/70 bg-card/90 p-3 ${
+              wizardEnabled && currentStep !== 3 ? "hidden" : ""
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold">{text.sellerPhoneForPost}</p>
+              {hasSavedProfilePhone && (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-primary hover:underline"
+                  onClick={() => setUseSavedPhone((prev) => !prev)}
+                >
+                  {useSavedPhone ? text.useDifferentPhone : text.useSavedPhone}
+                </button>
+              )}
+            </div>
+            <input
+              type="hidden"
+              name="useSavedPhone"
+              value={String(useSavedPhone)}
+            />
+
+            {hasSavedProfilePhone && useSavedPhone ? (
+              <>
+                <input
+                  type="hidden"
+                  name="phoneCountry"
+                  value={initial?.phoneCountry ?? phoneCountry}
+                />
+                <input
+                  type="hidden"
+                  name="phone"
+                  value={initial?.phone ?? ""}
+                />
+                <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    {text.usingSavedPhone}
+                  </p>
+                  <p className="text-sm font-semibold leading-none">
+                    {initial?.phoneCountry || "MK"} {initial?.phone}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-[170px_minmax(0,1fr)]">
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {text.country}
+                  </span>
+                  <Select
+                    name="phoneCountry"
+                    value={phoneCountry}
+                    onChange={(event) => setPhoneCountry(event.target.value)}
+                  >
+                    {PHONE_COUNTRIES.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.flag} {country.label} (+{country.dialCode})
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {text.phone}
+                  </span>
+                  <Input
+                    name="phone"
+                    defaultValue={readValue("phone", initial?.phone ?? "")}
+                    placeholder={text.phonePlaceholder}
+                    required
+                    minLength={6}
+                    maxLength={20}
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                </label>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              {text.acceptedPhoneFormat}
+            </p>
+          </div>
+
+          <details
+            className={`rounded-xl border border-border/70 bg-card/90 p-3 ${
+              wizardEnabled && currentStep !== 3 ? "hidden" : ""
+            }`}
+          >
+            <summary className="cursor-pointer text-sm font-semibold">
+              {text.categoryFieldsExpand}
+            </summary>
+            <div className="mt-3">
+              {hasTemplatesForSelectedCategory ? (
+                <DynamicFieldsEditor
+                  key={`${selectedCategoryId}-${dynamicFieldsSeed}`}
+                  categoryId={selectedCategoryId}
+                  templatesByCategory={templatesByCategory}
+                  initialValues={dynamicInitialValues}
+                  locale={locale}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {categoryTemplateMissingLabel}
+                </p>
+              )}
+            </div>
+          </details>
+
+          <div
+            className={`rounded-xl border border-secondary/30 bg-blue-50/50 p-3 dark:bg-blue-500/10 ${
+              wizardEnabled && currentStep !== 3 ? "hidden" : ""
+            }`}
+          >
+            <p className="text-sm font-semibold">{text.review}</p>
+            <div className="mt-2 grid gap-1 text-sm">
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewTitle}:</span>{" "}
+                {getFormFieldValue("title", readValue("title", initial?.title ?? "")) || noValueLabel}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewCategory}:</span>{" "}
+                {selectedCategoryId
+                  ? localizeCategoryName(
+                      categoryById[selectedCategoryId] ?? { id: "", name: noValueLabel, slug: "" },
+                      locale,
+                    )
+                  : noValueLabel}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewPrice}:</span>{" "}
+                {getFormFieldValue("price", readValue("price", String(initial?.price ?? 0))) || "0"}{" "}
+                {getFormFieldValue("currency", readValue("currency", restoredCurrency))}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewCity}:</span>{" "}
+                {cities.find(
+                  (city) =>
+                    city.id ===
+                    getFormFieldValue("cityId", readValue("cityId", restoredCityId || "")),
+                )?.name ||
+                  noValueLabel}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{text.reviewCondition}:</span>{" "}
+                {conditionLabelByValue[
+                  (getFormFieldValue(
+                    "condition",
+                    readValue("condition", restoredCondition),
+                  ) as ListingCondition) ||
+                    ListingCondition.USED
+                ] || noValueLabel}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {wizardEnabled && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goPrevStep}
+            className={currentStep === 1 ? "invisible" : ""}
+          >
+            <ChevronLeft size={16} />
+            {text.wizardBack}
+          </Button>
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {wizardSteps[currentStep - 1]?.label}
+          </p>
+
+          {currentStep < 3 ? (
+            <Button type="button" onClick={goNextStep}>
+              {text.wizardNext}
+              <ChevronRight size={16} />
+            </Button>
+          ) : (
+            <div className="w-[86px]" />
+          )}
+        </div>
+      )}
+
+      {showPlanSelector && (!wizardEnabled || currentStep === 3) && (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-lg font-semibold">{text.sellerPackage}</h3>
+            <span className="inline-flex items-center gap-1 rounded-full border border-secondary/25 bg-secondary/10 px-2 py-0.5 text-xs font-semibold text-secondary">
+              <Sparkles size={13} />
+              {assistantIncludedLabel}
+            </span>
+          </div>
+
+          <div className="grid gap-2.5 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setPlan("pay-per-listing")}
+              className={`rounded-2xl border p-3 text-left transition-colors ${
+                plan === "pay-per-listing"
+                  ? "border-primary bg-orange-50/70 dark:bg-orange-500/10"
+                  : "border-border bg-card hover:border-primary/30"
+              }`}
+            >
+              <p className="text-sm font-semibold">{text.payPerListing}</p>
+              <p className="text-2xl font-black text-primary">$4</p>
+              <p className="text-xs text-muted-foreground">{text.daysActive30}</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPlan("subscription")}
+              className={`rounded-2xl border p-3 text-left transition-colors ${
+                plan === "subscription"
+                  ? "border-secondary bg-blue-50/70 dark:bg-blue-500/10"
+                  : "border-border bg-card hover:border-secondary/30"
+              }`}
+            >
+              <p className="text-sm font-semibold">{text.subscription}</p>
+              <p className="text-2xl font-black text-secondary">$30</p>
+              <p className="text-xs text-muted-foreground">
+                {text.monthlyUnlimited}
+              </p>
+            </button>
+          </div>
+
+          {requiresDummyPayment && (
+            <div className="rounded-xl border border-border/70 bg-card p-2.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {text.secureCheckout}
+              </p>
+              <p className="mt-1 text-sm">
+                {text.paymentAfterPublish}{" "}
+                <span className="font-semibold">
+                  ${paymentAmount} {paymentLabel.toLowerCase()}.
+                </span>
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {(!wizardEnabled || currentStep === 3) && (
+        <>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {isCreateMode && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetCreateDraftAndForm}
+                disabled={showPaymentPanel}
+              >
+                {resetDraftAndFormLabel}
+              </Button>
+            )}
+            {allowDraft && (
+              <Button
+                name="intent"
+                value="draft"
+                type="submit"
+                variant="outline"
+                disabled={showPaymentPanel || Boolean(photoValidationError)}
+                onClick={() => {
+                  if (isCreateMode) persistDraft();
+                }}
+              >
+                {text.saveDraft}
+              </Button>
+            )}
+            {requiresDummyPayment ? (
+              <Button
+                type="button"
+                disabled={Boolean(photoValidationError)}
+                onClick={() => setShowPaymentPanel(true)}
+              >
+                {text.payAndPublish}
+                {paymentAmount}
+                {text.publishSuffix}
+              </Button>
+            ) : (
+              <Button
+                name="intent"
+                value="publish"
+                type="submit"
+                disabled={Boolean(photoValidationError)}
+              >
+                {resolvedPublishLabel}
+              </Button>
+            )}
+          </div>
+
+          {isCreateMode && showPlanSelector && requiresDummyPayment && (
+            <p className="text-xs text-muted-foreground">
+              {text.stripeValidated}
+            </p>
+          )}
+        </>
+      )}
+
+      {requiresDummyPayment && (
+        <div
+          className={`fixed inset-0 z-[95] flex items-center justify-center p-3 transition-all duration-200 ${
+            showPaymentPanel
+              ? "pointer-events-auto visible opacity-100"
+              : "pointer-events-none invisible opacity-0"
+          }`}
+          aria-hidden={!showPaymentPanel}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && event.target instanceof HTMLElement) {
+              if (event.target.tagName !== "TEXTAREA") {
+                event.preventDefault();
+              }
+            }
+          }}
+        >
+          <button
+            type="button"
+            aria-label={text.closePaymentPopup}
+            onClick={() => setShowPaymentPanel(false)}
+            className={uiModal.backdrop}
+          />
+
+          <div className="relative z-[1] w-full max-w-lg rounded-2xl border border-border/70 bg-card p-4 shadow-2xl sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {text.secureCheckout}
+                </p>
+                <p className="text-2xl font-black">${paymentAmount}</p>
+                <p className={uiTypography.muted}>{paymentLabel}</p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowPaymentPanel(false)}
+              >
+                {text.close}
+              </Button>
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <label className="space-y-1 sm:col-span-3">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {text.cardNumber}
+                </span>
+                <Input
+                  name="dummyCardNumber"
+                  defaultValue={readValue("dummyCardNumber", "")}
+                  placeholder="4242 4242 4242 4242"
+                  inputMode="numeric"
+                  autoComplete="cc-number"
+                  pattern="[0-9 ]{16,23}"
+                  required={showPaymentPanel}
+                  disabled={!showPaymentPanel}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {text.expiry}
+                </span>
+                <Input
+                  name="dummyCardExp"
+                  defaultValue={readValue("dummyCardExp", "")}
+                  placeholder="MM/YY"
+                  autoComplete="cc-exp"
+                  pattern="(0[1-9]|1[0-2])/[0-9]{2}"
+                  required={showPaymentPanel}
+                  disabled={!showPaymentPanel}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {text.cvc}
+                </span>
+                <Input
+                  name="dummyCardCvc"
+                  defaultValue={readValue("dummyCardCvc", "")}
+                  placeholder="CVC"
+                  inputMode="numeric"
+                  autoComplete="cc-csc"
+                  pattern="[0-9]{3,4}"
+                  required={showPaymentPanel}
+                  disabled={!showPaymentPanel}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {text.cardholder}
+                </span>
+                <Input
+                  name="dummyCardName"
+                  defaultValue={readValue("dummyCardName", "")}
+                  placeholder={text.cardholderPlaceholder}
+                  autoComplete="cc-name"
+                  minLength={2}
+                  maxLength={80}
+                  required={showPaymentPanel}
+                  disabled={!showPaymentPanel}
+                />
+              </label>
+            </div>
+
+            <p className="mt-2 text-xs text-muted-foreground">
+              {text.successFailCards}
+            </p>
+
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowPaymentPanel(false)}
+              >
+                {text.cancel}
+              </Button>
+              <Button
+                name="intent"
+                value="publish"
+                type="submit"
+                disabled={Boolean(photoValidationError)}
+              >
+                {resolvedPublishLabel}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </form>
+  );
+}
+
+function SuggestionRow({
+  label,
+  value,
+  applyLabel,
+  onApply,
+}: {
+  label: string;
+  value: string;
+  applyLabel: string;
+  onApply: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-2 rounded-lg border border-border/70 bg-card/90 px-2.5 py-2">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <p className="line-clamp-2 text-sm text-foreground">{value}</p>
+      </div>
+      <Button type="button" size="sm" variant="outline" onClick={onApply} className="shrink-0">
+        <CheckCircle2 size={14} />
+        {applyLabel}
+      </Button>
+    </div>
+  );
+}

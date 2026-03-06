@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Globe, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,21 +49,6 @@ export function HomeHeroSection({
                 {text.startSelling} <ArrowRight size={16} />
               </Button>
             </Link>
-          </div>
-
-          <div className="hidden gap-3 lg:grid lg:grid-cols-3">
-            <div className="rounded-[1.15rem] border border-border/70 bg-card p-3">
-              <Sparkles className="mb-2 text-primary" size={18} />
-              <p className="text-sm font-semibold">{text.smartAssistance}</p>
-            </div>
-            <div className="rounded-[1.15rem] border border-border/70 bg-card p-3">
-              <ShieldCheck className="mb-2 text-secondary" size={18} />
-              <p className="text-sm font-semibold">{text.saferTrading}</p>
-            </div>
-            <div className="rounded-[1.15rem] border border-border/70 bg-card p-3">
-              <Globe className="mb-2 text-primary" size={18} />
-              <p className="text-sm font-semibold">{text.localGlobal}</p>
-            </div>
           </div>
         </div>
 
