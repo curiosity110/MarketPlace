@@ -23,13 +23,17 @@ export function DashboardHeaderSection({
       title={title}
       subtitle={subtitle}
       compact
-      className="max-w-full min-w-0"
+      className="max-w-full min-w-0 border-b border-border/40 pb-3"
+      titleClassName=""
+      subtitleClassName="max-w-2xl text-sm"
       actions={
-        <OpenCreateListingButton
-          label={ctaLabel}
-          params={selectedCategoryIdFromQuery ? { cat: selectedCategoryIdFromQuery } : undefined}
-          disabled={!canCreateListings || !hasCategories}
-        />
+        <div className="pt-1 sm:pt-0">
+          <OpenCreateListingButton
+            label={ctaLabel}
+            params={selectedCategoryIdFromQuery ? { cat: selectedCategoryIdFromQuery } : undefined}
+            disabled={!canCreateListings || !hasCategories}
+          />
+        </div>
       }
     />
   );

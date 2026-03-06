@@ -111,8 +111,8 @@ export function ListingCard({
   const listingHref = browseQuery ? `/listing/${listing.id}?${browseQuery}` : `/listing/${listing.id}`;
 
   return (
-    <Card className="h-full min-w-0 overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
-      <div className="group relative aspect-[4/3] w-full overflow-hidden bg-muted sm:aspect-video">
+    <Card className="h-full min-w-0 overflow-hidden bg-card transition-all duration-200 hover:-translate-y-0.5 hover:ring-black/10 hover:shadow-[0_18px_38px_-30px_rgba(15,23,42,0.35)] dark:hover:ring-white/10">
+      <div className="group relative aspect-[4/3] w-full overflow-hidden bg-muted">
         <Link href={listingHref} className="absolute inset-0 z-0">
           <span className="sr-only">{listing.title}</span>
         </Link>
@@ -126,28 +126,23 @@ export function ListingCard({
             sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-100 via-slate-50 to-orange-50/60 text-muted-foreground dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/80">
-              <ImageOff size={16} />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 text-muted-foreground dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-background/85 ring-1 ring-black/10 dark:ring-white/10">
+              <ImageOff size={18} />
             </span>
             <span className="text-xs font-medium">{text.noImage}</span>
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-slate-950/10 to-transparent" />
 
         <div className="absolute left-3 top-3 z-10 flex gap-1.5">
           <Badge
-            variant="secondary"
-            className="h-7 border-white/50 bg-background/90 px-2.5 text-xs shadow-sm"
+            variant={isSold ? "default" : "secondary"}
+            className="h-5.5 border-white/40 bg-background/90 px-2"
           >
-            {conditionLabel}
+            {isSold ? text.sold : conditionLabel}
           </Badge>
-          {isSold && (
-            <Badge variant="secondary" className="h-7 px-2.5 text-xs">
-              {text.sold}
-            </Badge>
-          )}
         </div>
 
         <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
@@ -157,7 +152,7 @@ export function ListingCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 w-7 border-white/70 bg-background/90 p-0 backdrop-blur"
+                  className="h-7 w-7 border-white/50 bg-background/90 p-0 backdrop-blur"
                   aria-label={text.edit}
                 >
                   <Pencil size={13} />
@@ -169,7 +164,7 @@ export function ListingCard({
                   locale={locale}
                   defaultPriceCents={listing.priceCents}
                   iconOnly
-                  className="border-white/70 bg-background/90 backdrop-blur"
+                  className="border-white/50 bg-background/90 backdrop-blur"
                 />
               )}
             </>
@@ -181,27 +176,30 @@ export function ListingCard({
               isAuthenticated={Boolean(currentAuthUserId)}
               initialFavorited={isFavorited}
               iconOnly
-              className="h-7 w-7 border-white/70 bg-background/90 p-0 backdrop-blur"
+              className="h-7 w-7 border-white/50 bg-background/90 p-0 backdrop-blur"
             />
           )}
         </div>
 
-        <div className="absolute bottom-3 right-3 z-10 rounded-full border border-white/70 bg-white/95 px-3 py-1 text-base font-black text-primary shadow-sm dark:border-border dark:bg-background/95">
-          {formattedPrice}
+        <div className="absolute inset-x-0 bottom-0 z-10 p-3 text-white">
+          <p className="line-clamp-2 max-w-[85%] text-base font-semibold leading-tight tracking-tight sm:text-[1.02rem]">
+            {listing.title}
+          </p>
         </div>
       </div>
 
-      <CardContent className="space-y-2.5 p-3.5 sm:p-4">
-        <Link href={listingHref}>
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-lg font-extrabold leading-tight tracking-tight transition-colors hover:text-primary sm:text-base">
-            {listing.title}
-          </h3>
-        </Link>
-
-        <p className="truncate text-xs text-muted-foreground">{locationCategoryLine}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {text.by} {sellerLabel}
-        </p>
+      <CardContent className="space-y-3 p-3.5 sm:p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <p className="text-lg font-semibold leading-none tracking-tight text-primary sm:text-xl">
+              {formattedPrice}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">{locationCategoryLine}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {text.by} {sellerLabel}
+            </p>
+          </div>
+        </div>
 
         {moreLikeHref && (
           <div className="grid grid-cols-2 gap-2">
@@ -251,7 +249,7 @@ export function ListingCard({
           )
         ) : null}
 
-        <p className="border-t border-border/60 pt-2 text-xs text-muted-foreground">
+        <p className="border-t border-border/40 pt-2 text-[0.72rem] text-muted-foreground">
           {text.listed}{" "}
           {new Date(listing.createdAt).toLocaleDateString(isMk ? "mk-MK" : "en-US")}
         </p>

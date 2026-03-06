@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { ImageOff, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
@@ -115,16 +115,16 @@ export function DashboardListingCard({
   return (
     <article
       className={cn(
-        "group max-w-full min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-primary/30",
+        "group max-w-full min-w-0 overflow-hidden rounded-[1.35rem] bg-card ring-1 ring-black/5 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_38px_-30px_rgba(15,23,42,0.28)] focus-within:ring-2 focus-within:ring-primary/20 dark:ring-white/10",
         layout === "list"
-          ? "grid gap-0 lg:grid-cols-[260px_1fr]"
+          ? "grid gap-0 lg:grid-cols-[220px_1fr]"
           : "flex flex-col",
       )}
     >
       <div
         className={cn(
           "relative overflow-hidden",
-          layout === "list" ? "h-44 lg:h-auto" : "h-44",
+          layout === "list" ? "h-36 lg:h-auto" : "h-40",
         )}
       >
         {heroImage ? (
@@ -137,22 +137,26 @@ export function DashboardListingCard({
             sizes={layout === "list" ? "(max-width: 1024px) 100vw, 260px" : "(max-width: 768px) 100vw, 33vw"}
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-br from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-900" />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-200 to-slate-100 text-muted-foreground dark:from-slate-800 dark:to-slate-900">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-background/85 ring-1 ring-black/10 dark:ring-white/10">
+              <ImageOff size={18} />
+            </span>
+          </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-900/25 to-transparent" />
 
-        <div className="absolute right-3 top-3 flex items-center gap-1.5">
+        <div className="absolute left-3 top-3 flex items-center gap-1.5">
           <Badge variant={getStatusVariant(listing)} className="bg-background/90">
-            <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-              {text.status}
-            </span>
             {statusLabel}
           </Badge>
+        </div>
+
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
           <Link href={`/sell/${listing.id}/edit`}>
             <Button
               variant="outline"
               size="sm"
-              className="h-8 w-8 border-white/70 bg-background/90 p-0 backdrop-blur"
+              className="h-8 w-8 border-white/50 bg-background/90 p-0 backdrop-blur"
               aria-label={text.edit}
             >
               <Pencil size={13} />
@@ -164,46 +168,46 @@ export function DashboardListingCard({
               locale={locale}
               defaultPriceCents={listing.priceCents}
               iconOnly
-              className="border-white/70 bg-background/90 backdrop-blur"
+              className="border-white/50 bg-background/90 backdrop-blur"
             />
           )}
         </div>
 
         <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-          <p className="line-clamp-1 text-lg font-black">{listing.title}</p>
-          <p className="text-xs text-white/85">
-            {text.updated} {updatedDate}
-          </p>
+          <p className="line-clamp-2 text-base font-semibold leading-tight sm:text-lg">{listing.title}</p>
         </div>
       </div>
 
-      <div className="flex min-h-full min-w-0 flex-col gap-3 p-4">
+      <div className="flex min-h-full min-w-0 flex-col gap-3 p-3.5 sm:p-4">
         <div className="flex max-w-full min-w-0 flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
-          <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5">
+          <span className="rounded-full bg-muted px-2 py-0.5">
             {listing.city.name}
           </span>
-          <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5">
+          <span className="rounded-full bg-muted px-2 py-0.5">
             {localizeCategoryName(listing.category, locale)}
           </span>
         </div>
 
-        <p className="text-2xl font-black text-primary">
-          {formatPrice(listing.priceCents, listing.currency, locale)}
-        </p>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={getStatusVariant(listing)}>{statusLabel}</Badge>
-          {listing.activeUntil && (
-            <Badge variant="warning">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-lg font-semibold tracking-tight text-primary sm:text-xl">
+              {formatPrice(listing.priceCents, listing.currency, locale)}
+            </p>
+            <p className="text-[0.72rem] text-muted-foreground">
+              {text.updated} {updatedDate}
+            </p>
+          </div>
+          {listing.activeUntil && !isSold ? (
+            <p className="text-right text-xs text-muted-foreground">
               {text.ends}{" "}
               {new Date(listing.activeUntil).toLocaleDateString(
                 isMk ? "mk-MK" : "en-US",
               )}
-            </Badge>
-          )}
+            </p>
+          ) : null}
         </div>
 
-        <div className="mt-auto space-y-2">
+        <div className="mt-auto space-y-1.5">
           {isSold ? (
             <>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -213,7 +217,7 @@ export function DashboardListingCard({
                   </Button>
                 </Link>
                 <Link href={`/listing/${listing.id}`}>
-                  <Button size="sm" variant="ghost" className="w-full">
+                  <Button size="sm" variant="outline" className="w-full">
                     {text.view}
                   </Button>
                 </Link>
@@ -236,7 +240,7 @@ export function DashboardListingCard({
                 </Button>
               </Link>
               <Link href={`/listing/${listing.id}`}>
-                <Button size="sm" variant="ghost" className="w-full">
+                <Button size="sm" variant="outline" className="w-full">
                   {text.view}
                 </Button>
               </Link>

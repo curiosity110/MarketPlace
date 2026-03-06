@@ -166,7 +166,7 @@ export function MobileFilterSheet({
       <div className="flex max-w-full min-w-0 items-center gap-2 overflow-x-hidden">
         <button
           type="button"
-          className="inline-flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-input px-3 text-left text-sm text-foreground transition-colors hover:border-primary/25"
+          className="inline-flex h-11 min-w-0 flex-1 items-center gap-2 rounded-2xl bg-card px-3 text-left text-sm text-foreground ring-1 ring-black/5 transition-colors hover:ring-black/10 dark:ring-white/10"
           onClick={() => setIsOpen(true)}
           aria-label={text.filters}
         >
@@ -178,7 +178,7 @@ export function MobileFilterSheet({
         <Button
           type="button"
           variant="outline"
-          className="h-10 shrink-0 rounded-xl px-3"
+          className="h-11 shrink-0 rounded-2xl px-3"
           onClick={() => setIsOpen(true)}
         >
           <SlidersHorizontal size={15} className="mr-1.5" />
@@ -194,8 +194,8 @@ export function MobileFilterSheet({
             aria-label={text.close}
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-2xl border border-border/70 bg-background shadow-2xl">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/70 bg-background px-4 py-3">
+          <div className="absolute inset-x-0 bottom-0 flex h-[84dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-[1.6rem] bg-background shadow-[0_24px_64px_-36px_rgba(15,23,42,0.45)] ring-1 ring-black/10 dark:ring-white/10">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-background px-4 py-3">
               <p className={uiTypography.eyebrow}>
                 {text.filters}
               </p>
@@ -209,7 +209,7 @@ export function MobileFilterSheet({
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground hover:text-foreground"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
                   onClick={() => setIsOpen(false)}
                   aria-label={text.close}
                 >
@@ -237,7 +237,7 @@ export function MobileFilterSheet({
               />
             </div>
 
-            <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/70 bg-background p-4">
+            <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/50 bg-background p-4">
               <Button type="button" variant="outline" onClick={clearDraft}>
                 {text.clearAll}
               </Button>

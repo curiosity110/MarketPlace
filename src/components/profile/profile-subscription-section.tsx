@@ -46,14 +46,15 @@ export function ProfileSubscriptionSection({
   failCards,
   text,
 }: ProfileSubscriptionSectionProps) {
+  void text.postingAndSubscriptionDesc;
+  void text.subscriptionStateHint;
   return (
-    <details className="max-w-full min-w-0 overflow-x-hidden rounded-2xl border border-border/70 bg-card p-4">
+    <details className="max-w-full min-w-0 overflow-x-hidden rounded-2xl bg-card/70 p-4 ring-1 ring-black/5 dark:ring-white/10">
       <summary className="cursor-pointer list-none text-sm font-semibold">
         {text.postingAndSubscription}
       </summary>
-      <p className="mt-2 text-sm text-muted-foreground">{text.postingAndSubscriptionDesc}</p>
       <div className="mt-4 space-y-4">
-        <div className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-sm">
+        <div className="rounded-xl bg-muted/30 px-3 py-2 text-sm ring-1 ring-black/5 dark:ring-white/10">
           {nextPayPerExpiryDate ? (
             <p>
               <span className="font-semibold">{text.nextExpiry}:</span>{" "}
@@ -61,8 +62,7 @@ export function ProfileSubscriptionSection({
             </p>
           ) : subscriptionActive > 0 ? (
             <p>
-              <span className="font-semibold">{text.subscriptionState}.</span>{" "}
-              <span className="text-muted-foreground">{text.subscriptionStateHint}</span>
+              <span className="font-semibold">{text.subscriptionState}</span>
             </p>
           ) : (
             <p className="text-muted-foreground">{text.noActiveCycle}</p>
@@ -70,9 +70,9 @@ export function ProfileSubscriptionSection({
         </div>
 
         <div className="grid max-w-full min-w-0 gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-border/70 bg-card p-3">
+          <div className="rounded-xl bg-background/85 p-3 ring-1 ring-black/5 dark:ring-white/10">
             <p className="text-sm font-semibold">{text.payPerListing}</p>
-            <p className="text-2xl font-black text-primary">$4</p>
+            <p className="text-2xl font-semibold tracking-tight text-primary">$4</p>
             <p className="text-xs text-muted-foreground">{text.listing30}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {text.activeWithPlan}: {payPerListingActive}
@@ -82,9 +82,9 @@ export function ProfileSubscriptionSection({
             </Link>
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-card p-3">
+          <div className="rounded-xl bg-background/85 p-3 ring-1 ring-black/5 dark:ring-white/10">
             <p className="text-sm font-semibold">{text.subscription}</p>
-            <p className="text-2xl font-black text-secondary">$30</p>
+            <p className="text-2xl font-semibold tracking-tight text-secondary">$30</p>
             <p className="text-xs text-muted-foreground">{text.monthlyUnlimited}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {text.activeWithSubscription}: {subscriptionActive}
@@ -97,7 +97,7 @@ export function ProfileSubscriptionSection({
           </div>
         </div>
 
-        <details className="rounded-xl border border-border/70 bg-card p-3">
+        <details className="rounded-xl bg-background/85 p-3 ring-1 ring-black/5 dark:ring-white/10">
           <summary className="cursor-pointer text-sm font-semibold">{text.dummyStripeOptional}</summary>
           <form action={testDummyBillingCardAction} className="mt-3 grid gap-3 sm:grid-cols-4">
             <label className="space-y-1 sm:col-span-2">

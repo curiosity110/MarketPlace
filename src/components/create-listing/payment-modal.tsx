@@ -57,7 +57,7 @@ export function CreateListingPaymentModal({
         className={uiModal.backdrop}
       />
 
-      <div className="relative z-[1] w-full max-w-lg rounded-2xl border border-border/50 bg-card p-4 shadow-[0_24px_64px_-36px_rgba(2,6,23,0.45)] sm:p-5">
+      <div className="relative z-[1] w-full max-w-lg rounded-2xl bg-card p-4 shadow-[0_24px_64px_-36px_rgba(2,6,23,0.45)] ring-1 ring-black/10 sm:p-5 dark:ring-white/10">
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className={uiTypography.eyebrow}>
@@ -69,7 +69,7 @@ export function CreateListingPaymentModal({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={onClose}
             disabled={isActionBusy}
           >

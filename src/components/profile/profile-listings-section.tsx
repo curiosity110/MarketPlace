@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { ListingCard } from "@/components/listing-card";
-import { Card, CardContent } from "@/components/ui/card";
+import { uiTypography } from "@/components/ui/ui-patterns";
 
 type ListingCardData = ComponentProps<typeof ListingCard>["listing"];
 
@@ -23,18 +23,20 @@ export function ProfileListingsSection({
 }: ProfileListingsSectionProps) {
   return (
     <section className="max-w-full min-w-0 space-y-3 overflow-x-hidden">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">
-          {activeLabel} {listingsLabel}
-        </h2>
+      <div className="flex items-end justify-between gap-2">
+        <div className="space-y-1">
+          <h2 className={uiTypography.sectionTitle}>
+            {activeLabel} {listingsLabel}
+          </h2>
+        </div>
         <span className="text-sm text-muted-foreground">{activeListings.length}</span>
       </div>
       {activeListings.length === 0 ? (
-        <Card>
-          <CardContent className="py-6 text-sm text-muted-foreground">{emptyLabel}</CardContent>
-        </Card>
+        <div className="rounded-2xl bg-muted/30 px-4 py-6 text-sm text-muted-foreground ring-1 ring-black/5 dark:ring-white/10">
+          {emptyLabel}
+        </div>
       ) : (
-        <div className="responsive-grid gap-4">
+        <div className="responsive-grid gap-3">
           {activeListings.map((listing) => (
             <ListingCard
               key={listing.id}

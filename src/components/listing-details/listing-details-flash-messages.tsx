@@ -22,14 +22,14 @@ export function ListingDetailsFlashMessages({
   return (
     <>
       {(reportSaved || soldSaved || contactedSaved || msg) && (
-        <Card className="max-w-full border-success/30 bg-success/10">
+        <Card className="max-w-full bg-success/10 ring-1 ring-success/15">
           <CardContent className="py-3 text-sm text-success">
             {msg || reportSubmittedLabel}
           </CardContent>
         </Card>
       )}
       {reportError ? (
-        <Card className="max-w-full border-warning/30 bg-warning/10">
+        <Card className="max-w-full bg-warning/10 ring-1 ring-warning/15">
           <CardContent className="py-3 text-sm text-foreground">{reportError}</CardContent>
         </Card>
       ) : null}

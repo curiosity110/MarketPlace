@@ -1125,7 +1125,7 @@ export function BrowseFilters({
 
   return (
     <form
-      className="max-w-full min-w-0 space-y-4 overflow-x-hidden"
+      className="max-w-full min-w-0 space-y-3 overflow-x-hidden"
       onSubmit={(event) => {
         event.preventDefault();
         applyFilters(state, dynamicValues);
@@ -1134,16 +1134,6 @@ export function BrowseFilters({
       <button type="submit" className="sr-only">
         {text.apply}
       </button>
-
-      {showActiveChips && (hasAnyFilter || activeFilterChips.length > 0) && (
-        <BrowseFiltersActiveChips
-          chips={activeFilterChips}
-          title={text.activeFilters}
-          clearAllLabel={clearAllLabel}
-          removeFilterLabel={text.removeFilter}
-          onClearAll={resetAll}
-        />
-      )}
 
       <BrowseDesktopFiltersRow
         searchLabel={text.search}
@@ -1168,6 +1158,16 @@ export function BrowseFilters({
         onOpenFilters={() => setIsDrawerOpen(true)}
       />
 
+      {showActiveChips && (hasAnyFilter || activeFilterChips.length > 0) && (
+        <BrowseFiltersActiveChips
+          chips={activeFilterChips}
+          title={text.activeFilters}
+          clearAllLabel={clearAllLabel}
+          removeFilterLabel={text.removeFilter}
+          onClearAll={resetAll}
+        />
+      )}
+
       {isDrawerOpen && (
         <div className="fixed inset-0 z-[95] max-w-[100vw] overflow-hidden">
           <button
@@ -1176,8 +1176,8 @@ export function BrowseFilters({
             aria-label={filtersLabel}
             onClick={() => setIsDrawerOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-2xl border border-border/70 bg-background shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:h-auto md:max-h-none md:w-[min(430px,100vw)] md:rounded-none md:border-y-0 md:border-r-0 md:border-l">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/70 bg-background px-4 py-3">
+          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-2xl ring-1 ring-black/10 md:inset-y-0 md:right-0 md:left-auto md:h-auto md:max-h-none md:w-[min(420px,100vw)] md:rounded-none md:ring-l md:ring-t-0 md:ring-r-0 md:ring-b-0 dark:ring-white/10">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-background px-4 py-3">
               <p className={uiTypography.eyebrow}>
                 {filtersLabel}
               </p>
@@ -1193,7 +1193,7 @@ export function BrowseFilters({
                 )}
                 <button
                   type="button"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground hover:text-foreground"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
                   onClick={() => setIsDrawerOpen(false)}
                   aria-label={text.clear}
                 >
@@ -1204,7 +1204,7 @@ export function BrowseFilters({
 
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4">
               <section className="min-w-0 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   {basicsLabel}
                 </p>
                 <div className="grid max-w-full gap-3 [&>*]:min-w-0">
@@ -1284,10 +1284,10 @@ export function BrowseFilters({
                   <button
                     type="button"
                     className={cn(
-                      "inline-flex h-8 w-full items-center justify-center rounded-full border px-3 text-xs font-semibold transition-colors",
+                      "inline-flex h-8 w-full items-center justify-center rounded-full px-3 text-xs font-medium transition-colors",
                       state.fav === "1"
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
+                        ? "bg-primary/10 text-primary"
+                        : "bg-background text-muted-foreground hover:text-foreground",
                     )}
                     onClick={() => {
                       const nextState: BrowseFilterState = {
@@ -1304,7 +1304,7 @@ export function BrowseFilters({
               </section>
 
               <section className="min-w-0 space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   {priceLabel}
                 </p>
                 <div className="grid max-w-full gap-2">
@@ -1356,7 +1356,7 @@ export function BrowseFilters({
 
               {isCarsCategorySelected && (
                 <section className="min-w-0 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     {vehicleDetailsLabel}
                   </p>
                   <div className="grid max-w-full gap-3 [&>*]:min-w-0">
@@ -1446,8 +1446,8 @@ export function BrowseFilters({
               )}
 
               {visibleDynamicTemplates.length > 0 && (
-                <details className="rounded-xl border border-border/70 bg-card/60 p-3">
-                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <details className="rounded-xl bg-muted/30 p-3 ring-1 ring-black/5 dark:ring-white/10">
+                  <summary className="cursor-pointer list-none text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     {moreFiltersLabel}
                   </summary>
                   <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
@@ -1464,7 +1464,7 @@ export function BrowseFilters({
               )}
             </div>
 
-            <div className="border-t border-border/70 p-4">
+            <div className="border-t border-border/50 p-4">
               <Button type="button" className="w-full" onClick={() => setIsDrawerOpen(false)}>
                 {text.apply}
               </Button>

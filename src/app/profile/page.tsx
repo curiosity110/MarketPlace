@@ -219,18 +219,15 @@ export default async function ProfilePage({
     return (
       <div className="space-y-4">
         <CompactBackButton label={text.back} fallbackHref={dashboardHref} />
-        <section className="hero-surface rounded-3xl border border-border/70 px-4 py-4 sm:px-6 sm:py-5">
+        <section className="border-b border-border/40 px-1 pb-3 pt-1 sm:pb-4">
           <div className="space-y-1">
-            <h1 className="text-2xl font-black tracking-tight sm:text-3xl lg:text-4xl">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {text.myProfile}
             </h1>
-            <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-              {text.manageAllInfo}
-            </p>
           </div>
         </section>
 
-        <Card className="border-warning/30 bg-warning/10">
+        <Card className="bg-warning/10 ring-1 ring-warning/15">
           <CardContent className="py-4 text-sm text-foreground">
             {error || dbUnavailableError}
           </CardContent>
@@ -263,7 +260,7 @@ export default async function ProfilePage({
   const avatarInitials = getInitials(displayName);
 
   return (
-    <div className="max-w-full min-w-0 space-y-5 overflow-x-hidden">
+    <div className="max-w-full min-w-0 space-y-4 overflow-x-hidden">
       <ProfileHeader
         backLabel={text.backToDashboard}
         backHref={dashboardHref}

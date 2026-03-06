@@ -5,9 +5,9 @@
   --foreground: 17 24 39;
   --card: 255 255 255;
   --card-foreground: 17 24 39;
-  --muted: 240 246 252;
+  --muted: 244 247 251;
   --muted-foreground: 70 85 105;
-  --border: 215 225 237;
+  --border: 223 231 240;
   --input: 255 255 255;
   --ring: 3 102 214;
 
@@ -83,12 +83,9 @@ html {
 }
 
 body {
-  background: linear-gradient(
-    180deg,
-    rgb(var(--background)) 0%,
-    rgb(var(--background)) 60%,
-    rgb(var(--muted)) 100%
-  );
+  background:
+    radial-gradient(circle at top, rgb(var(--secondary) / 0.05), transparent 28%),
+    linear-gradient(180deg, rgb(var(--background)) 0%, rgb(247 250 253) 100%);
   color: rgb(var(--foreground));
   font-family:
     var(--font-geist-sans),
@@ -128,8 +125,8 @@ textarea:focus-visible {
 
 .hero-surface {
   background:
-    radial-gradient(circle at 8% 0%, rgb(var(--primary) / 0.18), transparent 35%),
-    radial-gradient(circle at 96% 0%, rgb(var(--secondary) / 0.18), transparent 38%),
+    radial-gradient(circle at 8% 0%, rgb(var(--primary) / 0.1), transparent 32%),
+    radial-gradient(circle at 96% 0%, rgb(var(--secondary) / 0.1), transparent 34%),
     linear-gradient(180deg, rgb(var(--card)) 0%, rgb(var(--background)) 100%);
 }
 

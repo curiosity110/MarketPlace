@@ -13,7 +13,7 @@ type Props = {
 export function BrowseSearchBar({ label, placeholder, value, onChange }: Props) {
   return (
     <label className="min-w-0 max-w-full space-y-1">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <span className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </span>
       <div className="relative min-w-0 max-w-full">
@@ -26,7 +26,7 @@ export function BrowseSearchBar({ label, placeholder, value, onChange }: Props) 
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="min-w-0 max-w-full pl-9"
+          className="min-w-0 max-w-full h-11 rounded-2xl bg-card pl-9 text-base"
           autoComplete="off"
         />
       </div>

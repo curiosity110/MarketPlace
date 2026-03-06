@@ -28,7 +28,7 @@ export function CreateListingPlanSection({
   onChange,
 }: Props) {
   return (
-    <section className="space-y-2 rounded-2xl bg-card/80 p-4 ring-1 ring-border/60 sm:p-5">
+    <section className="space-y-3">
       <h3 className="text-sm font-semibold tracking-tight">{titleLabel}</h3>
       <div className="grid gap-2 md:grid-cols-2">
         <button
@@ -37,7 +37,7 @@ export function CreateListingPlanSection({
           className={`rounded-xl p-3 text-left ring-1 transition-colors ${
             value === "pay-per-listing"
               ? "bg-primary/10 ring-primary/35"
-              : "bg-background ring-border/60 hover:ring-primary/30"
+              : "bg-background/70 ring-border/60 hover:ring-primary/30"
           }`}
         >
           <p className="text-sm font-semibold">{payPerListingLabel}</p>
@@ -51,7 +51,7 @@ export function CreateListingPlanSection({
           className={`rounded-xl p-3 text-left ring-1 transition-colors ${
             value === "subscription"
               ? "bg-secondary/10 ring-secondary/35"
-              : "bg-background ring-border/60 hover:ring-secondary/30"
+              : "bg-background/70 ring-border/60 hover:ring-secondary/30"
           }`}
         >
           <p className="text-sm font-semibold">{subscriptionLabel}</p>

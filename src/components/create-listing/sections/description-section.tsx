@@ -16,14 +16,15 @@ export function CreateListingDescriptionSection({
   onChange,
 }: Props) {
   return (
-    <div className="space-y-2 rounded-2xl bg-card/80 p-4 ring-1 ring-border/60 sm:p-5">
+    <div className="space-y-2">
       <label className="space-y-1.5">
         <span className="text-sm font-semibold tracking-tight">{label}</span>
         <Textarea
           name="description"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          rows={5}
+          rows={4}
+          className="min-h-[120px]"
           placeholder={placeholder}
         />
       </label>

@@ -4,7 +4,7 @@ import { Filter } from "lucide-react";
 import { BrowseSearchBar } from "@/components/browse/search-bar";
 import type { BrowseSort } from "@/components/browse/filters.types";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 type SortOption = {
   value: BrowseSort;
@@ -39,7 +39,7 @@ export function BrowseDesktopFiltersRow({
   onOpenFilters,
 }: Props) {
   return (
-    <div className="grid max-w-full min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] md:items-end lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)_auto]">
+    <div className="grid max-w-full min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_200px_auto] md:items-end">
       <BrowseSearchBar
         label={searchLabel}
         placeholder={searchPlaceholder}
@@ -47,37 +47,32 @@ export function BrowseDesktopFiltersRow({
         onChange={onSearchChange}
       />
 
-      <div className="min-w-0 max-w-full space-y-1 md:w-full md:max-w-[26rem]">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="min-w-0 max-w-full space-y-1">
+        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {orderByLabel}
         </p>
-        <div className="flex w-full max-w-full min-w-0 rounded-xl border border-border/80 bg-muted/20 p-1">
+        <Select
+          name="sort"
+          value={sortValue}
+          onChange={(event) => onSortChange(event.target.value as BrowseSort)}
+          className="h-11 rounded-2xl bg-card"
+        >
           {sortOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={cn(
-                "h-8 min-w-0 flex-1 truncate rounded-lg px-2 text-xs font-semibold transition-colors",
-                sortValue === option.value
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => onSortChange(option.value)}
-            >
+            <option key={option.value} value={option.value}>
               {option.label}
-            </button>
+            </option>
           ))}
-        </div>
+        </Select>
       </div>
 
       <div className="min-w-0 max-w-full space-y-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {filtersLabel}
         </span>
         <Button
           type="button"
           variant="outline"
-          className="h-10 w-full min-w-0 max-w-full rounded-xl px-3 md:w-auto"
+          className="h-11 w-full min-w-0 max-w-full rounded-2xl px-3 md:w-auto"
           onClick={onOpenFilters}
         >
           <Filter size={14} className="mr-1.5" />

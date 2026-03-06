@@ -107,12 +107,12 @@ export function CreateListingPopout({
   const resolvedServerErrorField = serverErrorField ?? queryErrorField;
   const isMk = locale === "mk";
   const text = isMk
-    ? {
+      ? {
         createListing: "Create listing",
         openWhenNeeded: "Open the form only when you need it.",
         closeCreateListingForm: "Close create listing form",
-        createNewListing: "Create a new listing",
-        fillAndPublish: "Guided in 4 steps: photos, basics, details, and review.",
+        createNewListing: "Create listing",
+        fillAndPublish: "Add the essentials and publish when ready.",
         close: "Close",
         chooseCategoryTitle: "Choose a category to start",
         chooseCategoryHint:
@@ -127,12 +127,12 @@ export function CreateListingPopout({
           "This category has no listing fields yet. Choose another.",
         needsSubcategory: "Choose a subcategory to continue.",
       }
-    : {
+      : {
         createListing: "Create listing",
         openWhenNeeded: "Open the form only when you need it.",
         closeCreateListingForm: "Close create listing form",
-        createNewListing: "Create a new listing",
-        fillAndPublish: "Guided in 4 steps: photos, basics, details, and review.",
+        createNewListing: "Create listing",
+        fillAndPublish: "Add the essentials and publish when ready.",
         close: "Close",
         chooseCategoryTitle: "Choose a category to start",
         chooseCategoryHint:
@@ -511,7 +511,7 @@ export function CreateListingPopout({
         onClose={closePopout}
       >
         <div
-          className={`relative mx-auto flex max-h-[100dvh] w-full min-w-0 max-w-[760px] flex-col overflow-hidden rounded-2xl border border-border/50 bg-background/98 shadow-[0_24px_64px_-36px_rgba(2,6,23,0.45)] transition-all duration-200 sm:max-h-[92dvh] sm:rounded-3xl ${
+          className={`relative mx-auto flex max-h-[100dvh] w-full min-w-0 max-w-[720px] flex-col overflow-hidden rounded-[1.35rem] bg-background/95 ring-1 ring-black/10 shadow-[0_24px_64px_-36px_rgba(2,6,23,0.45)] transition-all duration-200 sm:max-h-[92dvh] sm:rounded-[1.45rem] dark:ring-white/10 ${
             isActive
               ? "translate-y-0 scale-100 opacity-100"
               : "translate-y-2 scale-[0.99] opacity-0"
@@ -524,7 +524,7 @@ export function CreateListingPopout({
             onClose={closePopout}
           />
 
-          <div className="flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain px-3 pb-3 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
+          <div className="flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain px-3 pb-3 pt-3 sm:px-5 sm:pb-5 sm:pt-4">
             {initial?.id ? (
               <ListingForm
                 action={action}
@@ -632,5 +632,5 @@ export function CreateListingPopout({
 }
 
 function CardLike({ children }: { children: ReactNode }) {
-  return <div className={`${uiSurface.cardStrong} border-primary/20 p-4`}>{children}</div>;
+  return <div className={`${uiSurface.cardStrong} p-4`}>{children}</div>;
 }

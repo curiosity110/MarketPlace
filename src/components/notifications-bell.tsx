@@ -276,16 +276,16 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
 
       {open && isMobile && canPortal
         ? createPortal(
-            <div className="fixed inset-0 z-[60] flex items-end sm:hidden">
+            <div className="fixed inset-0 z-[60] sm:hidden">
               <button
                 type="button"
                 aria-label={text.notifications}
-                className="absolute inset-0 bg-black/45"
+                className="absolute inset-0 bg-black/25 backdrop-blur-[1px]"
                 onClick={() => setOpen(false)}
               />
               <div
                 ref={panelRef}
-                className="relative z-10 w-full max-w-full max-h-[76dvh] overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl"
+                className="absolute inset-x-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 max-h-[68dvh] overflow-hidden rounded-[1.5rem] border border-border/70 bg-background/98 shadow-[0_24px_64px_-36px_rgba(15,23,42,0.45)] backdrop-blur-sm"
               >
                 {panelContent}
               </div>

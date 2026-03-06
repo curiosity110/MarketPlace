@@ -18,17 +18,17 @@ export function ProfileFlashBanners({
   return (
     <>
       {error && (
-        <Card className="border-warning/30 bg-warning/10">
+        <Card className="bg-warning/10 ring-1 ring-warning/15">
           <CardContent className="py-4 text-sm text-foreground">{error}</CardContent>
         </Card>
       )}
       {saved && (
-        <Card className="border-success/30 bg-success/10">
+        <Card className="bg-success/10 ring-1 ring-success/15">
           <CardContent className="py-4 text-sm text-success">{profileSavedLabel}</CardContent>
         </Card>
       )}
       {billingSuccess && (
-        <Card className="border-success/30 bg-success/10">
+        <Card className="bg-success/10 ring-1 ring-success/15">
           <CardContent className="py-4 text-sm text-success">{billingPassedLabel}</CardContent>
         </Card>
       )}

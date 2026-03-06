@@ -64,20 +64,15 @@ export function ContactSellerPopout({
         {!iconOnly && <span className="truncate">{text.messageSeller}</span>}
       </Button>
 
-      <ModalShell
-        open={open}
-        onClose={() => setOpen(false)}
-        closeLabel={text.cancel}
-        className="w-full max-w-md"
-      >
+      <ModalShell open={open} onClose={() => setOpen(false)} closeLabel={text.cancel} className="w-full max-w-md">
         <div className="max-w-full min-w-0 overflow-x-hidden p-4 sm:p-5">
-          <h3 className="break-words text-lg font-semibold [overflow-wrap:anywhere]">
+          <h3 className="break-words text-lg font-semibold tracking-tight [overflow-wrap:anywhere]">
             {text.title}
           </h3>
           <form
             action="/api/contact-requests"
             method="post"
-            className="mt-3 max-w-full min-w-0 space-y-3"
+            className="mt-4 max-w-full min-w-0 space-y-3"
           >
             <input type="hidden" name="listingId" value={listingId} />
             <input type="hidden" name="returnTo" value={returnTo} />
@@ -98,7 +93,7 @@ export function ContactSellerPopout({
               <Textarea name="message" required minLength={2} maxLength={400} />
             </label>
 
-            <div className="flex max-w-full min-w-0 flex-wrap justify-end gap-2 pt-1">
+            <div className="flex max-w-full min-w-0 flex-wrap justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="min-w-0">
                 {text.cancel}
               </Button>

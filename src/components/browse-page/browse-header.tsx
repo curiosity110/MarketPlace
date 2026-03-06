@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { SlidersHorizontal } from "lucide-react";
 import { SaveSearchPopout } from "@/components/save-search-popout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,28 +40,23 @@ export function BrowseHeader({
   resetHref,
   resetLabel,
 }: Props) {
+  void smartBrowseLabel;
+  void showingAllLabel;
+  void hasAppliedFilters;
   return (
-    <div className="flex max-w-full min-w-0 flex-wrap items-start justify-between gap-3 overflow-x-hidden">
+    <div className="flex max-w-full min-w-0 flex-wrap items-end justify-between gap-3 overflow-x-hidden">
       <div className="min-w-0 max-w-full space-y-1">
-        <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <SlidersHorizontal size={14} />
-          {smartBrowseLabel}
-        </p>
-        <h1 className="break-words text-3xl font-bold [overflow-wrap:anywhere]">{title}</h1>
+        <h1 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl [overflow-wrap:anywhere]">{title}</h1>
         <p className="flex max-w-full flex-wrap items-center gap-1 text-sm text-muted-foreground">
-          {totalCount} {resultsLineLabel} {listingsOnPageCount} {onThisPageLabel}
+          <span className="font-medium text-foreground">{totalCount}</span> {resultsLineLabel} {listingsOnPageCount} {onThisPageLabel}
           {extraFiltersCount > 0 ? (
             <span className="ml-1 inline-flex items-center gap-1">
-              |{" "}
-              <Badge variant="secondary">
+              <Badge variant="default" className="h-5 px-1.5 text-[0.65rem]">
                 {extraFiltersCount} {extraFiltersLabel}
               </Badge>
             </span>
           ) : null}
         </p>
-        {!hasAppliedFilters ? (
-          <p className="text-xs text-muted-foreground">{showingAllLabel}</p>
-        ) : null}
       </div>
       <div className="flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2">
         {canSaveSearch && hasFilterChips ? (
@@ -70,7 +64,7 @@ export function BrowseHeader({
         ) : null}
         {hasFilterChips ? (
           <Link href={resetHref} scroll={false} className="min-w-0 max-w-full">
-            <Button variant="outline" type="button" className="max-w-full">
+            <Button variant="ghost" type="button" className="max-w-full">
               {resetLabel}
             </Button>
           </Link>

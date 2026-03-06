@@ -13,8 +13,8 @@ export function Button({
   ...props
 }: ButtonProps) {
   const sizeStyles = {
-    sm: "h-9 px-3 text-sm",
-    md: "h-10 px-4 text-sm",
+    sm: "h-[2.125rem] px-3 text-sm",
+    md: "h-[2.375rem] px-4 text-sm",
     lg: "h-11 px-5 text-base",
   };
 
@@ -22,7 +22,7 @@ export function Button({
     <button
       className={cn(
         // Base styles
-        "inline-flex items-center justify-center rounded-xl font-semibold transition-all duration-200 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center rounded-[0.95rem] font-medium transition-all duration-200 disabled:pointer-events-none disabled:opacity-50",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         "active:translate-y-px",
         "whitespace-nowrap",
@@ -30,15 +30,15 @@ export function Button({
 
         // Variants
         variant === "default" &&
-          "bg-gradient-to-r from-orange-500 to-orange-600 text-primary-foreground shadow-sm hover:from-orange-600 hover:to-orange-600 hover:shadow-md",
+          "bg-primary text-primary-foreground shadow-[0_10px_24px_-18px_rgba(234,88,12,0.9)] hover:bg-orange-600",
         variant === "secondary" &&
-          "bg-gradient-to-r from-blue-600 to-blue-700 text-secondary-foreground shadow-sm hover:from-blue-700 hover:to-blue-700 hover:shadow-md",
+          "bg-secondary/10 text-secondary ring-1 ring-secondary/15 hover:bg-secondary/15",
         variant === "outline" &&
-          "border border-border bg-card text-foreground hover:border-primary/40 hover:bg-orange-50/60 dark:hover:bg-orange-500/10",
+          "border border-border/70 bg-card text-foreground shadow-none hover:border-border hover:bg-muted/70",
         variant === "ghost" &&
-          "bg-transparent text-foreground/75 hover:bg-muted hover:text-foreground",
+          "bg-transparent text-foreground/72 hover:bg-muted/80 hover:text-foreground",
         variant === "destructive" &&
-          "bg-destructive text-white shadow-sm hover:bg-red-700",
+          "bg-destructive text-white shadow-[0_10px_24px_-18px_rgba(220,38,38,0.9)] hover:bg-red-700",
 
         className,
       )}

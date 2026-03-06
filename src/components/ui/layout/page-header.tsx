@@ -24,12 +24,12 @@ export function PageHeader({
   return (
     <section
       className={cn(
-        "min-w-0 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-card sm:rounded-3xl",
-        compact ? "px-4 py-3 sm:px-5 sm:py-4" : "px-4 py-4 sm:px-6 sm:py-6",
+        "min-w-0 max-w-full overflow-hidden",
+        compact ? "py-1" : "py-1.5 sm:py-2.5",
         className,
       )}
     >
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
           <h1
             className={cn(

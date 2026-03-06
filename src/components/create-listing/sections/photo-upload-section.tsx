@@ -31,9 +31,12 @@ export function CreateListingPhotoUploadSection({
   onChange,
 }: Props) {
   return (
-    <div className="space-y-3 rounded-2xl bg-card/80 p-4 ring-1 ring-border/60 sm:p-5">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold tracking-tight">{photosLabel}</p>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold tracking-tight">{photosLabel}</p>
+          <p className="text-xs text-muted-foreground">{photoHint}</p>
+        </div>
         <Button
           type="button"
           size="sm"
@@ -44,9 +47,9 @@ export function CreateListingPhotoUploadSection({
           {resetImagesLabel}
         </Button>
       </div>
-      <label className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-muted/15 px-4 py-6 text-center transition-colors hover:border-primary/35 hover:bg-primary/5">
-        <ImagePlus size={26} className="text-primary" />
-        <span className="max-w-xs text-sm text-foreground">{photoHint}</span>
+      <label className="flex min-h-[140px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-muted/25 px-4 py-5 text-center transition-colors hover:border-primary/35 hover:bg-primary/5">
+        <ImagePlus size={24} className="text-primary" />
+        <span className="max-w-xs text-sm text-foreground">{selectedPhotosCount > 0 ? `${selectedPhotosCount}` : "+"}</span>
         <input
           ref={photosInputRef}
           name="photos"

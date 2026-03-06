@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { localizeCategoryName } from "@/lib/category-label";
 import { DashboardEmptyState } from "@/components/dashboard-empty-state";
 import { DashboardFilterBar } from "@/components/dashboard-filter-bar";
@@ -292,55 +291,48 @@ export function DashboardListingsPanel({
             onChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))}
           />
 
-          <Card className="max-w-full min-w-0 overflow-x-hidden border-border/70">
-            <CardHeader className="pb-2">
-              <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <CardTitle className="break-words text-lg [overflow-wrap:anywhere]">
-                    {selectedCategory ? selectedCategory.label : text.allCategories} {text.listings}
-                  </CardTitle>
-                  <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
-                    {filteredListings.length} {text.results}
-                  </p>
-                </div>
-                <span className="rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-semibold text-muted-foreground">
-                  {filteredListings.length}
-                </span>
+          <section className="space-y-3">
+            <div className="flex max-w-full min-w-0 flex-wrap items-end justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="break-words text-base font-semibold tracking-tight [overflow-wrap:anywhere]">
+                  {selectedCategory ? selectedCategory.label : text.allCategories} {text.listings}
+                </h3>
+                <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                  {filteredListings.length} {text.results}
+                </p>
               </div>
-            </CardHeader>
+            </div>
 
-            <CardContent className="max-w-full min-w-0 space-y-2">
-              {filteredListings.length === 0 ? (
-                <DashboardEmptyState
-                  title={text.emptyListingsTitle}
-                  description={text.emptyListingsHint}
-                  ctaLabel={text.createNow}
-                  onCtaClick={() => openCreateModal(selectedCategory?.id)}
-                />
-              ) : (
-                <div
-                  className={
-                    filters.layout === "list"
-                      ? "max-w-full min-w-0 space-y-3"
-                      : "grid max-w-full min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-                  }
-                >
-                  {filteredListings.map((listing) => (
-                    <DashboardListingCard
-                      key={listing.id}
-                      listing={listing}
-                      locale={locale}
-                      layout={filters.layout}
-                      text={text}
-                      requiresPaymentForCreate={requiresPaymentForCreate}
-                      hasActiveSubscription={hasActiveSubscription}
-                      publishDraftAction={publishDraftAction}
-                    />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            {filteredListings.length === 0 ? (
+              <DashboardEmptyState
+                title={text.emptyListingsTitle}
+                description={text.emptyListingsHint}
+                ctaLabel={text.createNow}
+                onCtaClick={() => openCreateModal(selectedCategory?.id)}
+              />
+            ) : (
+              <div
+                className={
+                  filters.layout === "list"
+                    ? "max-w-full min-w-0 space-y-2.5"
+                    : "grid max-w-full min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+                }
+              >
+                {filteredListings.map((listing) => (
+                  <DashboardListingCard
+                    key={listing.id}
+                    listing={listing}
+                    locale={locale}
+                    layout={filters.layout}
+                    text={text}
+                    requiresPaymentForCreate={requiresPaymentForCreate}
+                    hasActiveSubscription={hasActiveSubscription}
+                    publishDraftAction={publishDraftAction}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
         </>
       )}
     </>

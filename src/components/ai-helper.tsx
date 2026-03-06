@@ -158,6 +158,15 @@ export function AIHelper({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   async function sendMessage(message: string) {
     const question = message.trim();
     if (!question || loading) return;
@@ -212,7 +221,7 @@ export function AIHelper({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-gradient-to-r from-orange-500 to-blue-600 text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-auto sm:w-auto sm:gap-2 sm:px-4 sm:py-3 sm:text-sm sm:font-semibold"
+          className="fixed bottom-[calc(5.4rem+env(safe-area-inset-bottom))] left-3 z-30 inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/95 text-foreground shadow-[0_16px_36px_-24px_rgba(15,23,42,0.45)] backdrop-blur-md transition-colors hover:bg-muted sm:bottom-6 sm:left-auto sm:right-6 sm:z-40 sm:h-auto sm:w-auto sm:gap-2 sm:border-primary/30 sm:bg-gradient-to-r sm:from-orange-500 sm:to-blue-600 sm:px-4 sm:py-3 sm:text-sm sm:font-semibold sm:text-white sm:shadow-lg sm:hover:-translate-y-0.5 sm:hover:shadow-xl"
           aria-label={text.openAssistant}
         >
           <MessageCircle size={18} />
@@ -221,11 +230,11 @@ export function AIHelper({
       )}
 
       {isOpen && (
-        <section className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-[70vh] w-[calc(100vw-2rem)] max-w-[430px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl sm:bottom-6 sm:right-6 sm:h-[560px]">
-          <header className="flex items-center justify-between border-b border-border/80 bg-gradient-to-r from-orange-50 via-white to-blue-50 px-4 py-3 dark:from-orange-950/20 dark:via-card dark:to-blue-950/20">
+        <section className="fixed inset-x-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[55] flex h-[min(68dvh,34rem)] flex-col overflow-hidden rounded-[1.5rem] border border-border/70 bg-background/98 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.5)] backdrop-blur-sm sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[560px] sm:w-[calc(100vw-2rem)] sm:max-w-[430px] sm:rounded-2xl sm:border-border/80 sm:bg-background">
+          <header className="flex items-center justify-between border-b border-border/60 bg-background/96 px-4 py-3">
             <div>
               <h3 className="text-base font-bold">{title}</h3>
-              <p className="text-xs text-muted-foreground">{text.alwaysAvailable}</p>
+              <p className="hidden text-xs text-muted-foreground sm:block">{text.alwaysAvailable}</p>
             </div>
             <button
               type="button"
@@ -237,10 +246,10 @@ export function AIHelper({
             </button>
           </header>
 
-          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/20 p-4">
+          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/15 p-3 sm:p-4">
             {messages.length === 0 ? (
               <div className="space-y-3">
-                <p className="rounded-xl border border-dashed border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded-xl border border-dashed border-border/70 bg-card px-3 py-2 text-sm text-muted-foreground">
                   {initialHint}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -255,7 +264,7 @@ export function AIHelper({
                     </button>
                   ))}
                 </div>
-                <div className="space-y-2 rounded-xl border border-border/70 bg-card px-3 py-2">
+                <div className="hidden space-y-2 rounded-xl border border-border/70 bg-card px-3 py-2 sm:block">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {text.quickLinksTitle}
                   </p>

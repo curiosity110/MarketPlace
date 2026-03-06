@@ -16,10 +16,10 @@ type StatCardProps = {
 };
 
 const toneClassMap: Record<StatTone, string> = {
-  default: "border-border/70 bg-muted/20 text-foreground",
-  success: "border-success/20 bg-success/10 text-success",
-  warning: "border-warning/20 bg-warning/10 text-warning",
-  secondary: "border-secondary/20 bg-secondary/10 text-secondary",
+  default: "bg-muted/70 text-foreground",
+  success: "bg-success/10 text-success",
+  warning: "bg-warning/10 text-warning",
+  secondary: "bg-secondary/10 text-secondary",
 };
 
 export function StatCard({
@@ -32,7 +32,7 @@ export function StatCard({
   valueClassName,
 }: StatCardProps) {
   return (
-    <Card className={cn("rounded-2xl border-border/70 shadow-sm", className)}>
+    <Card className={cn("rounded-2xl shadow-none ring-1 ring-black/5 dark:ring-white/10", className)}>
       <CardContent className="space-y-2 p-4">
         <div className="flex items-center justify-between gap-2">
           <p className={uiTypography.eyebrow}>
@@ -41,7 +41,7 @@ export function StatCard({
           {icon ? (
             <span
               className={cn(
-                "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
+                "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
                 toneClassMap[tone],
               )}
             >

@@ -85,9 +85,9 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
 
   if (normalizedImages.length === 0) {
     return (
-      <div className="relative flex aspect-[16/10] w-full max-w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+      <div className="relative flex aspect-[4/3] w-full max-w-full items-center justify-center overflow-hidden rounded-[1.35rem] bg-muted/35 p-4 text-sm text-muted-foreground ring-1 ring-black/5 dark:ring-white/10">
         <div className="flex max-w-full flex-col items-center gap-2 text-center">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/75">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-background/80 ring-1 ring-black/5 dark:ring-white/10">
             <ImageOff size={18} />
           </span>
           <p className="max-w-full break-words [overflow-wrap:anywhere]">{text.noPhotos}</p>
@@ -117,10 +117,10 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
       <button
         type="button"
         onClick={() => openLightbox(safeActiveIndex)}
-        className="relative block w-full overflow-hidden rounded-xl border border-border/70 bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="relative block w-full overflow-hidden rounded-[1.35rem] bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         aria-label={text.openLightbox}
       >
-        <div className="relative aspect-[16/10]">
+        <div className="relative aspect-[4/3] sm:aspect-[16/10]">
           <Image
             src={currentImage}
             alt={`${text.listingPhoto} ${safeActiveIndex + 1}`}
@@ -132,7 +132,7 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
         </div>
       </button>
 
-      <div className="grid max-w-full grid-cols-5 gap-2 sm:grid-cols-6">
+      <div className="grid max-w-full grid-cols-5 gap-1.5 sm:grid-cols-6">
         {thumbnailSources.map((thumbSrc, index) => {
           const isActive = index === activeIndex;
           const label = `${text.openImage} ${index + 1}`;
@@ -143,10 +143,10 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
               type="button"
               onClick={() => setActiveIndex(index)}
               onDoubleClick={() => openLightbox(index)}
-              className={`relative overflow-hidden rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+              className={`relative overflow-hidden rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                 isActive
-                  ? "border-primary ring-1 ring-primary/45"
-                  : "border-border/70 hover:border-primary/40"
+                  ? "ring-2 ring-primary/45"
+                  : "ring-1 ring-black/5 hover:ring-black/10 dark:ring-white/10"
               }`}
               aria-label={label}
               title={label}
@@ -196,7 +196,7 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
               <X size={16} />
             </Button>
 
-            <div className="relative overflow-hidden rounded-xl border border-border/70 bg-black">
+            <div className="relative overflow-hidden rounded-xl bg-black ring-1 ring-white/10">
               <div className="relative aspect-[16/10]">
                 <Image
                   src={currentImage}

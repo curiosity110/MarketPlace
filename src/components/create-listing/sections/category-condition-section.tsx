@@ -38,14 +38,11 @@ export function CreateListingCategorySection({
   onSearchChange,
   onCategoryChange,
 }: Props) {
+  void isActiveStep;
   return (
-    <div
-      className={`max-w-full min-w-0 space-y-4 rounded-2xl bg-card/80 p-4 ring-1 ring-border/60 sm:p-5 ${
-        isActiveStep ? "ring-primary/30" : ""
-      }`}
-    >
+    <div className="max-w-full min-w-0 space-y-4">
       <h3 className="text-sm font-semibold tracking-tight">{titleLabel}</h3>
-      <div className="space-y-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1.5">
           <span className="text-sm font-medium">{categorySearchLabel}</span>
           <Input

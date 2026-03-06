@@ -687,7 +687,7 @@ export function CreateListingWizardForm({
       )}
 
       <CreateListingFormLayout>
-        <section className="space-y-1 pb-1">
+        <section className="space-y-1 pb-0.5">
           <p className="text-xl font-semibold tracking-tight sm:text-2xl">{text.createListing}</p>
         </section>
 
@@ -703,184 +703,220 @@ export function CreateListingWizardForm({
           defaultsSavedLabel={text.defaultsSaved}
         />
 
-      <CreateListingTitleSection
-        titleLabel={text.title}
-        placeholder={text.titlePlaceholder}
-        helperLabel={text.titleHelper}
-        value={title}
-        error={titleServerError}
-        isActiveStep={currentStep === 2}
-        onChange={(value) => {
-          setTitle(value);
-          setServerErrorMessage(null);
-        }}
-      />
+        <FormGroup active={currentStep === 2}>
+          <CreateListingTitleSection
+            titleLabel={text.title}
+            placeholder={text.titlePlaceholder}
+            helperLabel={text.titleHelper}
+            value={title}
+            error={titleServerError}
+            isActiveStep={currentStep === 2}
+            onChange={(value) => {
+              setTitle(value);
+              setServerErrorMessage(null);
+            }}
+          />
+        </FormGroup>
 
-      <section className="max-w-full min-w-0 space-y-4">
-        <CreateListingPhotoUploadSection
-          photosLabel={text.photos}
-          photoHint={text.photoHint}
-          resetImagesLabel={text.resetImages}
-          isActionBusy={isActionBusy}
-          selectedPhotosCount={selectedPhotosCount}
-          photoValidationError={photoValidationError}
-          photoPreviewUrls={photoPreviewUrls}
-          photosInputRef={photosInputRef}
-          onClear={clearSelectedPhotos}
-          onChange={(files) => {
-            const nextError = validateCreatePhotos(files);
-            setPhotoValidationError(nextError);
-            refreshPhotoPreview(files);
-          }}
-        />
+        <FormGroup active={currentStep === 1}>
+          <CreateListingPhotoUploadSection
+            photosLabel={text.photos}
+            photoHint={text.photoHint}
+            resetImagesLabel={text.resetImages}
+            isActionBusy={isActionBusy}
+            selectedPhotosCount={selectedPhotosCount}
+            photoValidationError={photoValidationError}
+            photoPreviewUrls={photoPreviewUrls}
+            photosInputRef={photosInputRef}
+            onClear={clearSelectedPhotos}
+            onChange={(files) => {
+              const nextError = validateCreatePhotos(files);
+              setPhotoValidationError(nextError);
+              refreshPhotoPreview(files);
+            }}
+          />
 
-        <CreateListingQuickFillPanel
-          oneLineLabel={text.quickFillOneLine}
-          hintLabel={text.quickFillHint}
-          promptPlaceholder={text.quickFillPrompt}
-          quickFillLabel={text.quickFill}
-          quickFillAnalyzingLabel={text.quickFillAnalyzing}
-          quickFillReadyLabel={text.quickFillReady}
-          suggestionsLabel={text.suggestions}
-          categoryCandidatesLabel={text.categoryCandidates}
-          applyAllLabel={text.applyAll}
-          applyLabel={text.apply}
-          categoryLabel={text.category}
-          quickFillLine={quickFillLine}
-          quickFillMessage={quickFillMessage}
-          quickFillStatus={quickFillStatus}
-          hasQuickFillSuggestions={hasQuickFillSuggestions}
-          quickCategoryCandidates={quickCategoryCandidates}
-          quickSuggestions={quickSuggestions}
-          categories={categories}
-          locale={locale}
-          isActionBusy={isActionBusy}
-          resolveConfidenceLabel={resolveConfidenceLabel}
-          resolveSuggestionLabel={resolveQuickSuggestionLabel}
-          resolveSuggestionValue={(suggestion) =>
-            suggestion.field === "condition" && suggestion.condition
-              ? conditionLabelByValue[suggestion.condition]
-              : suggestion.value
-          }
-          onInputChange={(value) => {
-            setQuickFillLine(value);
-            setQuickFillMessage(null);
-            setQuickFillStatus("idle");
-          }}
-          onRunQuickFill={() => {
-            void runQuickFill();
-          }}
-          onApplyAll={applyAllQuickFill}
-          onApplyCategoryCandidate={applyQuickCategoryCandidate}
-          onApplySuggestion={applyQuickSuggestion}
-        />
-      </section>
+          <CreateListingQuickFillPanel
+            oneLineLabel={text.quickFillOneLine}
+            hintLabel={text.quickFillHint}
+            promptPlaceholder={text.quickFillPrompt}
+            quickFillLabel={text.quickFill}
+            quickFillAnalyzingLabel={text.quickFillAnalyzing}
+            quickFillReadyLabel={text.quickFillReady}
+            suggestionsLabel={text.suggestions}
+            categoryCandidatesLabel={text.categoryCandidates}
+            applyAllLabel={text.applyAll}
+            applyLabel={text.apply}
+            categoryLabel={text.category}
+            quickFillLine={quickFillLine}
+            quickFillMessage={quickFillMessage}
+            quickFillStatus={quickFillStatus}
+            hasQuickFillSuggestions={hasQuickFillSuggestions}
+            quickCategoryCandidates={quickCategoryCandidates}
+            quickSuggestions={quickSuggestions}
+            categories={categories}
+            locale={locale}
+            isActionBusy={isActionBusy}
+            resolveConfidenceLabel={resolveConfidenceLabel}
+            resolveSuggestionLabel={resolveQuickSuggestionLabel}
+            resolveSuggestionValue={(suggestion) =>
+              suggestion.field === "condition" && suggestion.condition
+                ? conditionLabelByValue[suggestion.condition]
+                : suggestion.value
+            }
+            onInputChange={(value) => {
+              setQuickFillLine(value);
+              setQuickFillMessage(null);
+              setQuickFillStatus("idle");
+            }}
+            onRunQuickFill={() => {
+              void runQuickFill();
+            }}
+            onApplyAll={applyAllQuickFill}
+            onApplyCategoryCandidate={applyQuickCategoryCandidate}
+            onApplySuggestion={applyQuickSuggestion}
+          />
+        </FormGroup>
 
-      <section className="flex min-w-0 max-w-full flex-col space-y-4">
-        <CreateListingPricingSection
-          titleLabel={text.pricing}
-          priceLabel={text.price}
-          pricePlaceholder={text.pricePlaceholder}
-          priceHelperLabel={text.priceHelper}
-          currencyLabel={text.currency}
-          conditionLabel={text.condition}
-          conditionLabels={conditionLabelByValue}
-          value={price}
-          currency={currency}
-          condition={condition}
-          priceError={priceServerError}
-          isActiveStep={currentStep === 2}
-          onPriceChange={(value) => {
-            setPrice(value);
-            setServerErrorMessage(null);
-          }}
-          onCurrencyChange={setCurrency}
-          onConditionChange={setCondition}
-        />
+        <FormGroup active={currentStep === 2}>
+          <CreateListingPricingSection
+            titleLabel={text.pricing}
+            priceLabel={text.price}
+            pricePlaceholder={text.pricePlaceholder}
+            priceHelperLabel={text.priceHelper}
+            currencyLabel={text.currency}
+            conditionLabel={text.condition}
+            conditionLabels={conditionLabelByValue}
+            value={price}
+            currency={currency}
+            condition={condition}
+            priceError={priceServerError}
+            isActiveStep={currentStep === 2}
+            onPriceChange={(value) => {
+              setPrice(value);
+              setServerErrorMessage(null);
+            }}
+            onCurrencyChange={setCurrency}
+            onConditionChange={setCondition}
+          />
+        </FormGroup>
 
-        <CreateListingCategorySection
-          titleLabel={text.category}
-          categoryLabel={text.category}
-          categorySearchLabel={text.categorySearch}
-          categorySearchPlaceholder={text.categorySearchPlaceholder}
-          categoryRequiredLabel={text.categoryRequired}
-          noCategoryMatchLabel={text.noCategoryMatch}
-          categorySearch={categorySearch}
-          selectedCategoryId={resolvedSelectedCategoryId}
-          categoryOptions={categoryOptions}
-          categoryError={categoryInlineError}
-          locale={locale}
-          isActiveStep={currentStep === 2}
-          onSearchChange={setCategorySearch}
-          onCategoryChange={(value) => {
-            setSelectedCategoryId(value);
-            setServerErrorMessage(null);
-            setStepError(null);
-          }}
-        />
-      </section>
+        <FormGroup active={currentStep === 2}>
+          <CreateListingCategorySection
+            titleLabel={text.category}
+            categoryLabel={text.category}
+            categorySearchLabel={text.categorySearch}
+            categorySearchPlaceholder={text.categorySearchPlaceholder}
+            categoryRequiredLabel={text.categoryRequired}
+            noCategoryMatchLabel={text.noCategoryMatch}
+            categorySearch={categorySearch}
+            selectedCategoryId={resolvedSelectedCategoryId}
+            categoryOptions={categoryOptions}
+            categoryError={categoryInlineError}
+            locale={locale}
+            isActiveStep={currentStep === 2}
+            onSearchChange={setCategorySearch}
+            onCategoryChange={(value) => {
+              setSelectedCategoryId(value);
+              setServerErrorMessage(null);
+              setStepError(null);
+            }}
+          />
 
-      <section className="max-w-full min-w-0 space-y-4">
-        <CreateListingLocationContactSection
-          locationTitleLabel={text.location}
-          detailsTitleLabel={text.details}
-          cityLabel={text.city}
-          cityHelperLabel={text.cityHelper}
-          noCityAvailableLabel={text.noCityAvailable}
-          countryLabel={text.country}
-          phoneLabel={text.phone}
-          phonePlaceholder={text.phonePlaceholder}
-          acceptedPhoneFormatLabel={text.acceptedPhoneFormat}
-          cityId={cityId}
-          phoneCountry={phoneCountry}
-          phone={phone}
-          cities={cities}
-          cityError={cityServerError}
-          phoneError={phoneServerError}
-          isActiveStep={currentStep === 3}
-          onCityChange={(value) => {
-            setCityId(value);
-            setServerErrorMessage(null);
-          }}
-          onPhoneCountryChange={setPhoneCountry}
-          onPhoneChange={(value) => {
-            setPhone(value);
-            setServerErrorMessage(null);
-          }}
-        />
+          <CreateListingLocationContactSection
+            mode="location"
+            locationTitleLabel={text.location}
+            detailsTitleLabel={text.details}
+            cityLabel={text.city}
+            cityHelperLabel={text.cityHelper}
+            noCityAvailableLabel={text.noCityAvailable}
+            countryLabel={text.country}
+            phoneLabel={text.phone}
+            phonePlaceholder={text.phonePlaceholder}
+            acceptedPhoneFormatLabel={text.acceptedPhoneFormat}
+            cityId={cityId}
+            phoneCountry={phoneCountry}
+            phone={phone}
+            cities={cities}
+            cityError={cityServerError}
+            phoneError={phoneServerError}
+            isActiveStep={currentStep === 3}
+            onCityChange={(value) => {
+              setCityId(value);
+              setServerErrorMessage(null);
+            }}
+            onPhoneCountryChange={setPhoneCountry}
+            onPhoneChange={(value) => {
+              setPhone(value);
+              setServerErrorMessage(null);
+            }}
+          />
+        </FormGroup>
 
-        <CreateListingDescriptionSection
-          label={text.description}
-          placeholder={text.descriptionPlaceholder}
-          value={description}
-          onChange={setDescription}
-        />
+        <FormGroup active={currentStep === 3}>
+          <CreateListingLocationContactSection
+            mode="contact"
+            locationTitleLabel={text.location}
+            detailsTitleLabel={text.details}
+            cityLabel={text.city}
+            cityHelperLabel={text.cityHelper}
+            noCityAvailableLabel={text.noCityAvailable}
+            countryLabel={text.country}
+            phoneLabel={text.phone}
+            phonePlaceholder={text.phonePlaceholder}
+            acceptedPhoneFormatLabel={text.acceptedPhoneFormat}
+            cityId={cityId}
+            phoneCountry={phoneCountry}
+            phone={phone}
+            cities={cities}
+            cityError={cityServerError}
+            phoneError={phoneServerError}
+            isActiveStep={currentStep === 3}
+            onCityChange={(value) => {
+              setCityId(value);
+              setServerErrorMessage(null);
+            }}
+            onPhoneCountryChange={setPhoneCountry}
+            onPhoneChange={(value) => {
+              setPhone(value);
+              setServerErrorMessage(null);
+            }}
+          />
 
-        <CreateListingDynamicFieldsSection
-          titleLabel={text.vehicleDetails}
-          emptyLabel={text.chooseCategoryToStart}
-          categoryId={resolvedSelectedCategoryId}
-          templatesByCategory={templatesByCategory}
-          initialValues={initial?.dynamicValues}
-          suggestedValues={suggestedDynamicValues}
-          locale={locale}
-        />
-      </section>
+          <CreateListingDescriptionSection
+            label={text.description}
+            placeholder={text.descriptionPlaceholder}
+            value={description}
+            onChange={setDescription}
+          />
 
-      {showPlanSelector && (
-        <CreateListingPlanSection
-          titleLabel={text.sellerPackage}
-          payPerListingLabel={text.payPerListing}
-          daysActiveLabel={text.daysActive30}
-          subscriptionLabel={text.subscription}
-          monthlyUnlimitedLabel={text.monthlyUnlimited}
-          paymentAfterPublishLabel={text.paymentAfterPublish}
-          paymentAmount={paymentAmount}
-          requiresDummyPayment={requiresDummyPayment}
-          value={plan}
-          onChange={setPlan}
-        />
-      )}
+          <CreateListingDynamicFieldsSection
+            titleLabel={text.vehicleDetails}
+            emptyLabel={text.chooseCategoryToStart}
+            categoryId={resolvedSelectedCategoryId}
+            templatesByCategory={templatesByCategory}
+            initialValues={initial?.dynamicValues}
+            suggestedValues={suggestedDynamicValues}
+            locale={locale}
+          />
+        </FormGroup>
+
+        {showPlanSelector && (
+          <FormGroup active={currentStep === 4}>
+            <CreateListingPlanSection
+              titleLabel={text.sellerPackage}
+              payPerListingLabel={text.payPerListing}
+              daysActiveLabel={text.daysActive30}
+              subscriptionLabel={text.subscription}
+              monthlyUnlimitedLabel={text.monthlyUnlimited}
+              paymentAfterPublishLabel={text.paymentAfterPublish}
+              paymentAmount={paymentAmount}
+              requiresDummyPayment={requiresDummyPayment}
+              value={plan}
+              onChange={setPlan}
+            />
+          </FormGroup>
+        )}
       </CreateListingFormLayout>
 
       <CreateListingActionsBar
@@ -917,10 +953,24 @@ export function CreateListingWizardForm({
           onClose={() => setShowPaymentPanel(false)}
         />
       )}
-
-      {showPlanSelector && requiresDummyPayment && (
-        <p className="hidden text-xs text-muted-foreground md:block">{text.stripeValidated}</p>
-      )}
     </form>
+  );
+}
+
+function FormGroup({
+  children,
+  active = false,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+}) {
+  return (
+    <section
+      className={`space-y-4 rounded-2xl bg-card/72 p-4 ring-1 ring-black/5 sm:p-5 dark:ring-white/10 ${
+        active ? "ring-primary/25" : ""
+      }`}
+    >
+      {children}
+    </section>
   );
 }

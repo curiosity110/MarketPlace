@@ -43,36 +43,36 @@ export function DashboardAlertBanners({
   text: DashboardAlertsText;
 }) {
   return (
-    <>
+    <div className="space-y-2">
       {error && (
-        <Card className="border-warning/30 bg-warning/10">
+        <Card className="bg-warning/10 ring-1 ring-warning/15">
           <CardContent className="py-3 text-sm text-foreground">
             {error}
           </CardContent>
         </Card>
       )}
       {draftSaved && (
-        <Card className="border-success/30 bg-success/10">
+        <Card className="bg-success/10 ring-1 ring-success/15">
           <CardContent className="py-3 text-sm text-success">
             {text.draftSaved}
           </CardContent>
         </Card>
       )}
       {freeActivated && (
-        <Card className="border-success/30 bg-success/10">
+        <Card className="bg-success/10 ring-1 ring-success/15">
           <CardContent className="py-3 text-sm text-success">
             {text.firstFree}
           </CardContent>
         </Card>
       )}
       {paidActivated && (
-        <Card className="border-success/30 bg-success/10">
+        <Card className="bg-success/10 ring-1 ring-success/15">
           <CardContent className="py-3 text-sm text-success">
             {text.paymentApproved}
           </CardContent>
         </Card>
       )}
-    </>
+    </div>
   );
 }
 
@@ -86,29 +86,29 @@ export function DashboardAdminTools({
   if (!show) return null;
 
   return (
-    <details className="rounded-2xl border border-blue-200/70 bg-blue-50/30 p-4 dark:border-blue-700/40 dark:bg-blue-950/10">
+    <details className="rounded-xl bg-blue-50/40 p-3 ring-1 ring-blue-200/70 dark:bg-blue-950/10 dark:ring-blue-700/40">
       <summary className="cursor-pointer list-none text-sm font-semibold">
         {text.adminTools}
       </summary>
       <p className="mt-2 text-sm text-muted-foreground">{text.adminToolsDesc}</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Link href="/admin" className="block">
-          <Button variant="outline" className="w-full justify-start">
+          <Button variant="ghost" className="w-full justify-start">
             {text.moderation}
           </Button>
         </Link>
         <Link href="/admin/categories" className="block">
-          <Button variant="outline" className="w-full justify-start">
+          <Button variant="ghost" className="w-full justify-start">
             {text.categoryApprovals}
           </Button>
         </Link>
         <Link href="/admin/subscriptions" className="block">
-          <Button variant="outline" className="w-full justify-start">
+          <Button variant="ghost" className="w-full justify-start">
             {text.revenueAnalytics}
           </Button>
         </Link>
         <Link href="/admin" className="block">
-          <Button variant="outline" className="w-full justify-start">
+          <Button variant="ghost" className="w-full justify-start">
             {text.usersActions}
           </Button>
         </Link>

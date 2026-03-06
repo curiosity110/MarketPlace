@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ListingCard } from "@/components/listing-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { uiTypography } from "@/components/ui/ui-patterns";
 import type { HomeLatestListing, HomeText } from "@/components/home/home.types";
 import type { Locale } from "@/lib/i18n";
 
@@ -23,14 +24,11 @@ export function HomeLatestListingsSection({
   favoriteListingIdSet,
 }: Props) {
   return (
-    <section className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
+    <section className="max-w-full min-w-0 space-y-5 overflow-x-hidden">
       <div className="min-w-0">
-        <h2 className="break-words text-3xl font-bold [overflow-wrap:anywhere]">
+        <h2 className={uiTypography.pageTitle}>
           {text.latestListings}
         </h2>
-        <p className="break-words text-muted-foreground [overflow-wrap:anywhere]">
-          {text.latestListingsDesc}
-        </p>
       </div>
 
       {latestListings.length === 0 ? (

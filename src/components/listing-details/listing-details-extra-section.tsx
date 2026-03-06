@@ -19,24 +19,21 @@ export function ListingDetailsExtraSection({
   isCarCategory,
 }: Props) {
   return (
-    <>
+    <section className="space-y-3">
       <div className="flex max-w-full min-w-0 items-start justify-between gap-3">
         <h2 className="min-w-0 break-words text-base font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-lg">
           {categoryDetailsLabel}
         </h2>
-        <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-          {categoryDetails.length}
-        </span>
       </div>
 
       {isCarCategory ? (
         <CarSpecBento locale={locale} valuesByKey={valuesByKey} />
       ) : categoryDetails.length > 0 ? (
-        <div className="grid max-w-full min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-1">
+        <div className="grid max-w-full min-w-0 gap-2 sm:grid-cols-2">
           {categoryDetails.map((detail) => (
             <div
               key={detail.id}
-              className="rounded-lg bg-muted/15 p-3 ring-1 ring-border/55"
+              className="rounded-xl bg-muted/28 p-3 ring-1 ring-black/5 dark:ring-white/10"
             >
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 {detail.label}
@@ -52,6 +49,6 @@ export function ListingDetailsExtraSection({
           {noCategoryDetailsLabel}
         </p>
       )}
-    </>
+    </section>
   );
 }

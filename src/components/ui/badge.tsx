@@ -13,17 +13,17 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantStyles = {
-  default: "border-border bg-muted text-muted-foreground",
+  default: "border-border/60 bg-muted/70 text-muted-foreground",
   primary:
-    "border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/30 text-orange-900 dark:text-orange-200",
+    "border-orange-200/80 dark:border-orange-700/70 bg-orange-50/80 dark:bg-orange-950/25 text-orange-900 dark:text-orange-200",
   secondary:
-    "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 text-blue-900 dark:text-blue-200",
+    "border-blue-200/80 dark:border-blue-700/70 bg-blue-50/80 dark:bg-blue-950/25 text-blue-900 dark:text-blue-200",
   success:
-    "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 text-green-900 dark:text-green-200",
+    "border-green-200/80 dark:border-green-700/70 bg-green-50/80 dark:bg-green-950/25 text-green-900 dark:text-green-200",
   warning:
-    "border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 text-yellow-900 dark:text-yellow-200",
+    "border-yellow-200/80 dark:border-yellow-700/70 bg-yellow-50/80 dark:bg-yellow-950/25 text-yellow-900 dark:text-yellow-200",
   destructive:
-    "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200",
+    "border-red-200/80 dark:border-red-700/70 bg-red-50/80 dark:bg-red-950/25 text-red-900 dark:text-red-200",
 };
 
 export function Badge({
@@ -34,9 +34,9 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 font-semibold leading-tight transition-colors",
+        "inline-flex items-center rounded-full border px-2 py-[0.2rem] font-medium leading-tight transition-colors",
         uiTypography.label,
-        "tracking-normal",
+        "tracking-normal text-[0.68rem]",
         variantStyles[variant],
         className,
       )}

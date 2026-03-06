@@ -102,8 +102,8 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
   ];
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden">
-      <div className="mx-auto grid max-w-3xl grid-cols-4 gap-1">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">
+      <div className="pointer-events-auto mx-auto grid max-w-xl grid-cols-4 gap-1 rounded-[1.35rem] border border-border/70 bg-background/96 p-1.5 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.35)] backdrop-blur-md">
         {items
           .filter((item) => item.show !== false)
           .map((item) => {
@@ -122,8 +122,8 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
             const className = cn(
               "flex flex-col items-center justify-center gap-1 rounded-full px-2 py-2 text-[11px] transition-all",
               active
-                ? "bg-muted font-semibold text-foreground ring-1 ring-border"
-                : "font-medium text-foreground/70 hover:bg-muted/70",
+                ? "bg-muted/85 font-semibold text-foreground"
+                : "font-medium text-foreground/70 hover:bg-muted/60",
             );
 
             if (item.action) {

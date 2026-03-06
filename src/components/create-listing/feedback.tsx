@@ -26,25 +26,25 @@ export function CreateListingFeedback({
   return (
     <>
       {successMessage ? (
-        <p className="rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-sm font-medium text-success">
+        <p className="rounded-xl bg-success/10 px-3 py-2 text-sm font-medium text-success ring-1 ring-success/15">
           {successMessage}
           {isClosingAfterSuccess ? ` ${closingSoonLabel}` : ""}
         </p>
       ) : null}
 
       {stepError && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <p className="rounded-xl bg-destructive/5 px-3 py-2 text-sm text-destructive ring-1 ring-destructive/15">
           {stepError}
         </p>
       )}
 
       {generalServerError && (
-        <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <div className="space-y-2 rounded-xl bg-destructive/5 px-3 py-2 text-sm text-destructive ring-1 ring-destructive/15">
           <p>{generalServerError}</p>
           {needsEditListingId ? (
             <Link
               href={`/sell/${needsEditListingId}/edit`}
-              className="inline-flex rounded-lg border border-destructive/30 px-2.5 py-1 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+              className="inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
             >
               {openEditLabel}
             </Link>
@@ -53,7 +53,7 @@ export function CreateListingFeedback({
       )}
 
       {defaultsSaved ? (
-        <p className="rounded-lg border border-green-300/60 bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-300">
+        <p className="rounded-xl bg-green-500/10 px-3 py-2 text-sm text-green-700 ring-1 ring-green-400/20 dark:text-green-300">
           {defaultsSavedLabel}
         </p>
       ) : null}

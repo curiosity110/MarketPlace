@@ -69,11 +69,14 @@ export function CreateListingQuickFillPanel({
   onApplyCategoryCandidate,
   onApplySuggestion,
 }: Props) {
+  void hintLabel;
+  void quickFillAnalyzingLabel;
+  void quickFillReadyLabel;
+  void quickFillStatus;
   return (
-    <details className="rounded-xl border border-border/45 bg-muted/5 p-3">
+    <details className="rounded-xl bg-muted/30 p-3 ring-1 ring-black/5 dark:ring-white/10">
       <summary className="cursor-pointer text-sm font-medium text-muted-foreground">{oneLineLabel}</summary>
       <div className="mt-3 space-y-3">
-        <p className="text-xs text-muted-foreground">{hintLabel}</p>
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
           <Input
             value={quickFillLine}
@@ -87,7 +90,7 @@ export function CreateListingQuickFillPanel({
           />
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             onClick={onRunQuickFill}
             disabled={isActionBusy}
             className="gap-1 text-xs"
@@ -95,19 +98,6 @@ export function CreateListingQuickFillPanel({
             <Wand2 size={14} />
             {quickFillLabel}
           </Button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {quickFillStatus === "analyzing" ? (
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-              {quickFillAnalyzingLabel}
-            </span>
-          ) : null}
-          {quickFillStatus === "ready" || hasQuickFillSuggestions ? (
-            <span className="rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-[11px] font-semibold text-secondary">
-              {quickFillReadyLabel}
-            </span>
-          ) : null}
         </div>
 
         {quickFillMessage ? (

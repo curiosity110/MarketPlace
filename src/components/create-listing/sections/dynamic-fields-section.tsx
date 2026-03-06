@@ -23,7 +23,7 @@ export function CreateListingDynamicFieldsSection({
   locale,
 }: Props) {
   return (
-    <div className="space-y-2 rounded-2xl bg-card/80 p-4 ring-1 ring-border/60 sm:p-5">
+    <div className="space-y-2">
       <p className="text-sm font-semibold tracking-tight">{titleLabel}</p>
       {categoryId ? (
         <DynamicFieldsEditor

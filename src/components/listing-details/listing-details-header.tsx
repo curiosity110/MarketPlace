@@ -42,40 +42,35 @@ export function ListingDetailsHeader({
   isSold,
   text,
 }: Props) {
+  void text.price;
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm sm:p-5">
+    <div className="space-y-3 px-1 pb-1">
       <div className="flex max-w-full min-w-0 flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0 flex-1 space-y-2">
-        <h1 className="break-words text-2xl font-semibold leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-3xl lg:text-4xl">
+      <div className="min-w-0 flex-1 space-y-3">
+        <h1 className="break-words text-[1.8rem] font-semibold leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-[2.15rem] lg:text-[2.5rem]">
           {title}
         </h1>
-        <div className="flex max-w-full flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
+        <div className="flex max-w-full flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
             <MapPin size={14} />
             {cityName}
           </span>
-          <span>|</span>
+          <span className="h-1 w-1 rounded-full bg-border" />
           <span>{categoryLabel}</span>
-          <span>|</span>
+          <span className="h-1 w-1 rounded-full bg-border" />
           <span>{conditionLabel}</span>
           {isSold && (
-            <>
-              <span>|</span>
-              <Badge variant="secondary" className="gap-1">
-                <BadgeCheck size={12} />
-                {text.sold}
-              </Badge>
-            </>
+            <Badge variant="secondary" className="gap-1">
+              <BadgeCheck size={12} />
+              {text.sold}
+            </Badge>
           )}
         </div>
       </div>
 
-      <div className="w-full max-w-full space-y-2 sm:w-auto sm:min-w-[240px]">
-        <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-right">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {text.price}
-          </p>
-          <p className="text-3xl font-bold tracking-tight text-primary">
+      <div className="w-full max-w-full space-y-3 sm:w-auto sm:min-w-[260px]">
+        <div className="rounded-[1.2rem] bg-primary/6 px-4 py-3.5 text-right ring-1 ring-primary/12">
+          <p className="text-[1.7rem] font-semibold tracking-tight text-primary sm:text-[2rem]">
             {formatCurrencyFromCents(priceCents, currency)}
           </p>
         </div>

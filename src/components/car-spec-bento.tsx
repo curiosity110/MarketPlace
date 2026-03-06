@@ -37,7 +37,7 @@ function SpecRow({
   v: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-muted/20 p-3">
+    <div className="flex items-start gap-3 rounded-xl bg-muted/28 p-3 ring-1 ring-black/5 dark:ring-white/10">
       <div className="mt-0.5 text-muted-foreground">{icon}</div>
       <div className="min-w-0">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -94,10 +94,10 @@ export function CarSpecBento({
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-4">
+    <div className="space-y-3">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{t.specs}</h2>
-        <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+        <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
           {items.length}
         </span>
       </div>

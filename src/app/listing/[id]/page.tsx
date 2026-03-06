@@ -220,25 +220,7 @@ export default async function ListingDetails({
   const whatsappHref = toWhatsappHref(listing.seller.phone);
 
   return (
-    <PageContainer size="wide" className="space-y-6 pb-2 sm:space-y-7">
-      <BackButton label={text.backToBrowse} fallbackHref={backToBrowseHref} />
-
-      <ListingDetailsHeader
-        locale={locale}
-        title={listing.title}
-        cityName={listing.city.name}
-        categoryLabel={categoryLabel}
-        conditionLabel={conditionLabelByValue[listing.condition]}
-        priceCents={listing.priceCents}
-        currency={listing.currency}
-        listingId={listing.id}
-        isOwner={isOwner}
-        isAuthenticated={Boolean(sessionUser)}
-        isFavorited={isFavorited}
-        isSold={Boolean(listing.sale)}
-        text={{ price: text.price, sold: text.sold, edit: text.edit }}
-      />
-
+    <PageContainer size="wide" className="space-y-4 pb-2 sm:space-y-5">
       <ListingDetailsFlashMessages
         reportSaved={reportSaved}
         soldSaved={soldSaved}
@@ -248,32 +230,51 @@ export default async function ListingDetails({
         reportSubmittedLabel={text.reportSubmitted}
       />
 
-      <div className="grid max-w-full min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,0.6fr)] xl:gap-6">
+      <div className="grid max-w-full min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)] xl:gap-6">
         <div className="min-w-0 space-y-4">
-          <ListingDetailsMediaPanel
-            locale={locale}
-            imageUrls={listing.images.map((image) => image.url)}
-          />
-        </div>
+          <div className="space-y-3 rounded-[1.35rem] bg-card/85 p-3 ring-1 ring-black/5 sm:p-4 dark:ring-white/10">
+            <BackButton label={text.backToBrowse} fallbackHref={backToBrowseHref} className="w-fit" />
 
-        <div className="min-w-0 space-y-4">
-          <div className="max-w-full rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm sm:p-5">
+            <ListingDetailsMediaPanel
+              locale={locale}
+              imageUrls={listing.images.map((image) => image.url)}
+            />
+
+            <ListingDetailsHeader
+              locale={locale}
+              title={listing.title}
+              cityName={listing.city.name}
+              categoryLabel={categoryLabel}
+              conditionLabel={conditionLabelByValue[listing.condition]}
+              priceCents={listing.priceCents}
+              currency={listing.currency}
+              listingId={listing.id}
+              isOwner={isOwner}
+              isAuthenticated={Boolean(sessionUser)}
+              isFavorited={isFavorited}
+              isSold={Boolean(listing.sale)}
+              text={{ price: text.price, sold: text.sold, edit: text.edit }}
+            />
+          </div>
+
+          <section className="space-y-4 rounded-[1.35rem] bg-card/72 p-4 ring-1 ring-black/5 sm:p-5 dark:ring-white/10">
             <ListingDetailsDescriptionSection
               title={text.description}
               description={listing.description}
             />
-            <div className="mt-4">
-              <ListingDetailsExtraSection
-                locale={locale}
-                categoryDetailsLabel={text.categoryDetails}
-                noCategoryDetailsLabel={text.noCategoryDetails}
-                categoryDetails={categoryDetails}
-                valuesByKey={valuesByKey}
-                isCarCategory={isCarCategorySelected}
-              />
-            </div>
-          </div>
 
+            <ListingDetailsExtraSection
+              locale={locale}
+              categoryDetailsLabel={text.categoryDetails}
+              noCategoryDetailsLabel={text.noCategoryDetails}
+              categoryDetails={categoryDetails}
+              valuesByKey={valuesByKey}
+              isCarCategory={isCarCategorySelected}
+            />
+          </section>
+        </div>
+
+        <div className="min-w-0 xl:sticky xl:top-24">
           <ListingDetailsSellerPanel
             locale={locale}
             listingId={listing.id}

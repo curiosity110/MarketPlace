@@ -49,16 +49,17 @@ export function ProfileSettingsSection({
   updateProfileAction,
   text,
 }: ProfileSettingsSectionProps) {
+  void text.profileSettingsDesc;
+  void text.phoneSavedHint;
   return (
-    <details className="max-w-full min-w-0 overflow-x-hidden rounded-2xl border border-border/70 bg-card p-4">
+    <details className="max-w-full min-w-0 overflow-x-hidden rounded-2xl bg-card/70 p-4 ring-1 ring-black/5 dark:ring-white/10">
       <summary className="cursor-pointer list-none text-sm font-semibold">
         {text.profileSettings}
       </summary>
-      <p className="mt-2 text-sm text-muted-foreground">{text.profileSettingsDesc}</p>
       <div className="mt-4 space-y-4">
         <form
           action={updateProfileAction}
-          className="space-y-3 rounded-xl border border-border/70 bg-card p-4"
+          className="space-y-3"
         >
           <input type="hidden" name="locale" value={locale} />
           <div className="grid max-w-full min-w-0 gap-3 sm:grid-cols-2">
@@ -157,10 +158,11 @@ export function ProfileSettingsSection({
             </label>
           </div>
 
-          <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            <p>{text.phoneSavedHint}</p>
-            {storedPhoneE164 && <p className="mt-1 font-medium text-foreground">{storedPhoneE164}</p>}
-          </div>
+          {storedPhoneE164 ? (
+            <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-foreground ring-1 ring-black/5 dark:ring-white/10">
+              {storedPhoneE164}
+            </div>
+          ) : null}
           <Button type="submit">{text.saveProfile}</Button>
         </form>
       </div>

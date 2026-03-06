@@ -1063,7 +1063,7 @@ export default async function BrowsePage({
   }
 
   return (
-    <div className="max-w-full min-w-0 space-y-5 overflow-x-hidden">
+    <div className="max-w-full min-w-0 space-y-4 overflow-x-hidden">
       <BrowseHeader
         title={selectedCategoryLabel || text.allListings}
         smartBrowseLabel={text.smartBrowse}
@@ -1104,7 +1104,7 @@ export default async function BrowsePage({
       />
 
       {dbUnavailable && (
-        <Card className="border-warning/30 bg-warning/10">
+        <Card className="bg-warning/10 ring-1 ring-warning/15">
           <CardContent className="py-4 text-sm text-foreground">
             {text.dbUnavailable}
           </CardContent>

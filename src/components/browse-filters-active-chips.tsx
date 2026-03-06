@@ -18,12 +18,10 @@ export function BrowseFiltersActiveChips({
   removeFilterLabel,
   onClearAll,
 }: Props) {
+  void title;
   return (
-    <div className="max-w-full space-y-2 overflow-x-hidden rounded-xl border border-border/70 bg-muted/20 p-3">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {title}
-        </p>
+    <div className="max-w-full space-y-2 overflow-x-hidden">
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
         <button
           type="button"
           className="text-xs font-semibold text-primary hover:underline"
@@ -37,7 +35,7 @@ export function BrowseFiltersActiveChips({
           <button
             key={chip.key}
             type="button"
-            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-primary/40 hover:text-primary"
+            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium transition-colors hover:bg-background hover:text-primary"
             onClick={chip.onRemove}
             aria-label={`${removeFilterLabel}: ${chip.label}`}
           >

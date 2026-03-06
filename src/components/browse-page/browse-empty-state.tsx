@@ -28,33 +28,18 @@ export function BrowseEmptyState({
   popularCategoriesLabel,
   popularCategories,
 }: Props) {
+  void showPopularCategories;
+  void popularCategoriesLabel;
+  void popularCategories;
   return (
-    <Card>
-      <CardContent className="py-14 text-center">
-        <p className="text-muted-foreground">
+    <Card className="shadow-none">
+      <CardContent className="py-10 text-center sm:py-12">
+        <p className="mx-auto max-w-xl text-sm text-muted-foreground">
           {hasAppliedFilters ? noMatchLabel : noListingsYetLabel}
         </p>
         <Link href={createHref} className="mt-4 inline-block">
           <Button>{firstListLabel}</Button>
         </Link>
-        {showPopularCategories ? (
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            <span className="w-full text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {popularCategoriesLabel}
-            </span>
-            {popularCategories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/browse?cat=${category.id}`}
-                scroll={false}
-              >
-                <Button variant="outline" size="sm" className="rounded-full">
-                  {category.name}
-                </Button>
-              </Link>
-            ))}
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

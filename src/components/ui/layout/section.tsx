@@ -21,7 +21,7 @@ export function Section({
   return (
     <section
       className={cn(
-        "min-w-0 max-w-full rounded-2xl border border-border/70 bg-card p-4 sm:p-5",
+        "min-w-0 max-w-full rounded-[1.35rem] bg-card/80 p-4 ring-1 ring-black/5 sm:p-5 dark:ring-white/10",
         className,
       )}
       {...props}

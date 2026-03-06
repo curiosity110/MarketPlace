@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { uiTypography } from "@/components/ui/ui-patterns";
 import type { HomePricingPlan, HomeText } from "@/components/home/home.types";
 
 type Props = {
@@ -12,15 +13,12 @@ type Props = {
 
 export function HomeCtaSection({ text, pricingPlans }: Props) {
   return (
-    <section className="max-w-full min-w-0 space-y-6 overflow-x-hidden">
+    <section className="max-w-full min-w-0 space-y-5 overflow-x-hidden">
       <div className="flex max-w-full min-w-0 items-end justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="break-words text-3xl font-bold [overflow-wrap:anywhere]">
+          <h2 className={uiTypography.pageTitle}>
             {text.sellerPricing}
           </h2>
-          <p className="break-words text-muted-foreground [overflow-wrap:anywhere]">
-            {text.sellerPricingDesc}
-          </p>
         </div>
       </div>
 
@@ -34,17 +32,16 @@ export function HomeCtaSection({ text, pricingPlans }: Props) {
                 : ""
             }
           >
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-4">
               <div className="space-y-2">
                 {plan.featured ? (
                   <Badge variant="primary" className="rounded-full px-3 py-1">
                     {text.recommended}
                   </Badge>
                 ) : null}
-                <h3 className="text-2xl font-bold">{plan.name}</h3>
-                <p className="text-sm text-muted-foreground">{plan.description}</p>
+                <h3 className={uiTypography.sectionTitle}>{plan.name}</h3>
               </div>
-              <p className="text-4xl font-black">
+              <p className="text-3xl font-semibold tracking-tight">
                 {plan.price}
                 <span className="ml-2 text-sm font-medium text-muted-foreground">
                   {plan.cadence}

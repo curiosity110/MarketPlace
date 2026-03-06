@@ -51,8 +51,11 @@ export function ListingDetailsSellerPanel({
   whatsappHref,
   text,
 }: Props) {
+  void text.reportHelp;
+  void text.sellerContact;
+  void text.phone;
   return (
-    <Card className="max-w-full border-border/60 bg-card/90 shadow-sm">
+    <Card className="max-w-full shadow-none">
       <CardContent className="min-w-0 max-w-full space-y-4 p-4 sm:p-5">
         <div className="flex max-w-full items-start justify-between gap-3">
           <h2 className="min-w-0 break-words text-lg font-semibold [overflow-wrap:anywhere]">
@@ -68,7 +71,6 @@ export function ListingDetailsSellerPanel({
               </summary>
               <div className="absolute right-0 top-11 z-20 w-[min(92vw,360px)] max-w-full rounded-xl border border-border/80 bg-background p-3 shadow-xl">
                 <p className="text-sm font-semibold">{text.reportListing}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{text.reportHelp}</p>
                 <form action="/api/reports" method="post" className="mt-2 space-y-2">
                   <input type="hidden" name="targetType" value="LISTING" />
                   <input type="hidden" name="targetId" value={listingId} />
@@ -107,19 +109,13 @@ export function ListingDetailsSellerPanel({
             </details>
           ) : null}
         </div>
-        <div className="max-w-full rounded-xl bg-muted/20 p-3 ring-1 ring-border/55">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.sellerContact}
-          </p>
-          <p className="mt-2 inline-flex max-w-full items-center gap-2 break-words text-sm font-semibold [overflow-wrap:anywhere]">
+        <div className="max-w-full space-y-3 rounded-2xl bg-muted/28 p-4 ring-1 ring-black/5 dark:ring-white/10">
+          <p className="inline-flex max-w-full items-center gap-2 break-words text-sm font-semibold [overflow-wrap:anywhere]">
             <UserRound size={16} className="text-muted-foreground" />
             {sellerNameOrEmail}
           </p>
-          <div className="mt-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-success">
-              {text.phone}
-            </p>
-            <p className="max-w-full break-words text-lg font-bold [overflow-wrap:anywhere]">
+          <div className="rounded-xl bg-background/90 px-3 py-3 ring-1 ring-success/15">
+            <p className="max-w-full break-words text-xl font-semibold tracking-tight [overflow-wrap:anywhere]">
               {sellerPhone || text.phoneNotSet}
             </p>
           </div>

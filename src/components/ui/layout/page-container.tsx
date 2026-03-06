@@ -8,7 +8,7 @@ type PageContainerProps = React.HTMLAttributes<HTMLDivElement> & {
 const sizeClassMap: Record<NonNullable<PageContainerProps["size"]>, string> = {
   narrow: "max-w-4xl",
   default: "max-w-6xl",
-  wide: "max-w-7xl",
+  wide: "max-w-[72rem]",
 };
 
 export function PageContainer({

@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/layout";
 import { createPublishDraftFromDashboardAction } from "@/components/dashboard/dashboard.actions";
 import { DashboardHeaderSection } from "@/components/dashboard/dashboard-header-section";
@@ -39,11 +38,9 @@ export async function DashboardPageContent({
     return (
       <div className="mx-auto max-w-7xl space-y-4">
         <PageHeader title={text.sellerDashboard} subtitle={text.dashboardSubtitle} compact />
-        <Card className="border-warning/30 bg-warning/10">
-          <CardContent className="py-5 text-sm text-foreground">
+        <div className="rounded-xl bg-warning/10 px-4 py-4 text-sm text-foreground ring-1 ring-warning/15">
             {error || text.dbUnavailable}
-          </CardContent>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -53,7 +50,7 @@ export async function DashboardPageContent({
 
   return (
     <div className="min-h-[calc(100vh-72px)] max-w-full overflow-x-hidden bg-background">
-      <div className="mx-auto max-w-7xl min-w-0 space-y-5 px-4 pb-12 pt-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl min-w-0 space-y-4 px-4 pb-10 pt-3 sm:space-y-5 sm:px-6 lg:px-8">
         <DashboardHeaderSection
           title={text.sellerDashboard}
           subtitle={text.dashboardSubtitle}

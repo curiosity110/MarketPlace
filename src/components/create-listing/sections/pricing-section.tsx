@@ -40,12 +40,10 @@ export function CreateListingPricingSection({
   onCurrencyChange,
   onConditionChange,
 }: Props) {
+  void isActiveStep;
+  void priceHelperLabel;
   return (
-    <div
-      className={`max-w-full min-w-0 space-y-4 rounded-2xl bg-card/80 p-4 ring-1 ring-border/60 sm:p-5 ${
-        isActiveStep ? "ring-primary/30" : ""
-      }`}
-    >
+    <div className="max-w-full min-w-0 space-y-4">
       <h3 className="text-sm font-semibold tracking-tight">{titleLabel}</h3>
       <div className="grid max-w-full min-w-0 gap-3 sm:grid-cols-2">
         <label className="space-y-1.5">
@@ -60,7 +58,6 @@ export function CreateListingPricingSection({
             placeholder={pricePlaceholder}
             required
           />
-          <p className="text-xs text-muted-foreground">{priceHelperLabel}</p>
           {priceError ? <p className="text-xs font-medium text-destructive">{priceError}</p> : null}
         </label>
 
@@ -89,7 +86,7 @@ export function CreateListingPricingSection({
                 key={value}
                 type="button"
                 onClick={() => onConditionChange(value)}
-                className={`rounded-xl px-2 py-2 text-xs font-semibold ring-1 transition-colors ${
+                className={`rounded-xl px-2 py-2 text-xs font-medium ring-1 transition-colors ${
                   condition === value
                     ? "bg-primary/10 text-foreground ring-primary/35"
                     : "bg-background text-muted-foreground ring-border/60"
