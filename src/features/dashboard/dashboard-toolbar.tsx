@@ -95,7 +95,7 @@ export function DashboardToolbar({
   ] as const satisfies Array<{ value: DashboardSort; label: string }>;
 
   return (
-    <div className="space-y-4 rounded-[1.6rem] border border-border/45 bg-card/68 p-4 sm:p-5">
+    <div className="space-y-4 rounded-[1.35rem] border border-border/45 bg-card/68 p-3.5 sm:rounded-[1.6rem] sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="overflow-x-auto pb-1">
           <div className="inline-flex min-w-max items-center gap-2">
@@ -107,7 +107,7 @@ export function DashboardToolbar({
                   type="button"
                   aria-pressed={isActive}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
+                    "inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
                     isActive ? "bg-foreground text-background" : "bg-background/75 text-foreground",
                   )}
                   onClick={() => applyChange({ cat: category.id })}
@@ -138,7 +138,7 @@ export function DashboardToolbar({
                   type="button"
                   aria-pressed={isActive}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
+                    "inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
                     isActive ? "bg-foreground text-background" : "bg-background/75 text-foreground",
                     status.count === 0 ? "opacity-65" : "",
                   )}
@@ -163,7 +163,7 @@ export function DashboardToolbar({
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_auto]">
         <form
-          className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap"
+          className="flex min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:flex-nowrap sm:items-center"
           onSubmit={(event) => {
             event.preventDefault();
             applyChange({ q: query });
@@ -186,7 +186,7 @@ export function DashboardToolbar({
           {current.q ? (
             <button
               type="button"
-              className="rounded-xl px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+              className="rounded-xl px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground sm:text-center"
               onClick={() => {
                 setQuery("");
                 applyChange({ q: "" });
@@ -209,12 +209,12 @@ export function DashboardToolbar({
           ))}
         </Select>
 
-        <div className="inline-flex rounded-full bg-background p-1 ring-1 ring-border/50">
+        <div className="inline-flex w-full rounded-full bg-background p-1 ring-1 ring-border/50 sm:w-auto">
           <button
             type="button"
             aria-pressed={current.layout === "grid"}
             className={cn(
-              "inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors",
+              "inline-flex h-10 flex-1 items-center justify-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors sm:flex-none",
               current.layout === "grid" ? "bg-card shadow-sm" : "text-muted-foreground",
             )}
             onClick={() => applyChange({ layout: "grid" as DashboardLayout })}
@@ -226,7 +226,7 @@ export function DashboardToolbar({
             type="button"
             aria-pressed={current.layout === "list"}
             className={cn(
-              "inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors",
+              "inline-flex h-10 flex-1 items-center justify-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors sm:flex-none",
               current.layout === "list" ? "bg-card shadow-sm" : "text-muted-foreground",
             )}
             onClick={() => applyChange({ layout: "list" as DashboardLayout })}

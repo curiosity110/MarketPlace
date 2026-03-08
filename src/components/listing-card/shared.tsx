@@ -54,6 +54,8 @@ export function ListingCardMedia({
           src={imageUrl}
           alt={title}
           fill
+          loading="lazy"
+          quality={72}
           className={cn(
             "object-cover transition-transform duration-500 group-hover/media:scale-[1.03]",
             imageClassName,

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   markAllRead,
   markNotificationRead,
 } from "@/lib/actions/notifications";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -30,10 +31,11 @@ type Props = {
 const DESKTOP_SIDE_OFFSET = 8;
 const DESKTOP_COLLISION_PADDING = 12;
 
-export function NotificationsBell({ locale, items, unreadCount }: Props) {
+function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
   const router = useRouter();
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -67,6 +69,31 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
   const closePanel = useCallback(() => {
     setOpen(false);
   }, []);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    previousActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    if (isMobile) {
+      lockBodyScroll();
+    }
+
+    return () => {
+      if (isMobile) {
+        unlockBodyScroll();
+      }
+      const triggerButton = triggerRef.current?.querySelector("button");
+      if (triggerButton instanceof HTMLButtonElement && triggerButton.isConnected) {
+        triggerButton.focus();
+      } else if (previousActiveElementRef.current?.isConnected) {
+        previousActiveElementRef.current.focus();
+      }
+    };
+  }, [isMobile, open]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -150,10 +177,18 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
     };
   }, [isMobile, open, updateDesktopPosition]);
 
-  const unreadLocalCount = items.reduce((sum, item) => {
-    const isRead = item.readAt || readIds.has(item.id);
-    return isRead ? sum : sum + 1;
-  }, 0);
+  useEffect(() => {
+    setReadIds(new Set(items.filter((item) => item.readAt).map((item) => item.id)));
+  }, [items]);
+
+  const unreadLocalCount = useMemo(
+    () =>
+      items.reduce((sum, item) => {
+        const isRead = item.readAt || readIds.has(item.id);
+        return isRead ? sum : sum + 1;
+      }, 0),
+    [items, readIds],
+  );
   const badgeCount = Math.max(unreadCount, unreadLocalCount);
   const canPortal = typeof document !== "undefined";
 
@@ -308,3 +343,7 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
     </>
   );
 }
+
+export const NotificationsBell = React.memo(NotificationsBellComponent);
+
+NotificationsBell.displayName = "NotificationsBell";

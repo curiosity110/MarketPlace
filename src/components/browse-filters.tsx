@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 import { cn } from "@/lib/utils";
 
 export {
@@ -475,14 +476,13 @@ export function BrowseFilters({
 
   React.useEffect(() => {
     if (!isDrawerOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    lockBodyScroll();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsDrawerOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlockBodyScroll();
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [isDrawerOpen]);

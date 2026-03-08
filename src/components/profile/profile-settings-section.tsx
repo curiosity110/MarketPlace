@@ -56,7 +56,7 @@ export function ProfileSettingsSection({
 
   return (
     <details className="max-w-full min-w-0 overflow-x-hidden rounded-2xl bg-card/70 p-4 ring-1 ring-black/5 dark:ring-white/10">
-      <summary className="cursor-pointer list-none text-sm font-semibold">
+      <summary className="cursor-pointer list-none py-1 text-sm font-semibold">
         {text.profileSettings}
       </summary>
       <div className="mt-4 space-y-4">
@@ -81,11 +81,11 @@ export function ProfileSettingsSection({
 
             <div className="grid max-w-full min-w-0 gap-3 sm:col-span-2 sm:grid-cols-[220px_minmax(0,1fr)]">
               <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">{text.phoneCountry}</span>
+              <span className="text-xs font-medium text-muted-foreground">{text.phoneCountry}</span>
                 <select
                   name="phoneCountry"
                   defaultValue={parsedPhone.countryCode}
-                  className="h-10 rounded-xl border border-border bg-input px-3 text-sm"
+                  className="h-12 w-full rounded-xl border border-border bg-input px-3 text-sm"
                 >
                   {PHONE_COUNTRIES.map((country) => (
                     <option key={country.code} value={country.code}>
@@ -151,13 +151,13 @@ export function ProfileSettingsSection({
               <textarea
                 name="bio"
                 defaultValue={userRecord?.bio || ""}
-                className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                className="min-h-28 w-full rounded-xl border border-border bg-input px-3 py-3 text-sm focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/15"
                 maxLength={500}
               />
             </label>
           </div>
 
-          <Button type="submit">{text.saveProfile}</Button>
+          <Button type="submit" className="min-h-11 w-full sm:w-auto">{text.saveProfile}</Button>
         </form>
       </div>
     </details>

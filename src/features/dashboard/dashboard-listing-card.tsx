@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 import {
@@ -66,7 +68,7 @@ function getStatusVariant(
   return "destructive";
 }
 
-export function DashboardListingCard({
+function DashboardListingCardComponent({
   listing,
   locale,
   layout,
@@ -192,7 +194,7 @@ export function DashboardListingCard({
                   <div className="grid gap-2 sm:grid-cols-2">
                     <form action={publishDraftAction}>
                       <input type="hidden" name="id" value={listing.id} />
-                      <Button size="sm" type="submit" className="w-full">{text.publishFree}</Button>
+                      <PublishDraftButton label={text.publishFree} />
                     </form>
                     <Link href={editHref}>
                       <Button size="sm" variant="outline" className="w-full">{text.edit}</Button>
@@ -218,5 +220,19 @@ export function DashboardListingCard({
         </>
       }
     />
+  );
+}
+
+export const DashboardListingCard = React.memo(DashboardListingCardComponent);
+
+DashboardListingCard.displayName = "DashboardListingCard";
+
+function PublishDraftButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button size="sm" type="submit" className="w-full" disabled={pending}>
+      {label}
+    </Button>
   );
 }

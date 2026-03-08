@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 
 interface AIHelperProps {
   context?: string;
@@ -160,10 +161,9 @@ export function AIHelper({
 
   useEffect(() => {
     if (!isOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    lockBodyScroll();
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlockBodyScroll();
     };
   }, [isOpen]);
 

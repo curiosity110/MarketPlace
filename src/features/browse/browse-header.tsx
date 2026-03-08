@@ -60,6 +60,16 @@ export function BrowseHeader({
   const [dynamicValues, setDynamicValues] = React.useState<Record<string, string>>(() =>
     getBrowseDynamicValues(new URLSearchParams(spString)),
   );
+  const latestStateRef = React.useRef(state);
+  const latestDynamicValuesRef = React.useRef(dynamicValues);
+
+  React.useEffect(() => {
+    latestStateRef.current = state;
+  }, [state]);
+
+  React.useEffect(() => {
+    latestDynamicValuesRef.current = dynamicValues;
+  }, [dynamicValues]);
 
   React.useEffect(() => {
     const latest = new URLSearchParams(spString);
@@ -74,8 +84,8 @@ export function BrowseHeader({
 
   const applyState = React.useCallback(
     (
-      nextState: BrowseFilterState = state,
-      nextDynamicValues: Record<string, string> = dynamicValues,
+      nextState: BrowseFilterState,
+      nextDynamicValues: Record<string, string>,
       closeSheet = false,
     ) => {
       const { query } = buildBrowseQueryFromState(spString, nextState, nextDynamicValues);
@@ -84,15 +94,25 @@ export function BrowseHeader({
       }
       if (closeSheet) setIsSheetOpen(false);
     },
-    [dynamicValues, router, spString, state],
+    [router, spString],
   );
 
   const debouncedSearch = useDebouncedValue(state.q, TYPING_DEBOUNCE_MS);
+  const currentSearchQuery = React.useMemo(
+    () => new URLSearchParams(spString).get("q")?.trim() ?? "",
+    [spString],
+  );
 
   React.useEffect(() => {
-    const nextState = { ...state, q: debouncedSearch };
-    applyState(nextState, dynamicValues);
-  }, [applyState, debouncedSearch, dynamicValues, state]);
+    if (debouncedSearch.trim() === currentSearchQuery) {
+      return;
+    }
+
+    applyState(
+      { ...latestStateRef.current, q: debouncedSearch },
+      latestDynamicValuesRef.current,
+    );
+  }, [applyState, currentSearchQuery, debouncedSearch]);
 
   const selectCategory = React.useCallback(
     (categoryId: string) => {
@@ -132,7 +152,9 @@ export function BrowseHeader({
         onSelect={selectCategory}
       />
 
-      <p className="text-sm text-muted-foreground">{totalCount} {resultsLabel}</p>
+      <p className="text-sm text-muted-foreground">
+        {totalCount} {resultsLabel}
+      </p>
 
       <BrowseFilterSheet
         open={isSheetOpen}

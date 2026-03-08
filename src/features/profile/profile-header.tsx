@@ -39,13 +39,13 @@ export function ProfileHeader({
   return (
     <section className="space-y-4">
       <BackLink label={backLabel} fallbackHref={backHref} className="w-fit" />
-      <div className="hero-surface space-y-5 rounded-[1.9rem] border border-border/40 p-5 sm:p-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-full bg-card/75 text-xl font-bold ring-1 ring-border/40">
+      <div className="hero-surface space-y-5 rounded-[1.7rem] border border-border/40 p-4 sm:rounded-[1.9rem] sm:p-6">
+        <div className="flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:items-center">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-card/75 text-lg font-bold ring-1 ring-border/40 sm:h-18 sm:w-18 sm:text-xl">
             {avatarInitials}
           </div>
           <div className="min-w-0">
-            <h1 className="break-words text-[2.2rem] font-semibold tracking-[-0.05em] [overflow-wrap:anywhere]">
+            <h1 className="break-words text-[1.8rem] font-semibold tracking-[-0.05em] [overflow-wrap:anywhere] sm:text-[2.2rem]">
               {displayName}
             </h1>
           </div>

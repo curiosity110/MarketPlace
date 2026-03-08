@@ -103,7 +103,7 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 md:hidden">
-      <div className="pointer-events-auto mx-auto grid max-w-xl grid-cols-4 gap-1 rounded-[1.6rem] border border-border/45 bg-background/84 p-1.5 shadow-[0_24px_64px_-36px_rgba(48,35,24,0.32)] backdrop-blur-xl">
+      <div className="pointer-events-auto mx-auto grid max-w-xl grid-cols-4 gap-1.5 rounded-[1.6rem] border border-border/45 bg-background/90 p-1.5 shadow-[0_24px_64px_-36px_rgba(48,35,24,0.32)] backdrop-blur-xl">
         {items
           .filter((item) => item.show !== false)
           .map((item) => {
@@ -121,6 +121,7 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
 
             const className = cn(
               "flex flex-col items-center justify-center gap-1 rounded-[1.2rem] px-2 py-2.5 text-[11px] transition-all",
+              "min-h-[3.9rem]",
               active
                 ? "bg-card font-semibold text-foreground shadow-[0_12px_24px_-22px_rgba(48,35,24,0.3)]"
                 : "font-medium text-foreground/70 hover:bg-card/70",
@@ -134,8 +135,8 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
                   onClick={item.action}
                   className={className}
                 >
-                  <item.icon size={16} />
-                  <span>{item.label}</span>
+                  <item.icon size={17} />
+                  <span className="max-w-full truncate text-[11px]">{item.label}</span>
                 </button>
               );
             }
@@ -146,8 +147,8 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
                 href={item.href || "/"}
                 className={className}
               >
-                <item.icon size={16} />
-                <span>{item.label}</span>
+                <item.icon size={17} />
+                <span className="max-w-full truncate text-[11px]">{item.label}</span>
               </Link>
             );
           })}

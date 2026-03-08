@@ -23,8 +23,8 @@ export function CreateListingDynamicFieldsSection({
   locale,
 }: Props) {
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-semibold tracking-tight">{titleLabel}</p>
+    <div className="space-y-2.5">
+      <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">{titleLabel}</p>
       {categoryId ? (
         <DynamicFieldsEditor
           key={categoryId}
@@ -35,7 +35,7 @@ export function CreateListingDynamicFieldsSection({
           locale={locale}
         />
       ) : (
-        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+        <p className="text-[0.92rem] leading-6 text-[#74685c]">{emptyLabel}</p>
       )}
     </div>
   );

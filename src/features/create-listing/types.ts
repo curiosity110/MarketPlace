@@ -31,6 +31,13 @@ export type CreateListingPhoneCountryOption = {
   label: string;
 };
 
+export type CreateListingPaymentDraft = {
+  cardNumber: string;
+  expiry: string;
+  cvc: string;
+  cardholder: string;
+};
+
 export type CreateListingInitialValues = {
   id?: string;
   title?: string;

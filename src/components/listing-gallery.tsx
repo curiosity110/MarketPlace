@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImageOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 
 type Props = {
   images: string[];
@@ -49,6 +50,7 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
   const safeActiveIndex =
     normalizedImages.length === 0
       ? 0
@@ -56,9 +58,9 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
 
   useEffect(() => {
     if (!isLightboxOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    previousActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    lockBodyScroll();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -78,8 +80,11 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
+      unlockBodyScroll();
+      if (previousActiveElementRef.current?.isConnected) {
+        previousActiveElementRef.current.focus();
+      }
     };
   }, [isLightboxOpen, normalizedImages.length]);
 

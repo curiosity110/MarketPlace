@@ -1,11 +1,19 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import {
+  useActionState,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Currency, ListingCondition } from "@prisma/client";
 import { CreateListingFeedback } from "@/components/create-listing/feedback";
 import { getCreateListingWizardText } from "@/components/create-listing/messages";
 import { CreateListingPaymentModal } from "@/components/create-listing/payment-modal";
 import { validateCreateListingPhotos } from "@/components/create-listing/state/wizard-form.validation";
+import { localizeCategoryName } from "@/lib/category-label";
 import { CreateListingHeader } from "@/features/create-listing/create-listing-header";
 import { CreateListingStepDetails } from "@/features/create-listing/create-listing-step-details";
 import { CreateListingStepPhotos } from "@/features/create-listing/create-listing-step-photos";
@@ -15,16 +23,20 @@ import type {
   CreateListingCategoryOption,
   CreateListingCityOption,
   CreateListingInitialValues,
+  CreateListingPaymentDraft,
   CreateListingPlanOption,
   CreateListingResult,
   CreateListingTemplateMap,
   CreateListingWizardStep,
 } from "@/features/create-listing/types";
 import {
+  filterCreateListingCategories,
   getCreateListingInitialStep,
   getCreateListingModalText,
   getCreateListingPhoneCountryOptions,
   getCreateListingStepMeta,
+  resolveCreateJumpStep,
+  resolveCreateNormalizedErrorField,
   resolveCreatePaymentAmount,
 } from "@/features/create-listing/utils";
 
@@ -63,7 +75,6 @@ export function CreateListingFormNew({
   onPublished,
   onClose,
 }: Props) {
-  void templatesByCategory;
   void allowDraft;
 
   const text = getCreateListingWizardText(locale);
@@ -71,6 +82,9 @@ export function CreateListingFormNew({
   const resolvedPublishLabel = publishLabel ?? text.publish;
   const requiresDummyPayment = paymentProvider === "stripe-dummy";
   const phoneCountryOptions = getCreateListingPhoneCountryOptions();
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const photosInputRef = useRef<HTMLInputElement | null>(null);
+  const successTimerRef = useRef<number | null>(null);
 
   const [currentStep, setCurrentStep] = useState<CreateListingWizardStep>(() =>
     getCreateListingInitialStep({ serverError, serverErrorField }),
@@ -79,6 +93,14 @@ export function CreateListingFormNew({
   const [photoValidationError, setPhotoValidationError] = useState<string | null>(null);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const [serverErrorMessage, setServerErrorMessage] = useState<string | null>(serverError);
+  const [serverErrorFieldState, setServerErrorFieldState] = useState<string | null>(
+    serverErrorField,
+  );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [needsEditListingId, setNeedsEditListingId] = useState<string | null>(null);
+  const [isClosingAfterSuccess, setIsClosingAfterSuccess] = useState(false);
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -95,26 +117,101 @@ export function CreateListingFormNew({
   const [plan, setPlan] = useState<CreateListingPlanOption>(
     initial?.plan ?? "pay-per-listing",
   );
+  const [paymentDraft, setPaymentDraft] = useState<CreateListingPaymentDraft>({
+    cardNumber: "",
+    expiry: "",
+    cvc: "",
+    cardholder: "",
+  });
 
-  const photosInputRef = useRef<HTMLInputElement | null>(null);
+  const deferredCategorySearch = useDeferredValue(categorySearch);
   const stepMeta = getCreateListingStepMeta(currentStep, {
     photos: text.photos,
     basics: text.basics,
     price: text.price,
   });
 
-  const [state, formAction, isActionBusy] = useActionState<
-    CreateListingResult | null,
-    FormData
-  >(async (_prevState, formData) => {
-    const result = await action(formData);
+  const categoriesWithTemplates = useMemo(
+    () =>
+      categories.filter((category) => (templatesByCategory[category.id]?.length ?? 0) > 0),
+    [categories, templatesByCategory],
+  );
+  const filteredCategories = useMemo(
+    () => filterCreateListingCategories(categoriesWithTemplates, deferredCategorySearch, locale),
+    [categoriesWithTemplates, deferredCategorySearch, locale],
+  );
+  const selectedCategory = useMemo(
+    () => categoriesWithTemplates.find((category) => category.id === selectedCategoryId) ?? null,
+    [categoriesWithTemplates, selectedCategoryId],
+  );
+  const selectedCategoryLabel = selectedCategory
+    ? localizeCategoryName(selectedCategory, locale)
+    : null;
+  const selectedTemplatesCount = selectedCategoryId
+    ? templatesByCategory[selectedCategoryId]?.length ?? 0
+    : 0;
+  const normalizedServerErrorField = useMemo(
+    () => resolveCreateNormalizedErrorField(serverErrorMessage, serverErrorFieldState),
+    [serverErrorMessage, serverErrorFieldState],
+  );
 
-    if (result && typeof result === "object" && "ok" in result && result.ok) {
-      onPublished?.();
-    }
+  const [, formAction, isActionBusy] = useActionState<CreateListingResult | null, FormData>(
+    async (_prevState, formData) => {
+      try {
+        const result = (await action(formData)) as CreateListingResult;
 
-    return result as CreateListingResult;
-  }, null);
+        if (result && typeof result === "object" && "ok" in result && result.ok) {
+          setServerErrorMessage(null);
+          setServerErrorFieldState(null);
+          setNeedsEditListingId(null);
+          setSuccessMessage(result.message || text.publishedSuccess);
+
+          if (result.status === "ACTIVE") {
+            setIsClosingAfterSuccess(true);
+            if (successTimerRef.current) {
+              window.clearTimeout(successTimerRef.current);
+            }
+            successTimerRef.current = window.setTimeout(() => {
+              setIsClosingAfterSuccess(false);
+              onPublished?.();
+            }, 1200);
+          }
+
+          return result;
+        }
+
+        setSuccessMessage(null);
+        setIsClosingAfterSuccess(false);
+        setServerErrorMessage(result?.error ?? text.submitFailed);
+        setServerErrorFieldState(result?.field ?? null);
+        setNeedsEditListingId(result?.needsEdit ? result.listingId ?? null : null);
+        const errorStep = resolveCreateJumpStep(result?.field, result?.error);
+        if (errorStep) setCurrentStep(errorStep);
+        return result;
+      } catch {
+        const fallback = {
+          ok: false,
+          error: text.submitFailed,
+          field: "general",
+        } as CreateListingResult;
+        setSuccessMessage(null);
+        setIsClosingAfterSuccess(false);
+        setServerErrorMessage(text.submitFailed);
+        setServerErrorFieldState("general");
+        return fallback;
+      }
+    },
+    null,
+  );
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        window.clearTimeout(successTimerRef.current);
+      }
+      photoPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [photoPreviewUrls]);
 
   const validatePhotos = (files: FileList | null) =>
     validateCreateListingPhotos(files, {
@@ -126,14 +223,9 @@ export function CreateListingFormNew({
   const validateStep = (step: CreateListingWizardStep) => {
     if (step === 1) {
       const photosError = validatePhotos(photosInputRef.current?.files ?? null);
-
-      if (photosError) {
-        setPhotoValidationError(photosError);
-        setStepError(photosError);
-        return false;
-      }
-
-      return true;
+      setPhotoValidationError(photosError);
+      setStepError(photosError);
+      return !photosError;
     }
 
     if (step === 2) {
@@ -168,35 +260,14 @@ export function CreateListingFormNew({
     return true;
   };
 
-  const submitForm = async () => {
-    const formData = new FormData();
-    formData.set("locale", locale);
-    formData.set("plan", plan);
-    formData.set("condition", condition);
-
-    if (paymentProvider !== "none") {
-      formData.set("paymentProvider", paymentProvider);
-    }
-
-    formData.set("title", title);
-    formData.set("description", description);
-    formData.set("categoryId", selectedCategoryId);
-    formData.set("cityId", cityId);
-    formData.set("price", price);
-    formData.set("currency", currency);
-    formData.set("phoneCountry", phoneCountry);
-    formData.set("phone", phone);
-
-    if (photosInputRef.current?.files) {
-      Array.from(photosInputRef.current.files).forEach((file) => {
-        formData.append("photos", file);
-      });
-    }
-
+  async function submitForm() {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    formData.set("intent", "publish");
     await formAction(formData);
-  };
+  }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (isActionBusy || !validateStep(currentStep)) {
@@ -215,7 +286,7 @@ export function CreateListingFormNew({
     }
 
     await submitForm();
-  };
+  }
 
   const primaryLabel = isActionBusy
     ? text.publishing
@@ -232,15 +303,93 @@ export function CreateListingFormNew({
   const paymentAmount = resolveCreatePaymentAmount(plan);
   const paymentLabel = plan === "subscription" ? text.subscription : text.payPerListing;
 
+  const titleError =
+    stepError === text.titleRequired
+      ? stepError
+      : normalizedServerErrorField === "title"
+        ? serverErrorMessage
+        : null;
+  const categoryError =
+    stepError === text.categoryRequired
+      ? stepError
+      : normalizedServerErrorField === "categoryId"
+        ? serverErrorMessage
+        : null;
+  const cityError =
+    stepError === text.cityRequired
+      ? stepError
+      : normalizedServerErrorField === "cityId"
+        ? serverErrorMessage
+        : null;
+  const priceError =
+    stepError === text.priceRequired
+      ? stepError
+      : normalizedServerErrorField === "price"
+        ? serverErrorMessage
+        : null;
+  const phoneError =
+    stepError === text.phoneRequired
+      ? stepError
+      : normalizedServerErrorField === "phone"
+        ? serverErrorMessage
+        : null;
+  const generalServerError =
+    serverErrorMessage &&
+    !["title", "categoryId", "cityId", "price", "phone"].includes(
+      normalizedServerErrorField ?? "",
+    )
+      ? serverErrorMessage
+      : null;
+
+  const stepCopy = useMemo(
+    () =>
+    locale === "mk"
+      ? {
+          photosHeading: "Додај фотографии",
+          photosHelper: "Добрите фотографии помагаат побрзо да се продаде.",
+          detailsHeading: "Детали за предметот",
+          priceHeading: "Постави цена",
+          priceHelper: "Подоцна можеш да ја промениш.",
+          addMoreDetails: "Додај повеќе детали",
+          hideMoreDetails: "Сокриј повеќе детали",
+          moreDetailsHint:
+            selectedTemplatesCount > 0
+              ? "Дополнителните полиња се опционални, но помагаат за подобро пребарување."
+              : "Нема дополнителни полиња за избраната категорија.",
+          moreDetailsEmpty: "Нема дополнителни полиња за оваа категорија.",
+        }
+      : {
+          photosHeading: "Add photos",
+          photosHelper: "Good photos help your item sell faster.",
+          detailsHeading: "Item details",
+          priceHeading: "Set your price",
+          priceHelper: "You can always change this later.",
+          addMoreDetails: "Add more details",
+          hideMoreDetails: "Hide more details",
+          moreDetailsHint:
+            selectedTemplatesCount > 0
+              ? "Extra category details are optional, but they improve search and matching."
+              : "No extra details are available for this category.",
+          moreDetailsEmpty: "No additional fields for this category.",
+        },
+    [locale, selectedTemplatesCount],
+  );
+
   return (
     <>
-      <form onSubmit={handleSubmit} className="flex h-full min-w-0 flex-col">
+      <form ref={formRef} onSubmit={handleSubmit} className="flex h-full min-w-0 flex-col">
         <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="intent" value="publish" />
         <input type="hidden" name="plan" value={plan} />
         <input type="hidden" name="condition" value={condition} />
+        <input type="hidden" name="categoryId" value={selectedCategoryId} />
         {paymentProvider !== "none" ? (
           <input type="hidden" name="paymentProvider" value={paymentProvider} />
         ) : null}
+        <input type="hidden" name="dummyCardNumber" value={paymentDraft.cardNumber} />
+        <input type="hidden" name="dummyCardExp" value={paymentDraft.expiry} />
+        <input type="hidden" name="dummyCardCvc" value={paymentDraft.cvc} />
+        <input type="hidden" name="dummyCardName" value={paymentDraft.cardholder} />
 
         <CreateListingHeader
           currentStep={stepMeta.step}
@@ -256,15 +405,15 @@ export function CreateListingFormNew({
           onClose={onClose}
         />
 
-        <div className="flex-1 overflow-y-auto px-4 pb-28 pt-5 sm:px-6">
-          <div className="space-y-5">
+        <div className="flex-1 overflow-y-auto px-4 pb-32 pt-6 sm:px-6 sm:pb-36 sm:pt-7">
+          <div className="space-y-6">
             <CreateListingFeedback
-              successMessage={state && "ok" in state && state.ok ? resolvedPublishLabel : null}
-              isClosingAfterSuccess={false}
+              successMessage={successMessage}
+              isClosingAfterSuccess={isClosingAfterSuccess}
               closingSoonLabel={text.closingSoon}
               stepError={stepError}
-              generalServerError={state && "error" in state ? state.error : serverError || null}
-              needsEditListingId={null}
+              generalServerError={generalServerError}
+              needsEditListingId={needsEditListingId}
               openEditLabel={text.openEdit}
               defaultsSaved={defaultsSaved}
               defaultsSavedLabel={text.defaultsSaved}
@@ -272,11 +421,11 @@ export function CreateListingFormNew({
 
             {currentStep === 1 ? (
               <CreateListingStepPhotos
-                heading={text.photos}
-                helperText={modalText.titleGroupHint}
+                heading={stepCopy.photosHeading}
+                helperText={stepCopy.photosHelper}
                 selectedPhotosLabel={modalText.selectedPhotos}
                 addPhotosLabel={modalText.choosePhotos}
-                photoHint={text.photoHint}
+                photoHint=""
                 photoPreviewUrls={photoPreviewUrls}
                 photoValidationError={photoValidationError}
                 photosInputRef={photosInputRef}
@@ -285,9 +434,12 @@ export function CreateListingFormNew({
                   const nextError = validatePhotos(files);
                   setPhotoValidationError(nextError);
                   setStepError(nextError);
-                  setPhotoPreviewUrls(
-                    files ? Array.from(files).map((file) => URL.createObjectURL(file)) : [],
-                  );
+                  setPhotoPreviewUrls((previous) => {
+                    previous.forEach((url) => URL.revokeObjectURL(url));
+                    return files
+                      ? Array.from(files).slice(0, 10).map((file) => URL.createObjectURL(file))
+                      : [];
+                  });
                 }}
               />
             ) : null}
@@ -295,17 +447,19 @@ export function CreateListingFormNew({
             {currentStep === 2 ? (
               <CreateListingStepDetails
                 locale={locale}
-                heading={text.basics}
+                heading={stepCopy.detailsHeading}
                 titleLabel={text.title}
                 titlePlaceholder={text.titlePlaceholder}
                 titleValue={title}
+                titleError={titleError}
                 categoryLabel={text.category}
                 categorySearchPlaceholder={text.categorySearchPlaceholder}
                 categorySearch={categorySearch}
                 selectedCategoryId={selectedCategoryId}
-                categoryOptions={categories}
+                categoryOptions={filteredCategories}
+                selectedCategoryLabel={selectedCategoryLabel}
                 noCategoryMatchLabel={text.noCategoryMatch}
-                categoryError={stepError === text.categoryRequired ? text.categoryRequired : null}
+                categoryError={categoryError}
                 conditionLabel={text.condition}
                 condition={condition}
                 conditionLabels={conditionLabels}
@@ -313,7 +467,7 @@ export function CreateListingFormNew({
                 cityId={cityId}
                 cities={cities}
                 noCityAvailableLabel={text.noCityAvailable}
-                cityError={stepError === text.cityRequired ? text.cityRequired : null}
+                cityError={cityError}
                 descriptionLabel={text.description}
                 descriptionPlaceholder={text.descriptionPlaceholder}
                 descriptionValue={description}
@@ -321,16 +475,20 @@ export function CreateListingFormNew({
                 onTitleChange={(value) => {
                   setTitle(value);
                   setStepError(null);
+                  setServerErrorMessage(null);
                 }}
                 onCategorySearchChange={setCategorySearch}
-                onCategoryChange={(value) => {
+                onCategoryChange={(value, label) => {
                   setSelectedCategoryId(value);
+                  setCategorySearch(label);
                   setStepError(null);
+                  setServerErrorMessage(null);
                 }}
                 onConditionChange={setCondition}
                 onCityChange={(value) => {
                   setCityId(value);
                   setStepError(null);
+                  setServerErrorMessage(null);
                 }}
                 onDescriptionChange={setDescription}
               />
@@ -338,18 +496,20 @@ export function CreateListingFormNew({
 
             {currentStep === 3 ? (
               <CreateListingStepPrice
-                heading={text.price}
-                helperText={modalText.contactHint}
+                locale={locale}
+                heading={stepCopy.priceHeading}
+                helperText={stepCopy.priceHelper}
                 priceLabel={text.price}
                 pricePlaceholder={text.pricePlaceholder}
                 priceValue={price}
+                priceError={priceError}
                 currency={currency}
                 phoneLabel={text.phone}
                 phonePlaceholder={text.phonePlaceholder}
                 phoneCountry={phoneCountry}
                 phoneValue={phone}
                 phoneCountryOptions={phoneCountryOptions}
-                phoneError={stepError === text.phoneRequired ? text.phoneRequired : null}
+                phoneError={phoneError}
                 showPlanSelector={showPlanSelector}
                 planLabel={text.sellerPackage}
                 payPerListingLabel={text.payPerListing}
@@ -358,18 +518,29 @@ export function CreateListingFormNew({
                 monthlyUnlimitedLabel={text.monthlyUnlimited}
                 packageHint={modalText.packageHint}
                 plan={plan}
+                addMoreDetailsLabel={stepCopy.addMoreDetails}
+                hideMoreDetailsLabel={stepCopy.hideMoreDetails}
+                moreDetailsHint={stepCopy.moreDetailsHint}
+                moreDetailsEmptyLabel={stepCopy.moreDetailsEmpty}
+                showMoreDetails={showMoreDetails}
+                selectedCategoryId={selectedCategoryId}
+                templatesByCategory={templatesByCategory}
+                initialDynamicValues={initial?.dynamicValues}
                 isActionBusy={isActionBusy}
                 onPriceChange={(value) => {
                   setPrice(value);
                   setStepError(null);
+                  setServerErrorMessage(null);
                 }}
                 onCurrencyChange={setCurrency}
                 onPhoneCountryChange={setPhoneCountry}
                 onPhoneChange={(value) => {
                   setPhone(value);
                   setStepError(null);
+                  setServerErrorMessage(null);
                 }}
                 onPlanChange={setPlan}
+                onToggleMoreDetails={() => setShowMoreDetails((value) => !value)}
               />
             ) : null}
           </div>
@@ -379,7 +550,7 @@ export function CreateListingFormNew({
           backLabel={text.back}
           primaryLabel={primaryLabel}
           canGoBack={currentStep > 1}
-          isBusy={isActionBusy}
+          isBusy={isActionBusy || isClosingAfterSuccess}
           onBack={() => {
             setCurrentStep((currentStep - 1) as CreateListingWizardStep);
             setStepError(null);
@@ -405,6 +576,22 @@ export function CreateListingFormNew({
           cancelLabel={text.cancel}
           publishLabel={resolvedPublishLabel}
           publishingLabel={text.publishing}
+          cardNumberValue={paymentDraft.cardNumber}
+          expiryValue={paymentDraft.expiry}
+          cvcValue={paymentDraft.cvc}
+          cardholderValue={paymentDraft.cardholder}
+          onCardNumberChange={(value) =>
+            setPaymentDraft((current) => ({ ...current, cardNumber: value }))
+          }
+          onExpiryChange={(value) =>
+            setPaymentDraft((current) => ({ ...current, expiry: value }))
+          }
+          onCvcChange={(value) =>
+            setPaymentDraft((current) => ({ ...current, cvc: value }))
+          }
+          onCardholderChange={(value) =>
+            setPaymentDraft((current) => ({ ...current, cardholder: value }))
+          }
           onClose={() => setShowPaymentPanel(false)}
           onConfirm={submitForm}
         />

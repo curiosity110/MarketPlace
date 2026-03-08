@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Heart, Loader2 } from "lucide-react";
 import { toggleFavorite } from "@/lib/actions/favorites";
@@ -30,6 +30,10 @@ export function FavoriteToggleButton({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [favorited, setFavorited] = useState(initialFavorited);
+
+  useEffect(() => {
+    setFavorited(initialFavorited);
+  }, [initialFavorited]);
 
   const isMk = locale === "mk";
   const text = isMk

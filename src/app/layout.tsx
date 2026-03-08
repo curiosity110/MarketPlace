@@ -39,8 +39,8 @@ export default async function RootLayout({
         >
           <div className="min-h-screen bg-background text-foreground">
             <Nav />
-            <main className="min-h-[calc(100vh-4rem)] overflow-x-clip">
-              <Container className="pb-28 pt-4 md:pb-10 md:pt-6">
+            <main className="min-h-[calc(100vh-4rem)] overflow-x-clip" data-no-horizontal-scroll>
+              <Container className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-3 md:pb-10 md:pt-6">
                 {children}
               </Container>
             </main>

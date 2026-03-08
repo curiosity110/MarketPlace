@@ -44,12 +44,12 @@ export function NotificationsList({ locale, items }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
+      <div className="flex justify-stretch sm:justify-end">
         <Button
           type="button"
           size="sm"
           variant="outline"
-          className="h-8 max-w-full gap-1.5 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
+          className="h-10 w-full max-w-full gap-1.5 px-3 text-sm sm:h-9 sm:w-auto sm:px-3"
           disabled={isPending}
           onClick={() => {
             startTransition(async () => {
@@ -71,14 +71,14 @@ export function NotificationsList({ locale, items }: Props) {
           <div
             key={item.id}
             className={cn(
-              "rounded-xl border border-border/70 p-3 sm:rounded-2xl sm:p-4",
+              "rounded-xl border border-border/70 p-3.5 sm:rounded-2xl sm:p-4",
               isRead ? "bg-muted/20" : "bg-card",
             )}
           >
             <Link href={href} className="block">
-              <p className="text-sm font-bold [overflow-wrap:anywhere]">{item.title}</p>
+              <p className="text-sm font-bold leading-6 [overflow-wrap:anywhere]">{item.title}</p>
               {item.body ? (
-                <p className="mt-1 text-sm text-muted-foreground [overflow-wrap:anywhere]">{item.body}</p>
+                <p className="mt-1.5 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">{item.body}</p>
               ) : null}
               <p className="mt-1 text-xs text-muted-foreground">
                 {new Date(item.createdAt).toLocaleDateString(
@@ -92,6 +92,7 @@ export function NotificationsList({ locale, items }: Props) {
                   type="button"
                   size="sm"
                   variant="ghost"
+                  className="min-h-10"
                   onClick={() => {
                     startTransition(async () => {
                       await markNotificationRead(item.id);

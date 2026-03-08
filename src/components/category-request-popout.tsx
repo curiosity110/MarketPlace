@@ -6,6 +6,7 @@ import { FolderPlus, X } from "lucide-react";
 import { CategoryRequestForm } from "@/components/category-request-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
 
 type Category = {
@@ -74,6 +75,7 @@ export function CategoryRequestPopout({
 
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const autoOpenDoneRef = useRef(false);
 
@@ -97,9 +99,9 @@ export function CategoryRequestPopout({
 
   useEffect(() => {
     if (!isOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    previousActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    lockBodyScroll();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") closePopout();
@@ -107,8 +109,11 @@ export function CategoryRequestPopout({
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
+      unlockBodyScroll();
+      if (previousActiveElementRef.current?.isConnected) {
+        previousActiveElementRef.current.focus();
+      }
     };
   }, [isOpen]);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { BadgeCheck, ChevronDown } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { markListingSold } from "@/lib/actions/sales";
@@ -151,14 +152,26 @@ export function MarkSoldPopout({
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                 {text.cancel}
               </Button>
-              <Button type="submit" className="gap-2">
-                <BadgeCheck size={14} />
-                {text.confirm}
-              </Button>
+              <MarkSoldSubmitButton label={text.confirm} />
             </div>
           </form>
         </div>
       </ModalShell>
     </>
+  );
+}
+
+function MarkSoldSubmitButton({
+  label,
+}: {
+  label: string;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" className="gap-2" disabled={pending}>
+      <BadgeCheck size={14} />
+      {label}
+    </Button>
   );
 }

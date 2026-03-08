@@ -102,6 +102,7 @@ export function DashboardListings({
     sort: initialFilters.sort,
     layout: initialFilters.layout,
   }));
+  const deferredQuery = React.useDeferredValue(filters.q);
 
   React.useEffect(() => {
     setFilters((prev) => {
@@ -144,8 +145,9 @@ export function DashboardListings({
   );
 
   const filteredListings = React.useMemo(
-    () => filterDashboardListings(categoryScopedListings, filters, locale),
-    [categoryScopedListings, filters, locale],
+    () =>
+      filterDashboardListings(categoryScopedListings, { ...filters, q: deferredQuery }, locale),
+    [categoryScopedListings, deferredQuery, filters, locale],
   );
 
   const categoryItems = [
@@ -207,7 +209,7 @@ export function DashboardListings({
 
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="break-words text-xl font-semibold tracking-[-0.03em] [overflow-wrap:anywhere]">
+          <h2 className="break-words text-lg font-semibold tracking-[-0.03em] [overflow-wrap:anywhere] sm:text-xl">
             {selectedCategory ? selectedCategory.label : text.myCategories}
           </h2>
           <p className="text-sm text-muted-foreground">

@@ -16,11 +16,13 @@ type Props = {
   titleLabel: string;
   titlePlaceholder: string;
   titleValue: string;
+  titleError: string | null;
   categoryLabel: string;
   categorySearchPlaceholder: string;
   categorySearch: string;
   selectedCategoryId: string;
   categoryOptions: CreateListingCategoryOption[];
+  selectedCategoryLabel: string | null;
   noCategoryMatchLabel: string;
   categoryError: string | null;
   conditionLabel: string;
@@ -37,7 +39,7 @@ type Props = {
   isActionBusy: boolean;
   onTitleChange: (value: string) => void;
   onCategorySearchChange: (value: string) => void;
-  onCategoryChange: (categoryId: string) => void;
+  onCategoryChange: (categoryId: string, label: string) => void;
   onConditionChange: (condition: ListingCondition) => void;
   onCityChange: (cityId: string) => void;
   onDescriptionChange: (value: string) => void;
@@ -49,11 +51,13 @@ export function CreateListingStepDetails({
   titleLabel,
   titlePlaceholder,
   titleValue,
+  titleError,
   categoryLabel,
   categorySearchPlaceholder,
   categorySearch,
   selectedCategoryId,
   categoryOptions,
+  selectedCategoryLabel,
   noCategoryMatchLabel,
   categoryError,
   conditionLabel,
@@ -75,25 +79,17 @@ export function CreateListingStepDetails({
   onCityChange,
   onDescriptionChange,
 }: Props) {
-  const filteredCategories = categorySearch
-    ? categoryOptions.filter((category) =>
-        localizeCategoryName(category, locale)
-          .toLowerCase()
-          .includes(categorySearch.toLowerCase()),
-      )
-    : categoryOptions;
-
   return (
-    <section className="space-y-6">
-      <div className="space-y-1.5">
-        <h2 className="text-[1.9rem] font-semibold tracking-[-0.045em] text-foreground">
+    <section className="space-y-8">
+      <div className="max-w-[30rem] space-y-2">
+        <h2 className="text-[1.85rem] font-semibold tracking-[-0.05em] text-foreground sm:text-[1.95rem]">
           {heading}
         </h2>
       </div>
 
-      <div className="space-y-5">
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-foreground">{titleLabel}</span>
+      <div className="space-y-6">
+        <label className="block space-y-2.5">
+          <span className="text-[0.95rem] font-medium text-foreground">{titleLabel}</span>
           <Input
             name="title"
             value={titleValue}
@@ -101,64 +97,69 @@ export function CreateListingStepDetails({
             placeholder={titlePlaceholder}
             required
             disabled={isActionBusy}
-            className="h-14 rounded-[1.25rem] border-0 bg-card/70 px-4 text-base shadow-none ring-1 ring-border/45"
+            className="h-[3.6rem] rounded-[1.05rem] border-0 bg-[#ece7e1] px-[1.125rem] text-base shadow-none ring-0 placeholder:text-[#8a7d72]"
           />
+          {titleError ? <p className="text-sm text-destructive">{titleError}</p> : null}
         </label>
 
-        <div className="space-y-2">
-          <span className="text-sm font-medium text-foreground">{categoryLabel}</span>
+        <div className="space-y-2.5">
+          <span className="text-[0.95rem] font-medium text-foreground">{categoryLabel}</span>
           <Input
             value={categorySearch}
             onChange={(event) => onCategorySearchChange(event.target.value)}
             placeholder={categorySearchPlaceholder}
             disabled={isActionBusy}
-            className="h-14 rounded-[1.25rem] border-0 bg-card/70 px-4 text-base shadow-none ring-1 ring-border/45"
+            className="h-[3.6rem] rounded-[1.05rem] border-0 bg-[#ece7e1] px-[1.125rem] text-base shadow-none ring-0 placeholder:text-[#8a7d72]"
           />
 
-          <div className="max-h-48 overflow-y-auto rounded-[1.35rem] bg-card/60 ring-1 ring-border/40">
-            {filteredCategories.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">{noCategoryMatchLabel}</p>
-            ) : (
-              <div className="py-1.5">
-                {filteredCategories.map((category) => {
-                  const isSelected = category.id === selectedCategoryId;
+          {selectedCategoryLabel ? (
+            <div className="flex flex-wrap gap-2 pt-1">
+              <span className="inline-flex min-h-9 items-center rounded-full bg-[#f2ebe4] px-3.5 py-1.5 text-sm text-[#4f4338] ring-1 ring-[#dfd4c7]">
+                {selectedCategoryLabel}
+              </span>
+            </div>
+          ) : null}
 
-                  return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => {
-                        onCategoryChange(category.id);
-                        onCategorySearchChange("");
-                      }}
-                      className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-background/60 ${
-                        isSelected ? "text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      <span>{localizeCategoryName(category, locale)}</span>
-                      {isSelected ? (
-                        <span className="rounded-full bg-foreground px-2.5 py-1 text-[11px] font-medium text-background">
-                          {categoryLabel}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="max-h-60 overflow-y-auto rounded-[1.05rem] bg-[#f6f2ed] py-2">
+            {categoryOptions.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-[#74685c]">{noCategoryMatchLabel}</p>
+            ) : (
+              categoryOptions.slice(0, 8).map((category) => {
+                const isSelected = category.id === selectedCategoryId;
+                const label = localizeCategoryName(category, locale);
+
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => onCategoryChange(category.id, label)}
+                    className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-background/50 ${
+                      isSelected ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    <span className="pr-2 leading-5">{label}</span>
+                    {isSelected ? (
+                      <span className="shrink-0 rounded-full bg-[#2e241d] px-2.5 py-1 text-[11px] font-medium text-[#f8f1e7]">
+                        •
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })
             )}
           </div>
           {categoryError ? <p className="text-sm text-destructive">{categoryError}</p> : null}
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-foreground">{conditionLabel}</span>
+          <label className="block space-y-2.5">
+            <span className="text-[0.95rem] font-medium text-foreground">{conditionLabel}</span>
             <Select
               name="condition"
               value={condition}
               onChange={(event) => onConditionChange(event.target.value as ListingCondition)}
               disabled={isActionBusy}
-              className="h-14 rounded-[1.25rem] border-0 bg-card/70 px-4 text-base shadow-none ring-1 ring-border/45"
+              className="h-[3.6rem] rounded-[1.05rem] border-0 bg-[#ece7e1] px-4 text-base shadow-none ring-0"
             >
               <option value={ListingCondition.NEW}>
                 {conditionLabels[ListingCondition.NEW]}
@@ -172,15 +173,15 @@ export function CreateListingStepDetails({
             </Select>
           </label>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-foreground">{cityLabel}</span>
+          <label className="block space-y-2.5">
+            <span className="text-[0.95rem] font-medium text-foreground">{cityLabel}</span>
             <Select
               name="cityId"
               value={cityId}
               onChange={(event) => onCityChange(event.target.value)}
               required
               disabled={isActionBusy}
-              className="h-14 rounded-[1.25rem] border-0 bg-card/70 px-4 text-base shadow-none ring-1 ring-border/45"
+              className="h-[3.6rem] rounded-[1.05rem] border-0 bg-[#ece7e1] px-4 text-base shadow-none ring-0"
             >
               {cities.length === 0 ? (
                 <option disabled>{noCityAvailableLabel}</option>
@@ -199,8 +200,8 @@ export function CreateListingStepDetails({
           </label>
         </div>
 
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-foreground">{descriptionLabel}</span>
+        <label className="block space-y-2.5">
+          <span className="text-[0.95rem] font-medium text-foreground">{descriptionLabel}</span>
           <Textarea
             name="description"
             value={descriptionValue}
@@ -208,7 +209,7 @@ export function CreateListingStepDetails({
             placeholder={descriptionPlaceholder}
             disabled={isActionBusy}
             maxLength={500}
-            className="min-h-32 rounded-[1.35rem] border-0 bg-card/70 px-4 py-3 text-base shadow-none ring-1 ring-border/45"
+            className="min-h-[8.75rem] rounded-[1.05rem] border-0 bg-[#ece7e1] px-[1.125rem] py-3.5 text-base leading-6 shadow-none ring-0 placeholder:text-[#8a7d72]"
           />
         </label>
       </div>

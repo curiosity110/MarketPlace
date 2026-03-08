@@ -1,19 +1,24 @@
 "use client";
 
 import { Currency } from "@prisma/client";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { CreateListingDynamicFieldsSection } from "@/components/create-listing/sections/dynamic-fields-section";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type {
   CreateListingPhoneCountryOption,
   CreateListingPlanOption,
+  CreateListingTemplateMap,
 } from "@/features/create-listing/types";
 
 type Props = {
+  locale: "en" | "mk";
   heading: string;
-  helperText: string;
+  helperText?: string;
   priceLabel: string;
   pricePlaceholder: string;
   priceValue: string;
+  priceError: string | null;
   currency: Currency;
   phoneLabel: string;
   phonePlaceholder: string;
@@ -29,20 +34,31 @@ type Props = {
   monthlyUnlimitedLabel: string;
   packageHint: string;
   plan: CreateListingPlanOption;
+  addMoreDetailsLabel: string;
+  hideMoreDetailsLabel: string;
+  moreDetailsHint: string;
+  moreDetailsEmptyLabel: string;
+  showMoreDetails: boolean;
+  selectedCategoryId: string;
+  templatesByCategory: CreateListingTemplateMap;
+  initialDynamicValues?: Record<string, string>;
   isActionBusy: boolean;
   onPriceChange: (value: string) => void;
   onCurrencyChange: (currency: Currency) => void;
   onPhoneCountryChange: (country: string) => void;
   onPhoneChange: (phone: string) => void;
   onPlanChange: (plan: CreateListingPlanOption) => void;
+  onToggleMoreDetails: () => void;
 };
 
 export function CreateListingStepPrice({
+  locale,
   heading,
   helperText,
   priceLabel,
   pricePlaceholder,
   priceValue,
+  priceError,
   currency,
   phoneLabel,
   phonePlaceholder,
@@ -58,27 +74,40 @@ export function CreateListingStepPrice({
   monthlyUnlimitedLabel,
   packageHint,
   plan,
+  addMoreDetailsLabel,
+  hideMoreDetailsLabel,
+  moreDetailsHint,
+  moreDetailsEmptyLabel,
+  showMoreDetails,
+  selectedCategoryId,
+  templatesByCategory,
+  initialDynamicValues,
   isActionBusy,
   onPriceChange,
   onCurrencyChange,
   onPhoneCountryChange,
   onPhoneChange,
   onPlanChange,
+  onToggleMoreDetails,
 }: Props) {
   return (
-    <section className="space-y-6">
-      <div className="space-y-1.5">
-        <h2 className="text-[1.9rem] font-semibold tracking-[-0.045em] text-foreground">
+    <section className="space-y-8">
+      <div className="max-w-[28rem] space-y-2">
+        <h2 className="text-[1.85rem] font-semibold tracking-[-0.05em] text-foreground sm:text-[1.95rem]">
           {heading}
         </h2>
-        <p className="text-sm text-muted-foreground">{helperText}</p>
+        {helperText ? (
+          <p className="text-[0.95rem] leading-6 text-[#74685c]">{helperText}</p>
+        ) : null}
       </div>
 
-      <div className="space-y-5">
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-foreground">{priceLabel}</span>
-          <div className="flex items-center gap-3 rounded-[1.5rem] bg-card/65 px-4 py-4 ring-1 ring-border/40">
-            <span className="text-xl text-muted-foreground">€</span>
+      <div className="space-y-6">
+        <label className="block space-y-2.5">
+          <span className="text-[0.95rem] font-medium text-foreground">{priceLabel}</span>
+          <div className="flex items-center gap-3 rounded-[1.1rem] bg-[#ece7e1] px-4 py-4.5 sm:px-5">
+            <span className="text-xl text-muted-foreground">
+              {currency === Currency.MKD ? "ден" : "€"}
+            </span>
             <Input
               name="price"
               type="number"
@@ -89,29 +118,30 @@ export function CreateListingStepPrice({
               placeholder={pricePlaceholder}
               required
               disabled={isActionBusy}
-              className="h-auto border-0 bg-transparent px-0 py-0 text-3xl font-semibold tracking-[-0.04em] text-foreground shadow-none ring-0 placeholder:text-muted-foreground/65 focus-visible:ring-0"
+              className="h-auto border-0 bg-transparent px-0 py-0 text-[2rem] font-semibold tracking-[-0.05em] text-foreground shadow-none ring-0 placeholder:text-[#9a8f84] focus-visible:ring-0 sm:text-[2.2rem]"
             />
             <Select
               name="currency"
               value={currency}
               onChange={(event) => onCurrencyChange(event.target.value as Currency)}
               disabled={isActionBusy}
-              className="h-11 w-24 rounded-full border-0 bg-background/90 px-4 text-sm shadow-none ring-1 ring-border/40"
+              className="h-11 w-24 rounded-full border-0 bg-background/90 px-4 text-sm shadow-none ring-0"
             >
               <option value={Currency.MKD}>MKD</option>
               <option value={Currency.EUR}>EUR</option>
             </Select>
           </div>
+          {priceError ? <p className="text-sm text-destructive">{priceError}</p> : null}
         </label>
 
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-foreground">{phoneLabel}</span>
+        <label className="block space-y-2.5">
+          <span className="text-[0.95rem] font-medium text-foreground">{phoneLabel}</span>
           <div className="flex gap-2">
             <Select
               value={phoneCountry}
               onChange={(event) => onPhoneCountryChange(event.target.value)}
               disabled={isActionBusy}
-              className="h-14 w-24 rounded-[1.25rem] border-0 bg-card/70 px-3 text-base shadow-none ring-1 ring-border/45"
+              className="h-[3.6rem] w-24 rounded-[1.05rem] border-0 bg-[#ece7e1] px-3 text-base shadow-none ring-0"
             >
               {phoneCountryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -126,17 +156,17 @@ export function CreateListingStepPrice({
               onChange={(event) => onPhoneChange(event.target.value)}
               placeholder={phonePlaceholder}
               disabled={isActionBusy}
-              className="h-14 rounded-[1.25rem] border-0 bg-card/70 px-4 text-base shadow-none ring-1 ring-border/45"
+              className="h-[3.6rem] rounded-[1.05rem] border-0 bg-[#ece7e1] px-[1.125rem] text-base shadow-none ring-0 placeholder:text-[#8a7d72]"
             />
           </div>
           {phoneError ? <p className="text-sm text-destructive">{phoneError}</p> : null}
         </label>
 
         {showPlanSelector ? (
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">{planLabel}</p>
-              <p className="text-sm text-muted-foreground">{packageHint}</p>
+          <div className="space-y-3 rounded-[1.05rem] bg-[#f4eee8] p-4.5">
+            <div className="space-y-1.5">
+              <p className="text-[0.95rem] font-medium text-foreground">{planLabel}</p>
+              <p className="max-w-[30rem] text-[0.92rem] leading-6 text-[#74685c]">{packageHint}</p>
             </div>
 
             <div className="space-y-2.5">
@@ -144,15 +174,15 @@ export function CreateListingStepPrice({
                 type="button"
                 onClick={() => onPlanChange("pay-per-listing")}
                 disabled={isActionBusy}
-                className={`flex w-full items-center justify-between rounded-[1.35rem] px-4 py-4 text-left transition-colors ${
+                className={`flex min-h-[4.5rem] w-full items-center justify-between gap-3 rounded-[1rem] px-4 py-4 text-left transition-colors ${
                   plan === "pay-per-listing"
-                    ? "bg-primary/10 text-foreground ring-1 ring-primary/25"
-                    : "bg-card/60 text-foreground ring-1 ring-border/40 hover:bg-card"
+                    ? "bg-[#e8d3c5] text-foreground ring-1 ring-[#d3b8a7]"
+                    : "bg-background/65 text-foreground hover:bg-background"
                 }`}
               >
                 <div className="space-y-1">
                   <p className="text-sm font-medium">{payPerListingLabel}</p>
-                  <p className="text-xs text-muted-foreground">{daysActiveLabel}</p>
+                  <p className="text-[0.82rem] text-[#74685c]">{daysActiveLabel}</p>
                 </div>
                 <p className="text-sm font-semibold text-foreground">€4</p>
               </button>
@@ -161,21 +191,47 @@ export function CreateListingStepPrice({
                 type="button"
                 onClick={() => onPlanChange("subscription")}
                 disabled={isActionBusy}
-                className={`flex w-full items-center justify-between rounded-[1.35rem] px-4 py-4 text-left transition-colors ${
+                className={`flex min-h-[4.5rem] w-full items-center justify-between gap-3 rounded-[1rem] px-4 py-4 text-left transition-colors ${
                   plan === "subscription"
-                    ? "bg-primary/10 text-foreground ring-1 ring-primary/25"
-                    : "bg-card/60 text-foreground ring-1 ring-border/40 hover:bg-card"
+                    ? "bg-[#e8d3c5] text-foreground ring-1 ring-[#d3b8a7]"
+                    : "bg-background/65 text-foreground hover:bg-background"
                 }`}
               >
                 <div className="space-y-1">
                   <p className="text-sm font-medium">{subscriptionLabel}</p>
-                  <p className="text-xs text-muted-foreground">{monthlyUnlimitedLabel}</p>
+                  <p className="text-[0.82rem] text-[#74685c]">{monthlyUnlimitedLabel}</p>
                 </div>
                 <p className="text-sm font-semibold text-foreground">€30/mo</p>
               </button>
             </div>
           </div>
         ) : null}
+
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={onToggleMoreDetails}
+            disabled={isActionBusy}
+            className="flex min-h-[3.3rem] w-full items-center justify-between rounded-[1rem] bg-[#f4eee8] px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-[#eee5dd]"
+          >
+            <span>{showMoreDetails ? hideMoreDetailsLabel : addMoreDetailsLabel}</span>
+            {showMoreDetails ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </button>
+
+          {showMoreDetails ? (
+            <div className="space-y-3">
+              <p className="max-w-[30rem] text-[0.92rem] leading-6 text-[#74685c]">{moreDetailsHint}</p>
+              <CreateListingDynamicFieldsSection
+                titleLabel={addMoreDetailsLabel}
+                emptyLabel={moreDetailsEmptyLabel}
+                categoryId={selectedCategoryId}
+                templatesByCategory={templatesByCategory}
+                initialValues={initialDynamicValues}
+                locale={locale}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   );

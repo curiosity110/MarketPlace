@@ -105,6 +105,43 @@ body {
   overflow-x: hidden;
 }
 
+body,
+#__next {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+[data-mobile-safe-bottom] {
+  padding-bottom: calc(var(--mobile-safe-bottom, 0px) + env(safe-area-inset-bottom, 0px));
+}
+
+[data-mobile-safe-top] {
+  padding-top: calc(var(--mobile-safe-top, 0px) + env(safe-area-inset-top, 0px));
+}
+
+[data-no-horizontal-scroll] {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 h1,
 h2,
 h3,
@@ -207,5 +244,15 @@ textarea:focus-visible {
 @media (min-width: 1024px) {
   .responsive-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overscroll-behavior-x: none;
   }
 }

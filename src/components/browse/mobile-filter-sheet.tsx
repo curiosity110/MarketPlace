@@ -18,6 +18,7 @@ import {
 } from "@/components/browse/filters.utils";
 import { Button } from "@/components/ui/button";
 import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 
 type Props = {
   categories: CategoryOption[];
@@ -89,10 +90,9 @@ export function MobileFilterSheet({
 
   React.useEffect(() => {
     if (!isOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    lockBodyScroll();
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlockBodyScroll();
     };
   }, [isOpen]);
 

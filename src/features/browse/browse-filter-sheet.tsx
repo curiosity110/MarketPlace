@@ -13,6 +13,7 @@ import type {
 import { EMPTY_BROWSE_FILTER_STATE } from "@/components/browse-filters.utils";
 import { Button } from "@/components/ui/button";
 import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 
 type Props = {
   open: boolean;
@@ -45,6 +46,7 @@ export function BrowseFilterSheet({
   onDynamicValuesChange,
   onApply,
 }: Props) {
+  const previousActiveElementRef = React.useRef<HTMLElement | null>(null);
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -62,12 +64,28 @@ export function BrowseFilterSheet({
 
   React.useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
+
+    previousActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    lockBodyScroll();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
     };
-  }, [open]);
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      unlockBodyScroll();
+      if (previousActiveElementRef.current?.isConnected) {
+        previousActiveElementRef.current.focus();
+      }
+    };
+  }, [onClose, open]);
 
   if (!open) return null;
 
@@ -79,13 +97,16 @@ export function BrowseFilterSheet({
         aria-label={text.close}
         onClick={onClose}
       />
-      <div className="absolute inset-x-0 bottom-0 flex h-[84dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-[1.8rem] bg-background shadow-[0_24px_64px_-36px_rgba(48,35,24,0.38)] ring-1 ring-black/8 md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[min(420px,100vw)] md:rounded-none md:ring-l md:ring-t-0 md:ring-r-0 md:ring-b-0 dark:ring-white/10">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/40 bg-background/96 px-5 py-4 backdrop-blur-xl">
+      <div
+        className="absolute inset-x-0 bottom-0 flex h-[88dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-[1.8rem] bg-background shadow-[0_24px_64px_-36px_rgba(48,35,24,0.38)] ring-1 ring-black/8 md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[min(420px,100vw)] md:rounded-none md:ring-l md:ring-t-0 md:ring-r-0 md:ring-b-0 dark:ring-white/10"
+        data-mobile-safe-bottom
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/40 bg-background/96 px-4 py-4 backdrop-blur-xl sm:px-5">
           <p className={uiTypography.eyebrow}>{text.filters}</p>
           <div className="flex items-center gap-3">
             <button
               type="button"
-              className="text-xs font-semibold text-primary hover:underline"
+              className="min-h-10 text-xs font-semibold text-primary hover:underline"
               onClick={() => {
                 onChange(EMPTY_BROWSE_FILTER_STATE);
                 onDynamicValuesChange({});
@@ -95,16 +116,16 @@ export function BrowseFilterSheet({
             </button>
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={onClose}
               aria-label={text.close}
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">
           <BrowseFilters
             mode="mobile"
             categories={categories}
@@ -123,10 +144,11 @@ export function BrowseFilterSheet({
           />
         </div>
 
-        <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/40 bg-background/96 p-5 backdrop-blur-xl">
+        <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/40 bg-background/96 p-4 backdrop-blur-xl sm:p-5">
           <Button
             type="button"
             variant="outline"
+            className="min-h-11"
             onClick={() => {
               onChange(EMPTY_BROWSE_FILTER_STATE);
               onDynamicValuesChange({});
@@ -134,7 +156,7 @@ export function BrowseFilterSheet({
           >
             {text.clearAll}
           </Button>
-          <Button type="button" onClick={onApply}>
+          <Button type="button" className="min-h-11" onClick={onApply}>
             {text.apply}
           </Button>
         </div>

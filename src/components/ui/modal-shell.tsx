@@ -1,5 +1,10 @@
+"use client";
+
 import type React from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 import { uiModal } from "@/components/ui/ui-patterns";
 
 type ModalShellProps = {
@@ -23,10 +28,43 @@ export function ModalShell({
   align = "center",
   backdropClassName,
 }: ModalShellProps) {
-  if (!open) return null;
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
-  // Generic modal frame: backdrop/positioning/focus surface, inner content stays feature-owned.
-  return (
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    previousActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    lockBodyScroll();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    const frame = window.requestAnimationFrame(() => {
+      panelRef.current?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKeyDown);
+      unlockBodyScroll();
+      if (previousActiveElementRef.current?.isConnected) {
+        previousActiveElementRef.current.focus();
+      }
+    };
+  }, [onClose, open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className={cn(
         align === "top" ? uiModal.overlayTop : uiModal.overlayCenter,
@@ -42,9 +80,14 @@ export function ModalShell({
         onClick={onClose}
         className={cn(uiModal.backdrop, backdropClassName)}
       />
-      <div className={cn(uiModal.panel, "max-w-full min-w-0 overflow-x-hidden", className)}>
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className={cn(uiModal.panel, "max-w-full min-w-0 overflow-x-hidden", className)}
+      >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

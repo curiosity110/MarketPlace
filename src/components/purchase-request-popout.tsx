@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { BadgeCheck } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createPurchaseRequest } from "@/lib/actions/purchase-requests";
@@ -91,14 +92,26 @@ export function PurchaseRequestPopout({ listingId, locale, className }: Props) {
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                 {text.cancel}
               </Button>
-              <Button type="submit" className="gap-2">
-                <BadgeCheck size={14} />
-                {text.send}
-              </Button>
+              <PurchaseRequestSubmitButton label={text.send} />
             </div>
           </form>
         </div>
       </ModalShell>
     </>
+  );
+}
+
+function PurchaseRequestSubmitButton({
+  label,
+}: {
+  label: string;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" className="gap-2" disabled={pending}>
+      <BadgeCheck size={14} />
+      {label}
+    </Button>
   );
 }

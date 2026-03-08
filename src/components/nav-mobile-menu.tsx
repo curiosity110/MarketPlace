@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 import type { Locale } from "@/lib/i18n";
 
 type Props = {
@@ -46,31 +47,14 @@ function resolveNextPath(pathname: string) {
   return pathname;
 }
 
-const COLLISION_PADDING = 12;
-
 export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
   const pathname = usePathname() || "/";
   const [open, setOpen] = useState(false);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; left: number; width: number } | null>(
-    null,
-  );
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const nextPath = resolveNextPath(pathname);
   const encodedNext = encodeURIComponent(nextPath);
   const canPortal = typeof document !== "undefined";
-
-  const updatePanelPosition = useCallback(() => {
-    if (typeof window === "undefined" || !triggerRef.current) return;
-
-    const rect = triggerRef.current.getBoundingClientRect();
-    const width = Math.min(window.innerWidth - 16, 320);
-    const maxLeft = window.innerWidth - width - COLLISION_PADDING;
-    const left = Math.max(COLLISION_PADDING, Math.min(rect.right - width, maxLeft));
-    const top = Math.max(COLLISION_PADDING, rect.bottom + 8);
-
-    setPanelStyle({ top, left, width });
-  }, []);
 
   useEffect(() => {
     setOpen(false);
@@ -90,7 +74,6 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
-        triggerRef.current?.focus();
       }
     };
 
@@ -107,17 +90,15 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
 
   useEffect(() => {
     if (!open) return;
-
-    const raf = window.requestAnimationFrame(updatePanelPosition);
-    window.addEventListener("resize", updatePanelPosition);
-    window.addEventListener("scroll", updatePanelPosition, true);
-
+    lockBodyScroll();
     return () => {
-      window.cancelAnimationFrame(raf);
-      window.removeEventListener("resize", updatePanelPosition);
-      window.removeEventListener("scroll", updatePanelPosition, true);
+      unlockBodyScroll();
+      const triggerButton = triggerRef.current?.querySelector("button");
+      if (triggerButton instanceof HTMLButtonElement && triggerButton.isConnected) {
+        triggerButton.focus();
+      }
     };
-  }, [open, updatePanelPosition]);
+  }, [open]);
 
   return (
     <>
@@ -126,7 +107,7 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
           type="button"
           variant="outline"
           size="sm"
-          className="h-9 w-9 p-0"
+          className="h-10 w-10 p-0"
           aria-label={labels.menu}
           aria-expanded={open}
           aria-haspopup="dialog"
@@ -136,42 +117,40 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
         </Button>
       </div>
 
-      {open && canPortal && panelStyle
+      {open && canPortal
         ? createPortal(
             <div className="fixed inset-0 z-[90] sm:hidden">
               <button
                 type="button"
                 aria-label={labels.menu}
-                className="absolute inset-0 bg-black/18"
+                className="absolute inset-0 bg-black/24 backdrop-blur-[2px]"
                 onClick={() => setOpen(false)}
               />
 
               <div
                 ref={panelRef}
-                className="absolute overflow-hidden rounded-[1.5rem] border border-border/55 bg-background/96 p-3 shadow-[0_24px_64px_-32px_rgba(48,35,24,0.34)] backdrop-blur-xl"
-                style={{
-                  top: panelStyle.top,
-                  left: panelStyle.left,
-                  width: panelStyle.width,
-                  maxHeight: "min(70vh, 32rem)",
-                }}
+                className="absolute inset-x-0 bottom-0 overflow-hidden rounded-t-[1.75rem] border border-border/55 bg-background/96 p-4 shadow-[0_24px_64px_-32px_rgba(48,35,24,0.34)] backdrop-blur-xl"
+                style={{ maxHeight: "min(82dvh, 42rem)" }}
+                data-mobile-safe-bottom
+                data-mobile-safe-top
               >
-                <div className="space-y-3 overflow-y-auto pr-1">
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/80" aria-hidden="true" />
+                <div className="space-y-4 overflow-y-auto pr-1">
                   {isLoggedIn ? (
                     <div className="space-y-2">
                       <Link href="/profile" onClick={() => setOpen(false)}>
-                        <Button type="button" variant="outline" className="w-full justify-start">
+                        <Button type="button" variant="outline" className="min-h-11 w-full justify-start">
                           {labels.profile}
                         </Button>
                       </Link>
                       <Link href="/dashboard" onClick={() => setOpen(false)}>
-                        <Button type="button" variant="outline" className="w-full justify-start">
+                        <Button type="button" variant="outline" className="min-h-11 w-full justify-start">
                           {labels.dashboard}
                         </Button>
                       </Link>
                       {isAdmin ? (
                         <Link href="/admin" onClick={() => setOpen(false)}>
-                          <Button type="button" variant="outline" className="w-full justify-start">
+                          <Button type="button" variant="outline" className="min-h-11 w-full justify-start">
                             {labels.admin}
                           </Button>
                         </Link>
@@ -180,19 +159,19 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
                   ) : (
                     <div className="space-y-2">
                       <Link href={`/login?next=${encodedNext}`} onClick={() => setOpen(false)}>
-                        <Button type="button" className="w-full justify-start">
+                        <Button type="button" className="min-h-11 w-full justify-start">
                           {labels.login}
                         </Button>
                       </Link>
                       <Link href={`/register?next=${encodedNext}`} onClick={() => setOpen(false)}>
-                        <Button type="button" variant="outline" className="w-full justify-start">
+                        <Button type="button" variant="outline" className="min-h-11 w-full justify-start">
                           {labels.register}
                         </Button>
                       </Link>
                     </div>
                   )}
 
-                  <div className="space-y-2 border-t border-border/70 pt-3">
+                  <div className="space-y-3 border-t border-border/70 pt-4">
                     <div className="space-y-1">
                       <span className="text-xs font-medium text-muted-foreground">
                         {labels.language}
@@ -216,7 +195,7 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
                         method="post"
                         onSubmit={() => setOpen(false)}
                       >
-                        <Button type="submit" variant="outline" className="w-full justify-start">
+                        <Button type="submit" variant="outline" className="min-h-11 w-full justify-start">
                           {labels.logout}
                         </Button>
                       </form>

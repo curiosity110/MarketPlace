@@ -220,16 +220,16 @@ export function DynamicFieldsEditor({
 
   if (templates.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+      <div className="rounded-[1rem] border border-dashed border-border/80 bg-background/45 p-4 text-sm text-[#74685c]">
         {text.noAdditionalFields}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 p-3">
+    <div className="space-y-4 rounded-[1rem] border border-border/60 bg-[#f7f3ee] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-muted-foreground">
+        <p className="text-sm font-semibold text-[#5f544a]">
           {text.categoryFields}
         </p>
         <Button type="button" size="sm" variant="ghost" onClick={clearFields}>
@@ -237,7 +237,7 @@ export function DynamicFieldsEditor({
         </Button>
       </div>
 
-      <div className="grid gap-2 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         {templates.map((template, index) => {
           const name = `${DYNAMIC_FIELD_PREFIX}${template.key}`;
           const value = fieldValues[template.key] ?? "";
@@ -246,9 +246,9 @@ export function DynamicFieldsEditor({
           return (
             <label
               key={template.id}
-              className={`space-y-1 text-sm ${isLastOddItem ? "md:col-span-2" : ""}`}
+              className={`space-y-1.5 text-sm ${isLastOddItem ? "md:col-span-2" : ""}`}
             >
-              <span className="font-medium">
+              <span className="font-medium text-foreground">
                 {template.label}
                 {template.required && (
                   <span className="ml-1 text-destructive">*</span>

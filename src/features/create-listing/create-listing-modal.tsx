@@ -59,7 +59,7 @@ export function CreateListingModal({
       onClose={onClose}
     >
       <div
-        className={`relative mx-auto flex max-h-[100dvh] w-full min-w-0 max-w-[640px] flex-col overflow-hidden bg-background shadow-[0_30px_80px_-44px_rgba(48,35,24,0.42)] ring-1 ring-black/8 transition-all duration-200 sm:max-h-[92dvh] sm:rounded-[1.8rem] dark:ring-white/10 ${
+        className={`relative mx-auto flex h-[100dvh] w-full min-w-0 max-w-[620px] flex-col overflow-hidden bg-background shadow-[0_30px_80px_-44px_rgba(48,35,24,0.42)] ring-1 ring-black/8 transition-all duration-200 sm:h-auto sm:max-h-[92dvh] sm:rounded-[1.9rem] sm:border sm:border-white/35 dark:ring-white/10 ${
           isActive
             ? "translate-y-0 scale-100 opacity-100"
             : "translate-y-2 scale-[0.99] opacity-0"

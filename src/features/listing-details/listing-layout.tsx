@@ -40,12 +40,12 @@ export function ListingDetailsLayout({
   const isSold = Boolean(listing.sale);
 
   return (
-    <div className="min-w-0 max-w-4xl mx-auto">
+    <div className="mx-auto min-w-0 max-w-4xl">
       {/* Back Link */}
-      <div className="mb-4 flex items-center justify-between gap-3 px-4 sm:px-0">
+      <div className="mb-4 flex items-center justify-between gap-3 px-1 sm:px-0">
         <Link
           href={backToBrowseHref}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="flex min-h-10 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronLeft size={18} />
           <span>{text.backToBrowse}</span>
@@ -54,7 +54,7 @@ export function ListingDetailsLayout({
         {!isOwner && (
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Share"
           >
             <Share2 size={18} />
@@ -73,7 +73,7 @@ export function ListingDetailsLayout({
       </div>
 
       {/* Hero Info Below Media */}
-      <div className="mb-6 sm:mb-8 px-4 sm:px-0">
+      <div className="mb-6 px-1 sm:mb-8 sm:px-0">
         <ListingHero
           category={categoryLabel}
           condition={listing.condition}
@@ -87,7 +87,7 @@ export function ListingDetailsLayout({
       </div>
 
       {/* Description */}
-      <div className="mb-8 sm:mb-10 px-4 sm:px-0">
+      <div className="mb-8 px-1 sm:mb-10 sm:px-0">
         <ListingDescription
           locale={locale}
           descriptionTitle={text.description}
@@ -102,7 +102,7 @@ export function ListingDetailsLayout({
 
       {/* Seller Contact - Clear CTA */}
       {!isOwner && (
-        <div className="mb-8 sm:mb-10 px-4 sm:px-0">
+        <div className="mb-8 px-1 sm:mb-10 sm:px-0">
           <ListingContact
             locale={locale}
             listingId={listing.id}
@@ -121,7 +121,7 @@ export function ListingDetailsLayout({
 
       {/* Owner Actions - Subtle */}
       {isOwner && (
-        <div className="px-4 sm:px-0 flex gap-3 text-sm">
+        <div className="flex gap-3 px-1 text-sm sm:px-0">
           <ListingOwnerActions
             listingId={listing.id}
             priceCents={listing.priceCents}

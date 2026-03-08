@@ -16,7 +16,7 @@ export function PageShell({
     <PageContainer
       size={size}
       className={cn(
-        "space-y-6 px-0 pb-8 pt-2 sm:space-y-8 sm:pb-10",
+        "space-y-5 px-0 pb-6 pt-1.5 sm:space-y-8 sm:pb-10 sm:pt-2",
         className,
       )}
       {...props}
