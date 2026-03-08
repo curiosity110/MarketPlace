@@ -52,10 +52,10 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
   const isMk = locale === "mk";
   const text = isMk
     ? {
-        notifications: "Известувања",
-        noNotifications: "Нема известувања.",
-        markRead: "Означи прочитано",
-        markAllRead: "Означи сите прочитани",
+        notifications: "Ð˜Ð·Ð²ÐµÑÑ‚ÑƒÐ²Ð°ÑšÐ°",
+        noNotifications: "ÐÐµÐ¼Ð° Ð¸Ð·Ð²ÐµÑÑ‚ÑƒÐ²Ð°ÑšÐ°.",
+        markRead: "ÐžÐ·Ð½Ð°Ñ‡Ð¸ Ð¿Ñ€Ð¾Ñ‡Ð¸Ñ‚Ð°Ð½Ð¾",
+        markAllRead: "ÐžÐ·Ð½Ð°Ñ‡Ð¸ ÑÐ¸Ñ‚Ðµ Ð¿Ñ€Ð¾Ñ‡Ð¸Ñ‚Ð°Ð½Ð¸",
       }
     : {
         notifications: "Notifications",
@@ -64,49 +64,28 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
         markAllRead: "Mark all read",
       };
 
+  const closePanel = useCallback(() => {
+    setOpen(false);
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const media = window.matchMedia("(max-width: 639px)");
     const onChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+
     if (typeof media.addEventListener === "function") {
       media.addEventListener("change", onChange);
       return () => media.removeEventListener("change", onChange);
     }
+
     media.addListener(onChange);
     return () => media.removeListener(onChange);
   }, []);
 
-  useEffect(() => {
-    function onPointerDown(event: MouseEvent | TouchEvent) {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (triggerRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      setOpen(false);
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    }
-
-    if (!open) return;
-    window.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("touchstart", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("touchstart", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
   const updateDesktopPosition = useCallback(() => {
-    if (typeof window === "undefined") return;
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
+    if (typeof window === "undefined" || !triggerRef.current) return;
 
+    const rect = triggerRef.current.getBoundingClientRect();
     const width = Math.min(window.innerWidth * 0.92, 360);
     const alignEndLeft = rect.right - width;
     const maxLeft = window.innerWidth - width - DESKTOP_COLLISION_PADDING;
@@ -129,10 +108,41 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
   }, []);
 
   useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (triggerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      closePanel();
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closePanel();
+        triggerRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("touchstart", onPointerDown, { passive: true });
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("touchstart", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [closePanel, open]);
+
+  useEffect(() => {
     if (!open || isMobile) return;
+
     const raf = window.requestAnimationFrame(updateDesktopPosition);
     window.addEventListener("resize", updateDesktopPosition);
     window.addEventListener("scroll", updateDesktopPosition, true);
+
     return () => {
       window.cancelAnimationFrame(raf);
       window.removeEventListener("resize", updateDesktopPosition);
@@ -145,6 +155,7 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
     return isRead ? sum : sum + 1;
   }, 0);
   const badgeCount = Math.max(unreadCount, unreadLocalCount);
+  const canPortal = typeof document !== "undefined";
 
   const panelContent = (
     <div className="space-y-2 p-2.5 sm:p-3">
@@ -194,7 +205,7 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
                 <Link
                   href={href}
                   className="block"
-                  onClick={() => setOpen(false)}
+                  onClick={() => closePanel()}
                 >
                   <p className="text-sm font-semibold [overflow-wrap:anywhere]">{item.title}</p>
                   {item.body ? (
@@ -208,7 +219,7 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
                     )}
                   </p>
                 </Link>
-                {!isRead && (
+                {!isRead ? (
                   <div className="mt-1 flex justify-end">
                     <Button
                       type="button"
@@ -227,7 +238,7 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
                       {text.markRead}
                     </Button>
                   </div>
-                )}
+                ) : null}
               </div>
             );
           })}
@@ -236,33 +247,34 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
     </div>
   );
 
-  const canPortal = typeof document !== "undefined";
-
   return (
-    <div className="relative" ref={triggerRef}>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="relative h-9 w-9 p-0"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-label={text.notifications}
-      >
-        <Bell size={16} />
-        {badgeCount > 0 && (
-          <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-            {badgeCount > 99 ? "99+" : badgeCount}
-          </span>
-        )}
-      </Button>
+    <>
+      <div ref={triggerRef}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="relative h-9 w-9 p-0"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-label={text.notifications}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+        >
+          <Bell size={16} />
+          {badgeCount > 0 ? (
+            <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+              {badgeCount > 99 ? "99+" : badgeCount}
+            </span>
+          ) : null}
+        </Button>
+      </div>
 
       {open && !isMobile && canPortal && desktopPanelStyle
         ? createPortal(
             <div
               ref={panelRef}
-              className="z-[60] w-[min(92vw,360px)] rounded-2xl border border-border bg-background shadow-2xl"
+              className="fixed z-[90] rounded-[1.6rem] border border-border/55 bg-background/95 shadow-[0_24px_64px_-32px_rgba(48,35,24,0.34)] backdrop-blur-xl"
               style={{
-                position: "fixed",
                 top: desktopPanelStyle.top,
                 left: desktopPanelStyle.left,
                 width: desktopPanelStyle.width,
@@ -276,16 +288,16 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
 
       {open && isMobile && canPortal
         ? createPortal(
-            <div className="fixed inset-0 z-[60] sm:hidden">
+            <div className="fixed inset-0 z-[90] sm:hidden">
               <button
                 type="button"
                 aria-label={text.notifications}
                 className="absolute inset-0 bg-black/25 backdrop-blur-[1px]"
-                onClick={() => setOpen(false)}
+                onClick={closePanel}
               />
               <div
                 ref={panelRef}
-                className="absolute inset-x-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 max-h-[68dvh] overflow-hidden rounded-[1.5rem] border border-border/70 bg-background/98 shadow-[0_24px_64px_-36px_rgba(15,23,42,0.45)] backdrop-blur-sm"
+                className="absolute inset-x-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] max-h-[68dvh] overflow-hidden rounded-[1.6rem] border border-border/55 bg-background/96 shadow-[0_24px_64px_-36px_rgba(48,35,24,0.38)] backdrop-blur-xl"
               >
                 {panelContent}
               </div>
@@ -293,6 +305,6 @@ export function NotificationsBell({ locale, items, unreadCount }: Props) {
             document.body,
           )
         : null}
-    </div>
+    </>
   );
 }

@@ -26,7 +26,7 @@ export function HomeTrustSection({
       />
 
       {dbUnavailable ? (
-        <Card className="border-warning/30 bg-warning/10">
+        <Card className="bg-warning/10">
           <CardContent className="py-4 text-sm text-foreground">
             {dbUnavailableLabel}
           </CardContent>

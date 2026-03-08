@@ -27,7 +27,7 @@ export function ListingSellerCard({
           {text.report}
         </span>
       </summary>
-      <div className="absolute right-0 top-11 z-20 w-[min(92vw,360px)] max-w-full rounded-xl border border-border/80 bg-background p-3 shadow-xl">
+      <div className="absolute right-0 top-11 z-20 w-[min(92vw,360px)] max-w-full rounded-[1.2rem] border border-border/55 bg-background/95 p-3 shadow-[0_24px_64px_-32px_rgba(48,35,24,0.32)] backdrop-blur-xl">
         <p className="text-sm font-semibold">{text.reportListing}</p>
         <form action="/api/reports" method="post" className="mt-3 space-y-2">
           <input type="hidden" name="targetType" value="LISTING" />
@@ -43,7 +43,7 @@ export function ListingSellerCard({
             <span>{text.reportReason}</span>
             <select
               name="reasonCode"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              className="h-10 w-full rounded-full border border-input bg-background px-4 text-sm text-foreground"
               defaultValue="fake"
             >
               <option value="fake">{text.reportReasonFake}</option>
@@ -55,7 +55,7 @@ export function ListingSellerCard({
           <textarea
             name="details"
             maxLength={500}
-            className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm"
+            className="min-h-24 w-full rounded-[1rem] border border-border/55 bg-input px-3 py-2 text-sm"
             placeholder={text.reportDetails}
           />
           <Button type="submit" variant="outline" className="w-full justify-center gap-2">

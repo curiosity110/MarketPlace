@@ -95,7 +95,7 @@ export function DashboardToolbar({
   ] as const satisfies Array<{ value: DashboardSort; label: string }>;
 
   return (
-    <div className="space-y-3 rounded-[1.1rem] border border-border/50 bg-muted/18 p-3 sm:p-4">
+    <div className="space-y-4 rounded-[1.6rem] border border-border/45 bg-card/68 p-4 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="overflow-x-auto pb-1">
           <div className="inline-flex min-w-max items-center gap-2">
@@ -107,8 +107,8 @@ export function DashboardToolbar({
                   type="button"
                   aria-pressed={isActive}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors",
-                    isActive ? "bg-foreground text-background" : "bg-background text-foreground",
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
+                    isActive ? "bg-foreground text-background" : "bg-background/75 text-foreground",
                   )}
                   onClick={() => applyChange({ cat: category.id })}
                 >
@@ -138,8 +138,8 @@ export function DashboardToolbar({
                   type="button"
                   aria-pressed={isActive}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors",
-                    isActive ? "bg-foreground text-background" : "bg-background text-foreground",
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
+                    isActive ? "bg-foreground text-background" : "bg-background/75 text-foreground",
                     status.count === 0 ? "opacity-65" : "",
                   )}
                   onClick={() => applyChange({ view: status.key })}
@@ -209,12 +209,12 @@ export function DashboardToolbar({
           ))}
         </Select>
 
-        <div className="inline-flex rounded-xl bg-background p-1 ring-1 ring-border/50">
+        <div className="inline-flex rounded-full bg-background p-1 ring-1 ring-border/50">
           <button
             type="button"
             aria-pressed={current.layout === "grid"}
             className={cn(
-              "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold transition-colors",
+              "inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors",
               current.layout === "grid" ? "bg-card shadow-sm" : "text-muted-foreground",
             )}
             onClick={() => applyChange({ layout: "grid" as DashboardLayout })}
@@ -226,7 +226,7 @@ export function DashboardToolbar({
             type="button"
             aria-pressed={current.layout === "list"}
             className={cn(
-              "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold transition-colors",
+              "inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors",
               current.layout === "list" ? "bg-card shadow-sm" : "text-muted-foreground",
             )}
             onClick={() => applyChange({ layout: "list" as DashboardLayout })}

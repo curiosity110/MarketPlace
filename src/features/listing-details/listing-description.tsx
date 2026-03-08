@@ -1,5 +1,4 @@
 import { CarSpecBento } from "@/components/car-spec-bento";
-import { SectionBlock } from "@/components/ui/layout";
 import type { ListingDescriptionProps } from "@/features/listing-details/types";
 
 export function ListingDescription({
@@ -16,35 +15,40 @@ export function ListingDescription({
   const hasCategoryDetails = isCarCategory || categoryDetails.length > 0;
 
   return (
-    <div className="space-y-4">
-      <SectionBlock title={descriptionTitle}>
-        <p className="max-w-[74ch] whitespace-pre-wrap break-words text-sm leading-7 text-foreground/88 [overflow-wrap:anywhere] sm:text-[0.98rem]">
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <h2 className="text-[1.4rem] font-semibold tracking-[-0.03em] text-foreground">
+          {descriptionTitle}
+        </h2>
+        <p className="max-w-[74ch] whitespace-pre-wrap break-words text-[0.98rem] leading-8 text-foreground/88 [overflow-wrap:anywhere]">
           {description}
         </p>
-      </SectionBlock>
+      </section>
 
       {(hasCategoryDetails || !isCarCategory) && (
-        <SectionBlock title={categoryDetailsTitle}>
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {categoryDetailsTitle}
+          </h3>
           {isCarCategory ? (
             <CarSpecBento locale={locale} valuesByKey={valuesByKey} />
           ) : categoryDetails.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
               {categoryDetails.map((detail) => (
-                <div
-                  key={detail.id}
-                  className="rounded-[1rem] bg-muted/28 px-3 py-3 ring-1 ring-black/5 dark:ring-white/10"
-                >
-                  <p className="text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                <div key={detail.id} className="min-w-[180px]">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                     {detail.label}
                   </p>
-                  <p className="mt-1 break-words text-sm font-medium [overflow-wrap:anywhere]">
+                  <p className="mt-0.5 break-words text-sm font-medium text-foreground/88 [overflow-wrap:anywhere]">
                     {detail.value}
                   </p>
                 </div>
               ))}
             </div>
-          ) : null}
-        </SectionBlock>
+          ) : (
+            <p className="text-sm text-muted-foreground">{noCategoryDetailsLabel}</p>
+          )}
+        </section>
       )}
     </div>
   );

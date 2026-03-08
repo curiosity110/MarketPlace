@@ -183,7 +183,7 @@ export function DashboardListings({
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-5">
       <DashboardToolbar
         categories={categoryItems}
         statuses={statusItems}
@@ -207,7 +207,7 @@ export function DashboardListings({
 
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="break-words text-base font-semibold tracking-tight [overflow-wrap:anywhere]">
+          <h2 className="break-words text-xl font-semibold tracking-[-0.03em] [overflow-wrap:anywhere]">
             {selectedCategory ? selectedCategory.label : text.myCategories}
           </h2>
           <p className="text-sm text-muted-foreground">

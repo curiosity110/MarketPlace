@@ -25,10 +25,8 @@ export function HomeLatestListingsSection({
 }: Props) {
   return (
     <section className="max-w-full min-w-0 space-y-5 overflow-x-hidden">
-      <div className="min-w-0">
-        <h2 className={uiTypography.pageTitle}>
-          {text.latestListings}
-        </h2>
+      <div className="min-w-0 space-y-1">
+        <h2 className={uiTypography.pageTitle}>{text.latestListings}</h2>
       </div>
 
       {latestListings.length === 0 ? (
@@ -41,7 +39,7 @@ export function HomeLatestListingsSection({
           </CardContent>
         </Card>
       ) : (
-        <div className="responsive-grid gap-4">
+        <div className="responsive-grid gap-5">
           {latestListings.map((listing) => (
             <ListingCard
               key={listing.id}

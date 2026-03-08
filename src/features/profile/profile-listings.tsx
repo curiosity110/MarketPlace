@@ -29,7 +29,7 @@ export function ProfileListings({
       {activeListings.length === 0 ? (
         <EmptyState title={emptyLabel} />
       ) : (
-        <div className="responsive-grid gap-3">
+        <div className="responsive-grid gap-5">
           {activeListings.map((listing) => (
             <ListingCard
               key={listing.id}

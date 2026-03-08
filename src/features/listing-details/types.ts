@@ -11,6 +11,7 @@ export type ListingDetailsCategoryDetail = {
 export type ListingDetailsText = {
   dbUnavailable: string;
   backToBrowse: string;
+  share: string;
   price: string;
   reportSubmitted: string;
   description: string;
@@ -43,6 +44,18 @@ export type ListingDetailsText = {
   condition: string;
 };
 
+export type ListingDetailsTopActionsProps = {
+  locale: ListingDetailsLocale;
+  listingId: string;
+  priceCents: number;
+  isOwner: boolean;
+  isAuthenticated: boolean;
+  isFavorited: boolean;
+  isSold: boolean;
+  browseQuery: string;
+  text: ListingDetailsText;
+};
+
 export type ListingDetailsMetaProps = {
   cityName: string;
   categoryLabel: string;
@@ -72,10 +85,12 @@ export type ListingDetailsSellerCardProps = {
   sellerId: string;
   sellerNameOrEmail: string;
   sellerPhone: string | null;
+  sellerEmail?: string;
   isOwner: boolean;
   isSold: boolean;
   browseQuery: string;
   whatsappHref: string | null;
+  cityName?: string;
   text: ListingDetailsText;
 };
 

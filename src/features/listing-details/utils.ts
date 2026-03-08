@@ -80,6 +80,7 @@ export function getListingDetailsText(locale: ListingDetailsLocale): ListingDeta
       dbUnavailable:
         "Деталите за огласот се привремено недостапни затоа што базата е недостапна.",
       backToBrowse: "Назад кон пребарување",
+      share: "Сподели",
       price: "Цена",
       reportSubmitted:
         "Пријавата е поднесена. Благодариме што помагаш маркетплејсот да е побезбеден.",
@@ -118,6 +119,7 @@ export function getListingDetailsText(locale: ListingDetailsLocale): ListingDeta
     dbUnavailable:
       "Listing details are temporarily unavailable because the database is unreachable.",
     backToBrowse: "Back to browse",
+    share: "Share",
     price: "Price",
     reportSubmitted:
       "Report submitted. Thank you for helping keep the marketplace safe.",

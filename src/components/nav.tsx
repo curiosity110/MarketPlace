@@ -25,12 +25,12 @@ export async function Nav() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/92 backdrop-blur-sm">
-        <Container className="flex items-center gap-2 px-2 py-2 min-[320px]:px-3 sm:gap-3 sm:px-5 sm:py-3 lg:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-6">
+      <nav className="sticky top-0 z-50 border-b border-border/35 bg-background/78 backdrop-blur-xl">
+        <Container className="flex items-center gap-2 py-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-7">
             <Link
               href="/"
-              className="inline-flex h-8 min-w-0 max-w-[min(50vw,9rem)] items-center whitespace-nowrap rounded-full bg-foreground px-2.5 py-0.5 text-[10px] font-semibold leading-none tracking-[0.08em] text-background transition-opacity hover:opacity-90 sm:h-auto sm:max-w-none sm:px-4 sm:py-1.5 sm:text-sm"
+              className="inline-flex min-w-0 max-w-[min(56vw,11rem)] items-center whitespace-nowrap rounded-full bg-foreground px-3 py-2 text-[10px] font-semibold leading-none tracking-[0.12em] text-background transition-opacity hover:opacity-90 sm:max-w-none sm:px-4 sm:text-sm"
             >
               <span className="truncate sm:hidden">MP MKD</span>
               <span className="hidden truncate sm:inline">{messages.appName}</span>

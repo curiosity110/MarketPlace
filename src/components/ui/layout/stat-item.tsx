@@ -15,7 +15,7 @@ type StatItemProps = {
 };
 
 const toneClassMap: Record<StatTone, string> = {
-  default: "bg-background text-foreground",
+  default: "bg-background/80 text-foreground",
   success: "bg-success/10 text-success",
   warning: "bg-warning/10 text-warning",
   secondary: "bg-secondary/10 text-secondary",
@@ -33,7 +33,7 @@ export function StatItem({
   return (
     <div
       className={cn(
-        "rounded-[1rem] bg-muted/38 px-3.5 py-3.5 ring-1 ring-black/5 dark:ring-white/10",
+        "rounded-[1.55rem] bg-card/75 px-4 py-4 ring-1 ring-black/4 dark:ring-white/10",
         className,
       )}
     >

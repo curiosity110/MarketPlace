@@ -2,6 +2,15 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { BrowseFilterSheet } from "@/features/browse/browse-filter-sheet";
+import { BrowseSearch } from "@/features/browse/browse-search-new";
+import type {
+  BrowseCarMake,
+  BrowseCity,
+  BrowseFilterState,
+  BrowseParentCategory,
+  BrowseTemplate,
+} from "@/features/browse/types";
 import { useDebouncedValue } from "@/components/browse-filters.hooks";
 import {
   TYPING_DEBOUNCE_MS,
@@ -12,44 +21,26 @@ import {
   getBrowseFilterState,
   shouldSkipBrowseNavigation,
 } from "@/components/browse-filters.utils";
-import { BrowseCategoryTabs } from "@/features/browse/browse-category-tabs";
-import { BrowseFilterSheet } from "@/features/browse/browse-filter-sheet";
-import { BrowseSearch } from "@/features/browse/browse-search";
-import type {
-  BrowseCarMake,
-  BrowseCity,
-  BrowseFilterState,
-  BrowseParentCategory,
-  BrowseTemplate,
-} from "@/features/browse/types";
 
-type Props = {
+type BrowseToolbarNewProps = {
   locale: "en" | "mk";
   searchPlaceholder: string;
-  filterLabel: string;
-  allLabel: string;
   categories: BrowseParentCategory[];
   cities: BrowseCity[];
   templatesByCategory: Record<string, BrowseTemplate[]>;
   carMakes: BrowseCarMake[];
   canUseFavoritesFilter: boolean;
-  totalCount: number;
-  resultsLabel: string;
 };
 
-export function BrowseHeader({
+export function BrowseToolbarNew({
   locale,
   searchPlaceholder,
-  filterLabel,
-  allLabel,
   categories,
   cities,
   templatesByCategory,
   carMakes,
   canUseFavoritesFilter,
-  totalCount,
-  resultsLabel,
-}: Props) {
+}: BrowseToolbarNewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const spString = searchParams.toString();
@@ -94,45 +85,13 @@ export function BrowseHeader({
     applyState(nextState, dynamicValues);
   }, [applyState, debouncedSearch, dynamicValues, state]);
 
-  const selectCategory = React.useCallback(
-    (categoryId: string) => {
-      const nextState: BrowseFilterState = {
-        ...state,
-        cat: categoryId,
-        sub: "",
-        make: "",
-        model: "",
-        yearFrom: "",
-        yearTo: "",
-      };
-      setState(nextState);
-      setDynamicValues({});
-      applyState(nextState, {});
-    },
-    [applyState, state],
-  );
-
   return (
-    <section className="space-y-4">
+    <>
       <BrowseSearch
-        placeholder={searchPlaceholder}
-        value={state.q}
-        filterLabel={filterLabel}
-        onChange={(value) => setState((prev) => ({ ...prev, q: value }))}
+        searchValue={state.q}
+        onSearchChange={(value) => setState((prev) => ({ ...prev, q: value }))}
         onFilterClick={() => setIsSheetOpen(true)}
       />
-
-      <BrowseCategoryTabs
-        allLabel={allLabel}
-        categories={categories.map((category) => ({
-          id: category.id,
-          name: category.name,
-        }))}
-        activeCategoryId={state.cat}
-        onSelect={selectCategory}
-      />
-
-      <p className="text-sm text-muted-foreground">{totalCount} {resultsLabel}</p>
 
       <BrowseFilterSheet
         open={isSheetOpen}
@@ -149,6 +108,6 @@ export function BrowseHeader({
         onDynamicValuesChange={setDynamicValues}
         onApply={() => applyState(state, dynamicValues, true)}
       />
-    </section>
+    </>
   );
 }

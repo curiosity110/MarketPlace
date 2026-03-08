@@ -1,11 +1,15 @@
 import { ListingStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
-import { ListingDetailsDbUnavailable, ListingDetailsFlashMessages } from "@/components/listing-details";
+import {
+  ListingDetailsDbUnavailable,
+  ListingDetailsFlashMessages,
+} from "@/components/listing-details";
 import { BackLink, PageShell } from "@/components/ui/layout";
-import { ListingDescription } from "@/features/listing-details/listing-description";
+import { ListingHero } from "@/features/listing-details/listing-hero";
 import { ListingMedia } from "@/features/listing-details/listing-media";
-import { ListingSellerCard } from "@/features/listing-details/seller-card";
-import { ListingSummary } from "@/features/listing-details/listing-summary";
+import { ListingDescription } from "@/features/listing-details/listing-description";
+import { ListingSellerStrip } from "@/features/listing-details/listing-seller-strip";
+import { ListingTopActions } from "@/features/listing-details/listing-top-actions";
 import {
   buildBackToBrowseHref,
   buildCategoryDetails,
@@ -150,9 +154,13 @@ export async function ListingDetailsFeaturePage({
   const categoryLabel = localizeCategoryPath(listing.category, locale);
   const whatsappHref = toWhatsappHref(listing.seller.phone);
   const isCarCategorySelected = isCarCategory(listing.category);
+  const descriptionPreview =
+    listing.description.trim().length > 200
+      ? `${listing.description.trim().slice(0, 197)}...`
+      : listing.description.trim();
 
   return (
-    <PageShell size="wide" className="space-y-4 pb-4 sm:space-y-6 sm:pb-6">
+    <PageShell size="wide" className="space-y-6 pb-6 sm:space-y-8 sm:pb-8">
       <ListingDetailsFlashMessages
         reportSaved={reportSaved}
         soldSaved={soldSaved}
@@ -164,9 +172,20 @@ export async function ListingDetailsFeaturePage({
 
       <div className="flex items-center justify-between gap-3">
         <BackLink label={text.backToBrowse} fallbackHref={backToBrowseHref} className="w-fit" />
+        <ListingTopActions
+          locale={locale}
+          listingId={listing.id}
+          priceCents={listing.priceCents}
+          isOwner={isOwner}
+          isAuthenticated={Boolean(sessionUser)}
+          isFavorited={isFavorited}
+          isSold={Boolean(listing.sale)}
+          browseQuery={browseQuery}
+          text={text}
+        />
       </div>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.7fr)] xl:gap-8">
+      <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.82fr)] xl:gap-12">
         <div className="min-w-0 space-y-4 sm:space-y-5">
           <ListingMedia
             locale={locale}
@@ -174,50 +193,48 @@ export async function ListingDetailsFeaturePage({
             title={listing.title}
             text={text}
           />
-
-          <ListingDescription
-            locale={locale}
-            descriptionTitle={text.description}
-            description={listing.description}
-            categoryDetailsTitle={text.categoryDetails}
-            noCategoryDetailsLabel={text.noCategoryDetails}
-            categoryDetails={categoryDetails}
-            valuesByKey={valuesByKey}
-            isCarCategory={isCarCategorySelected}
-          />
         </div>
 
-        <aside className="min-w-0 space-y-4 xl:sticky xl:top-24">
-          <ListingSummary
-            locale={locale}
-            title={listing.title}
-            cityName={listing.city.name}
-            categoryLabel={categoryLabel}
+        <aside className="min-w-0 space-y-6 xl:sticky xl:top-24">
+          <ListingHero
+            category={categoryLabel}
             condition={listing.condition}
-            priceCents={listing.priceCents}
+            title={listing.title}
+            price={listing.priceCents}
             currency={listing.currency}
-            listingId={listing.id}
-            isOwner={isOwner}
-            isAuthenticated={Boolean(sessionUser)}
-            isFavorited={isFavorited}
-            isSold={Boolean(listing.sale)}
-            text={text}
+            location={listing.city.name}
+            description={descriptionPreview}
+            locale={locale}
+            text={{ price: text.price }}
           />
 
-          <ListingSellerCard
+          <ListingSellerStrip
             locale={locale}
             listingId={listing.id}
             sellerId={listing.seller.id}
             sellerNameOrEmail={listing.seller.name || listing.seller.email}
             sellerPhone={listing.seller.phone}
+            sellerEmail={listing.seller.email}
             isOwner={isOwner}
             isSold={Boolean(listing.sale)}
             browseQuery={browseQuery}
             whatsappHref={whatsappHref}
+            cityName={listing.city.name}
             text={text}
           />
         </aside>
       </div>
+
+      <ListingDescription
+        locale={locale}
+        descriptionTitle={text.description}
+        description={listing.description}
+        categoryDetailsTitle={text.categoryDetails}
+        noCategoryDetailsLabel={text.noCategoryDetails}
+        categoryDetails={categoryDetails}
+        valuesByKey={valuesByKey}
+        isCarCategory={isCarCategorySelected}
+      />
     </PageShell>
   );
 }

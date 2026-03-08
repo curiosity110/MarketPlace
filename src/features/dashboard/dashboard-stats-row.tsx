@@ -25,7 +25,7 @@ export function DashboardStatsRow({
   if (!hasListings) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <StatItem label={text.active} value={activeCount} tone="success" />
       <StatItem label={text.drafts} value={draftCount} tone="warning" />
       <StatItem label={text.sold} value={soldCount} tone="secondary" />

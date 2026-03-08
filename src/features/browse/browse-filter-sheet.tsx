@@ -79,8 +79,8 @@ export function BrowseFilterSheet({
         aria-label={text.close}
         onClick={onClose}
       />
-      <div className="absolute inset-x-0 bottom-0 flex h-[84dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-[1.6rem] bg-background shadow-[0_24px_64px_-36px_rgba(15,23,42,0.45)] ring-1 ring-black/10 md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[min(420px,100vw)] md:rounded-none md:ring-l md:ring-t-0 md:ring-r-0 md:ring-b-0 dark:ring-white/10">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-background px-4 py-3">
+      <div className="absolute inset-x-0 bottom-0 flex h-[84dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-[1.8rem] bg-background shadow-[0_24px_64px_-36px_rgba(48,35,24,0.38)] ring-1 ring-black/8 md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[min(420px,100vw)] md:rounded-none md:ring-l md:ring-t-0 md:ring-r-0 md:ring-b-0 dark:ring-white/10">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/40 bg-background/96 px-5 py-4 backdrop-blur-xl">
           <p className={uiTypography.eyebrow}>{text.filters}</p>
           <div className="flex items-center gap-3">
             <button
@@ -104,7 +104,7 @@ export function BrowseFilterSheet({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">
           <BrowseFilters
             mode="mobile"
             categories={categories}
@@ -123,7 +123,7 @@ export function BrowseFilterSheet({
           />
         </div>
 
-        <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/50 bg-background p-4">
+        <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/40 bg-background/96 p-5 backdrop-blur-xl">
           <Button
             type="button"
             variant="outline"

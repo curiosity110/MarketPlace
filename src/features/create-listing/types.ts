@@ -19,6 +19,17 @@ export type CreateListingPlanOption = CreateListingPlan;
 export type CreateListingSubmitIntent = CreateSubmitIntent;
 export type CreateListingResult = CreateListingActionResult;
 export type CreateListingFieldErrorKey = CreateFieldErrorKey;
+export type CreateListingWizardStep = 1 | 2 | 3;
+
+export type CreateListingStepMeta = {
+  step: CreateListingWizardStep;
+  title: string;
+};
+
+export type CreateListingPhoneCountryOption = {
+  value: string;
+  label: string;
+};
 
 export type CreateListingInitialValues = {
   id?: string;

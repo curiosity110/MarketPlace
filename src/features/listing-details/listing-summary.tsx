@@ -70,14 +70,14 @@ export function ListingSummary({
             {text.sold}
           </Badge>
         ) : null}
-        <h1 className="break-words text-[1.9rem] font-semibold leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-[2.25rem]">
+        <h1 className="break-words text-[2.2rem] font-semibold leading-tight tracking-[-0.05em] [overflow-wrap:anywhere] sm:text-[2.8rem]">
           {title}
         </h1>
         <div className="space-y-1">
           <p className="text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {text.price}
           </p>
-          <p className="text-[2rem] font-semibold leading-none tracking-tight text-primary sm:text-[2.35rem]">
+          <p className="text-[2.1rem] font-semibold leading-none tracking-[-0.04em] text-primary sm:text-[2.7rem]">
             {formatCurrencyFromCents(priceCents, currency)}
           </p>
         </div>

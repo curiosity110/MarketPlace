@@ -20,6 +20,7 @@ type Props = {
   publishLabel: string;
   publishingLabel: string;
   onClose: () => void;
+  onConfirm?: () => Promise<void> | void;
 };
 
 export function CreateListingPaymentModal({
@@ -40,6 +41,7 @@ export function CreateListingPaymentModal({
   publishLabel,
   publishingLabel,
   onClose,
+  onConfirm,
 }: Props) {
   return (
     <div
@@ -145,7 +147,13 @@ export function CreateListingPaymentModal({
           >
             {cancelLabel}
           </Button>
-          <Button name="intent" value="publish" type="submit" disabled={isActionBusy}>
+          <Button
+            type="button"
+            onClick={() => {
+              void onConfirm?.();
+            }}
+            disabled={isActionBusy}
+          >
             {isActionBusy ? publishingLabel : publishLabel}
           </Button>
         </div>

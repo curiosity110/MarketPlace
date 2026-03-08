@@ -21,47 +21,65 @@ export function HomeHeroSection({
   createHref,
   categoryHighlights,
 }: Props) {
+  const heroCategories = categoryHighlights.slice(0, 4);
+
   return (
-    <section className="hero-surface max-w-full overflow-hidden rounded-[1.6rem] border border-border/70 px-5 py-8 sm:px-7 sm:py-10 md:px-10 md:py-12">
+    <section className="hero-surface max-w-full overflow-hidden rounded-[2rem] border border-border/45 px-5 py-8 sm:px-8 sm:py-10 md:px-10 md:py-12">
       <div className="grid max-w-full min-w-0 gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-center">
-        <div className="min-w-0 space-y-5">
-          <Badge className="rounded-full border border-secondary/25 bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary">
+        <div className="min-w-0 space-y-6">
+          <Badge className="rounded-full border border-secondary/18 bg-secondary/8 px-3 py-1 text-xs font-semibold text-secondary">
             {text.heroBadge}
           </Badge>
-          <h1 className="max-w-3xl break-words text-4xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-5xl lg:text-[3.6rem]">
+          <h1 className="max-w-3xl break-words text-[2.7rem] font-semibold tracking-[-0.05em] [overflow-wrap:anywhere] sm:text-[3.6rem] lg:text-[4.5rem]">
             {text.heroTitleA}
-            <span className="block bg-gradient-to-r from-orange-500 to-blue-600 bg-clip-text text-transparent">
+            <span className="block bg-gradient-to-r from-[rgb(228,120,62)] via-[rgb(208,118,82)] to-[rgb(102,128,168)] bg-clip-text text-transparent">
               {text.heroTitleB}
             </span>
           </h1>
-          <p className="max-w-2xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere] sm:text-base">
+          <p className="max-w-2xl break-words text-base leading-7 text-muted-foreground [overflow-wrap:anywhere]">
             {text.heroDesc}
           </p>
 
+          {heroCategories.length > 0 ? (
+            <div className="flex flex-wrap gap-2.5">
+              {heroCategories.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/browse?cat=${category.id}`}
+                  className="rounded-full bg-card/72 px-3.5 py-2 text-sm text-foreground/78 ring-1 ring-black/4 transition-colors hover:text-foreground"
+                >
+                  {localizeCategoryName(category, locale)}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-3">
             <Link href="/browse">
-              <Button size="lg" className="gap-2">
+              <Button size="lg" className="h-12 gap-2 px-6">
                 {text.explore} <ArrowRight size={16} />
               </Button>
             </Link>
             <Link href={createHref}>
-              <Button size="lg" variant="outline" className="gap-2">
+              <Button size="lg" variant="outline" className="h-12 gap-2 px-6">
                 {text.startSelling} <ArrowRight size={16} />
               </Button>
             </Link>
           </div>
         </div>
 
-        <Card className="min-w-0 max-w-full border-primary/20 bg-card/80">
-          <CardHeader className="space-y-2">
-            <CardTitle className={uiTypography.sectionTitle}>{text.whatBuyNow}</CardTitle>
+        <Card className="min-w-0 max-w-full">
+          <CardHeader className="space-y-2 pb-3">
+            <CardTitle className={uiTypography.sectionTitle}>
+              {text.whatBuyNow}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {categoryHighlights.map((category) => (
               <Link
                 key={category.id}
                 href={`/browse?cat=${category.id}`}
-                className="flex items-center justify-between rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-orange-50/50 hover:shadow-md dark:hover:bg-orange-500/10"
+                className="flex items-center justify-between rounded-[1.2rem] bg-background/70 px-4 py-3 text-sm transition-all duration-200 hover:bg-background"
               >
                 <span className="min-w-0 truncate font-medium">
                   {localizeCategoryName(category, locale)}
