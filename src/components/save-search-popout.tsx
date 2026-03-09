@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { BookmarkPlus, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ActionModalFooter } from "@/components/action-modal-footer";
 import { saveSearch } from "@/lib/actions/saved-searches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ export function SaveSearchPopout({ locale, query }: Props) {
   const [name, setName] = useState("");
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const hasQueryFilters = Object.keys(query).length > 0;
 
   const isMk = locale === "mk";
   const text = isMk
@@ -47,6 +49,7 @@ export function SaveSearchPopout({ locale, query }: Props) {
         type="button"
         variant="outline"
         className="gap-2"
+        disabled={!hasQueryFilters}
         onClick={() => {
           setResultMessage(null);
           setOpen(true);
@@ -87,19 +90,16 @@ export function SaveSearchPopout({ locale, query }: Props) {
             <p className="mt-3 text-sm text-muted-foreground">{resultMessage}</p>
           ) : null}
 
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              disabled={isPending}
-            >
-              {text.cancel}
-            </Button>
+          <ActionModalFooter
+            cancelLabel={text.cancel}
+            onCancel={() => setOpen(false)}
+            cancelDisabled={isPending}
+            className="mt-4"
+          >
             <Button
               type="button"
               className="gap-2"
-              disabled={isPending}
+              disabled={isPending || !hasQueryFilters}
               onClick={() => {
                 startTransition(async () => {
                   const result = await saveSearch({
@@ -119,7 +119,7 @@ export function SaveSearchPopout({ locale, query }: Props) {
               {isPending ? <Loader2 size={14} className="animate-spin" /> : null}
               {text.save}
             </Button>
-          </div>
+          </ActionModalFooter>
         </div>
       </ModalShell>
     </>

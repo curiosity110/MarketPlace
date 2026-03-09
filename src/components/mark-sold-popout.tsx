@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { BadgeCheck, ChevronDown } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { ActionModalFooter } from "@/components/action-modal-footer";
 import { markListingSold } from "@/lib/actions/sales";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCurrentReturnTo } from "@/lib/hooks/use-current-return-to";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -28,12 +29,7 @@ export function MarkSoldPopout({
   className,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const returnTo = useMemo(() => {
-    const query = searchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  }, [pathname, searchParams]);
+  const returnTo = useCurrentReturnTo("/listing");
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -148,12 +144,9 @@ export function MarkSoldPopout({
               </div>
             </details>
 
-            <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                {text.cancel}
-              </Button>
+            <ActionModalFooter cancelLabel={text.cancel} onCancel={() => setOpen(false)}>
               <MarkSoldSubmitButton label={text.confirm} />
-            </div>
+            </ActionModalFooter>
           </form>
         </div>
       </ModalShell>

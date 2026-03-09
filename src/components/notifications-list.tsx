@@ -1,15 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useTransition } from "react";
-import { CheckCheck, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  markAllRead,
-  markNotificationRead,
-} from "@/lib/actions/notifications";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { markAllRead, markNotificationRead } from "@/lib/actions/notifications";
+import { NotificationItemCard } from "@/components/notifications/notification-item-card";
+import { NotificationMarkAllButton } from "@/components/notifications/notification-mark-all-button";
+import { getNotificationText } from "@/components/notifications/notification-text";
 
 type NotificationListItem = {
   id: string;
@@ -27,30 +23,31 @@ type Props = {
 
 export function NotificationsList({ locale, items }: Props) {
   const router = useRouter();
+  const text = getNotificationText(locale);
   const [readIds, setReadIds] = useState<Set<string>>(
     new Set(items.filter((item) => item.readAt).map((item) => item.id)),
   );
   const [isPending, startTransition] = useTransition();
-  const isMk = locale === "mk";
-  const text = isMk
-    ? {
-        markRead: "Означи прочитано",
-        markAllRead: "Означи сите прочитани",
-      }
-    : {
-        markRead: "Mark read",
-        markAllRead: "Mark all read",
-      };
+  const unreadCount = useMemo(
+    () =>
+      items.reduce(
+        (count, item) => (item.readAt || readIds.has(item.id) ? count : count + 1),
+        0,
+      ),
+    [items, readIds],
+  );
+
+  useEffect(() => {
+    setReadIds(new Set(items.filter((item) => item.readAt).map((item) => item.id)));
+  }, [items]);
 
   return (
     <div className="space-y-3">
       <div className="flex justify-stretch sm:justify-end">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-10 w-full max-w-full gap-1.5 px-3 text-sm sm:h-9 sm:w-auto sm:px-3"
-          disabled={isPending}
+        <NotificationMarkAllButton
+          label={text.markAllRead}
+          pending={isPending}
+          disabled={unreadCount === 0}
           onClick={() => {
             startTransition(async () => {
               await markAllRead();
@@ -58,55 +55,28 @@ export function NotificationsList({ locale, items }: Props) {
               router.refresh();
             });
           }}
-        >
-          {isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCheck size={14} />}
-          {text.markAllRead}
-        </Button>
+        />
       </div>
 
       {items.map((item) => {
         const isRead = Boolean(item.readAt) || readIds.has(item.id);
-        const href = item.href || "/notifications";
+
         return (
-          <div
+          <NotificationItemCard
             key={item.id}
-            className={cn(
-              "rounded-xl border border-border/70 p-3.5 sm:rounded-2xl sm:p-4",
-              isRead ? "bg-muted/20" : "bg-card",
-            )}
-          >
-            <Link href={href} className="block">
-              <p className="text-sm font-bold leading-6 [overflow-wrap:anywhere]">{item.title}</p>
-              {item.body ? (
-                <p className="mt-1.5 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">{item.body}</p>
-              ) : null}
-              <p className="mt-1 text-xs text-muted-foreground">
-                {new Date(item.createdAt).toLocaleDateString(
-                  isMk ? "mk-MK" : "en-US",
-                )}
-              </p>
-            </Link>
-            {!isRead && (
-              <div className="mt-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="min-h-10"
-                  onClick={() => {
-                    startTransition(async () => {
-                      await markNotificationRead(item.id);
-                      setReadIds((prev) => new Set(prev).add(item.id));
-                      router.refresh();
-                    });
-                  }}
-                  disabled={isPending}
-                >
-                  {text.markRead}
-                </Button>
-              </div>
-            )}
-          </div>
+            locale={locale}
+            item={item}
+            isRead={isRead}
+            markReadLabel={text.markRead}
+            disabled={isPending}
+            onMarkRead={() => {
+              startTransition(async () => {
+                await markNotificationRead(item.id);
+                setReadIds((prev) => new Set(prev).add(item.id));
+                router.refresh();
+              });
+            }}
+          />
         );
       })}
     </div>

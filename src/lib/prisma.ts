@@ -20,11 +20,13 @@ function normalizeSupabasePoolerUrl(rawUrl: string | undefined) {
 
     if (!changed) return rawUrl;
 
-    console.warn(
-      `[prisma] Applied safe Supabase pooler defaults (connection_limit=1${
-        parsed.port === "6543" ? ", pgbouncer=true" : ""
-      }).`,
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        `[prisma] Applied safe Supabase pooler defaults (connection_limit=1${
+          parsed.port === "6543" ? ", pgbouncer=true" : ""
+        }).`,
+      );
+    }
 
     return parsed.toString();
   } catch {

@@ -1,17 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { createPortal } from "react-dom";
 import React, { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Bell, CheckCheck, Loader2 } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  markAllRead,
-  markNotificationRead,
-} from "@/lib/actions/notifications";
+import { markAllRead, markNotificationRead } from "@/lib/actions/notifications";
+import { NotificationItemCard } from "@/components/notifications/notification-item-card";
+import { NotificationMarkAllButton } from "@/components/notifications/notification-mark-all-button";
+import { getNotificationText } from "@/components/notifications/notification-text";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 type NotificationItem = {
   id: string;
@@ -33,6 +31,7 @@ const DESKTOP_COLLISION_PADDING = 12;
 
 function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
   const router = useRouter();
+  const text = getNotificationText(locale);
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
@@ -50,21 +49,6 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
     new Set(items.filter((item) => item.readAt).map((item) => item.id)),
   );
   const [isPending, startTransition] = useTransition();
-
-  const isMk = locale === "mk";
-  const text = isMk
-    ? {
-        notifications: "Ð˜Ð·Ð²ÐµÑÑ‚ÑƒÐ²Ð°ÑšÐ°",
-        noNotifications: "ÐÐµÐ¼Ð° Ð¸Ð·Ð²ÐµÑÑ‚ÑƒÐ²Ð°ÑšÐ°.",
-        markRead: "ÐžÐ·Ð½Ð°Ñ‡Ð¸ Ð¿Ñ€Ð¾Ñ‡Ð¸Ñ‚Ð°Ð½Ð¾",
-        markAllRead: "ÐžÐ·Ð½Ð°Ñ‡Ð¸ ÑÐ¸Ñ‚Ðµ Ð¿Ñ€Ð¾Ñ‡Ð¸Ñ‚Ð°Ð½Ð¸",
-      }
-    : {
-        notifications: "Notifications",
-        noNotifications: "No notifications.",
-        markRead: "Mark read",
-        markAllRead: "Mark all read",
-      };
 
   const closePanel = useCallback(() => {
     setOpen(false);
@@ -116,20 +100,13 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
     const width = Math.min(window.innerWidth * 0.92, 360);
     const alignEndLeft = rect.right - width;
     const maxLeft = window.innerWidth - width - DESKTOP_COLLISION_PADDING;
-    const left = Math.max(
-      DESKTOP_COLLISION_PADDING,
-      Math.min(alignEndLeft, maxLeft),
-    );
+    const left = Math.max(DESKTOP_COLLISION_PADDING, Math.min(alignEndLeft, maxLeft));
 
     const estimatedPanelHeight =
       panelRef.current?.offsetHeight ?? Math.min(window.innerHeight * 0.6, 420);
     const preferredTop = rect.bottom + DESKTOP_SIDE_OFFSET;
-    const maxTop =
-      window.innerHeight - estimatedPanelHeight - DESKTOP_COLLISION_PADDING;
-    const top = Math.max(
-      DESKTOP_COLLISION_PADDING,
-      Math.min(preferredTop, maxTop),
-    );
+    const maxTop = window.innerHeight - estimatedPanelHeight - DESKTOP_COLLISION_PADDING;
+    const top = Math.max(DESKTOP_COLLISION_PADDING, Math.min(preferredTop, maxTop));
 
     setDesktopPanelStyle({ top, left, width });
   }, []);
@@ -148,7 +125,6 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         closePanel();
-        triggerRef.current?.focus();
       }
     };
 
@@ -192,31 +168,25 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
   const badgeCount = Math.max(unreadCount, unreadLocalCount);
   const canPortal = typeof document !== "undefined";
 
+  const markAll = () => {
+    startTransition(async () => {
+      await markAllRead();
+      setReadIds(new Set(items.map((item) => item.id)));
+      router.refresh();
+    });
+  };
+
   const panelContent = (
     <div className="space-y-2 p-2.5 sm:p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-sm font-bold">{text.notifications}</p>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-7 shrink-0 px-2 text-xs"
-          disabled={isPending || badgeCount === 0}
-          onClick={() => {
-            startTransition(async () => {
-              await markAllRead();
-              setReadIds(new Set(items.map((item) => item.id)));
-              router.refresh();
-            });
-          }}
-        >
-          {isPending ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            <CheckCheck size={12} />
-          )}
-          {text.markAllRead}
-        </Button>
+        <NotificationMarkAllButton
+          label={text.markAllRead}
+          pending={isPending}
+          disabled={badgeCount === 0}
+          compact
+          onClick={markAll}
+        />
       </div>
 
       {items.length === 0 ? (
@@ -227,54 +197,25 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
         <div className="max-h-[min(52dvh,24rem)] space-y-2 overflow-auto pr-1 sm:max-h-[60vh]">
           {items.map((item) => {
             const isRead = Boolean(item.readAt) || readIds.has(item.id);
-            const href = item.href || "/notifications";
 
             return (
-              <div
+              <NotificationItemCard
                 key={item.id}
-                className={cn(
-                  "rounded-xl border border-border/70 p-2",
-                  isRead ? "bg-muted/20" : "bg-card",
-                )}
-              >
-                <Link
-                  href={href}
-                  className="block"
-                  onClick={() => closePanel()}
-                >
-                  <p className="text-sm font-semibold [overflow-wrap:anywhere]">{item.title}</p>
-                  {item.body ? (
-                    <p className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                      {item.body}
-                    </p>
-                  ) : null}
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleDateString(
-                      isMk ? "mk-MK" : "en-US",
-                    )}
-                  </p>
-                </Link>
-                {!isRead ? (
-                  <div className="mt-1 flex justify-end">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-xs"
-                      disabled={isPending}
-                      onClick={() => {
-                        startTransition(async () => {
-                          await markNotificationRead(item.id);
-                          setReadIds((prev) => new Set(prev).add(item.id));
-                          router.refresh();
-                        });
-                      }}
-                    >
-                      {text.markRead}
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
+                locale={locale}
+                item={item}
+                isRead={isRead}
+                markReadLabel={text.markRead}
+                compact
+                disabled={isPending}
+                onOpen={closePanel}
+                onMarkRead={() => {
+                  startTransition(async () => {
+                    await markNotificationRead(item.id);
+                    setReadIds((prev) => new Set(prev).add(item.id));
+                    router.refresh();
+                  });
+                }}
+              />
             );
           })}
         </div>
@@ -309,11 +250,7 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
             <div
               ref={panelRef}
               className="fixed z-[90] rounded-[1.6rem] border border-border/55 bg-background/95 shadow-[0_24px_64px_-32px_rgba(48,35,24,0.34)] backdrop-blur-xl"
-              style={{
-                top: desktopPanelStyle.top,
-                left: desktopPanelStyle.left,
-                width: desktopPanelStyle.width,
-              }}
+              style={desktopPanelStyle}
             >
               {panelContent}
             </div>,

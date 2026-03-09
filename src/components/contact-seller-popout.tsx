@@ -1,12 +1,13 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { MessageCircle } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { ActionModalFooter } from "@/components/action-modal-footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { useCurrentReturnTo } from "@/lib/hooks/use-current-return-to";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -24,12 +25,7 @@ export function ContactSellerPopout({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const returnTo = useMemo(() => {
-    const query = searchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  }, [pathname, searchParams]);
+  const returnTo = useCurrentReturnTo("/listing");
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -106,21 +102,17 @@ export function ContactSellerPopout({
               <Textarea name="message" required minLength={2} maxLength={400} />
             </label>
 
-            <div className="flex max-w-full min-w-0 flex-wrap justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setOpen(false)}
-                className="min-w-0"
-                disabled={isSubmitting}
-              >
-                {text.cancel}
-              </Button>
+            <ActionModalFooter
+              cancelLabel={text.cancel}
+              onCancel={() => setOpen(false)}
+              cancelDisabled={isSubmitting}
+              className="max-w-full min-w-0 flex-wrap pt-2"
+            >
               <Button type="submit" className="min-w-0 gap-2" disabled={isSubmitting}>
                 <MessageCircle size={14} />
                 <span className="truncate">{text.send}</span>
               </Button>
-            </div>
+            </ActionModalFooter>
           </form>
         </div>
       </ModalShell>

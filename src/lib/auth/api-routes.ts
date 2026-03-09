@@ -100,6 +100,10 @@ export function authLog(
   data: { hasUser?: boolean; hasSession?: boolean } | null,
   error: { message: string } | null,
 ) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
   console.log("[AUTH]", name, {
     data,
     error: error?.message,

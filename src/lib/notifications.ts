@@ -9,9 +9,12 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
 async function sendEmail(payload: EmailPayload) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.NOTIFY_FROM_EMAIL;
+  const isDev = process.env.NODE_ENV !== "production";
 
   if (!resendApiKey || !fromEmail) {
-    console.info(`[notify] ${payload.subject} -> ${payload.to}`);
+    if (isDev) {
+      console.info(`[notify] skipped email "${payload.subject}" -> ${payload.to}`);
+    }
     return false;
   }
 

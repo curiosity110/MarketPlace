@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { BadgeCheck } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { ActionModalFooter } from "@/components/action-modal-footer";
 import { createPurchaseRequest } from "@/lib/actions/purchase-requests";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { useCurrentReturnTo } from "@/lib/hooks/use-current-return-to";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -19,12 +20,7 @@ type Props = {
 
 export function PurchaseRequestPopout({ listingId, locale, className }: Props) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const returnTo = useMemo(() => {
-    const query = searchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  }, [pathname, searchParams]);
+  const returnTo = useCurrentReturnTo("/listing");
   const isMk = locale === "mk";
   const text = isMk
     ? {
@@ -88,12 +84,9 @@ export function PurchaseRequestPopout({ listingId, locale, className }: Props) {
               <Textarea name="message" maxLength={400} className="min-h-20" />
             </label>
 
-            <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                {text.cancel}
-              </Button>
+            <ActionModalFooter cancelLabel={text.cancel} onCancel={() => setOpen(false)}>
               <PurchaseRequestSubmitButton label={text.send} />
-            </div>
+            </ActionModalFooter>
           </form>
         </div>
       </ModalShell>
