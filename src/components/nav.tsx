@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
+import { cache } from "react";
 import { canAccessControl, getSessionUser } from "@/lib/auth";
 import { listNotifications } from "@/lib/actions/notifications";
 import { AuthCtaLinks } from "@/components/auth-cta-links";
@@ -14,14 +16,17 @@ import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { getMessages, getServerLocale } from "@/lib/i18n";
 
-export async function Nav() {
+type Props = {
+  locale?: "en" | "mk";
+};
+
+const getNavNotifications = cache(async () => listNotifications({ limit: 8 }));
+
+export async function Nav({ locale: providedLocale }: Props) {
   const user = await getSessionUser();
-  const locale = await getServerLocale();
+  const locale = providedLocale ?? (await getServerLocale());
   const messages = getMessages(locale);
   const isAdmin = user ? canAccessControl(user.role) : false;
-  const notifications = user
-    ? await listNotifications({ limit: 8 })
-    : { items: [], unreadCount: 0 };
 
   return (
     <>
@@ -53,22 +58,29 @@ export async function Nav() {
               label={messages.language.label}
               englishLabel={messages.language.english}
               macedonianLabel={messages.language.macedonian}
+              compact
             />
             <ThemeToggle label={messages.theme.toggle} />
             {user ? (
-              <>
-                <NotificationsBell
+              <Suspense
+                fallback={
+                <NavLoggedInFallback
+                    isAdmin={isAdmin}
+                    adminLabel={messages.nav.admin}
+                    profileLabel={messages.market.profile}
+                    logoutLabel={messages.nav.logout}
+                    notificationsLabel={messages.market.notifications}
+                  />
+                }
+              >
+                <NavLoggedInControls
                   locale={locale}
-                  items={notifications.items}
-                  unreadCount={notifications.unreadCount}
-                />
-                <NavAccountLinks
                   isAdmin={isAdmin}
                   adminLabel={messages.nav.admin}
                   profileLabel={messages.market.profile}
                   logoutLabel={messages.nav.logout}
                 />
-              </>
+              </Suspense>
             ) : (
               <AuthCtaLinks
                 registerLabel={messages.nav.register}
@@ -79,11 +91,25 @@ export async function Nav() {
 
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:hidden">
             {user ? (
-              <NotificationsBell
-                locale={locale}
-                items={notifications.items}
-                unreadCount={notifications.unreadCount}
-              />
+              <Suspense
+                fallback={
+                  <Link href="/notifications">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      aria-label={messages.market.notifications}
+                    >
+                      <Bell size={16} />
+                    </Button>
+                  </Link>
+                }
+              >
+                <NavNotificationsBell
+                  locale={locale}
+                />
+              </Suspense>
             ) : (
               <Link href="/notifications">
                 <Button
@@ -130,6 +156,90 @@ export async function Nav() {
           dashboard: messages.nav.dashboard,
           login: messages.nav.login,
         }}
+      />
+    </>
+  );
+}
+
+async function NavLoggedInControls({
+  locale,
+  isAdmin,
+  adminLabel,
+  profileLabel,
+  logoutLabel,
+}: {
+  locale: "en" | "mk";
+  isAdmin: boolean;
+  adminLabel: string;
+  profileLabel: string;
+  logoutLabel: string;
+}) {
+  const notifications = await getNavNotifications();
+
+  return (
+    <>
+      <NotificationsBell
+        locale={locale}
+        items={notifications.items}
+        unreadCount={notifications.unreadCount}
+      />
+      <NavAccountLinks
+        isAdmin={isAdmin}
+        adminLabel={adminLabel}
+        profileLabel={profileLabel}
+        logoutLabel={logoutLabel}
+      />
+    </>
+  );
+}
+
+async function NavNotificationsBell({
+  locale,
+}: {
+  locale: "en" | "mk";
+}) {
+  const notifications = await getNavNotifications();
+
+  return (
+    <NotificationsBell
+      locale={locale}
+      items={notifications.items}
+      unreadCount={notifications.unreadCount}
+    />
+  );
+}
+
+function NavLoggedInFallback({
+  isAdmin,
+  adminLabel,
+  profileLabel,
+  logoutLabel,
+  notificationsLabel,
+}: {
+  isAdmin: boolean;
+  adminLabel: string;
+  profileLabel: string;
+  logoutLabel: string;
+  notificationsLabel: string;
+}) {
+  return (
+    <>
+      <Link href="/notifications">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 w-9 p-0"
+          aria-label={notificationsLabel}
+        >
+          <Bell size={16} />
+        </Button>
+      </Link>
+      <NavAccountLinks
+        isAdmin={isAdmin}
+        adminLabel={adminLabel}
+        profileLabel={profileLabel}
+        logoutLabel={logoutLabel}
       />
     </>
   );

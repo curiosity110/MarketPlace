@@ -1,4 +1,5 @@
 import type {
+  BuildBrowseQueryOptions,
   BrowseFilterState,
   BrowseSort,
   BrowseTemplate,
@@ -199,7 +200,9 @@ export function buildBrowseQueryFromState(
   baseQueryString: string,
   state: BrowseFilterState,
   dynamicValues: Record<string, string>,
+  options: BuildBrowseQueryOptions = {},
 ) {
+  const { omitSortParamWhenNewest = true } = options;
   const normalizedRange = normalizeMinMax(state.min, state.max);
   const params = new URLSearchParams(baseQueryString);
 
@@ -221,7 +224,9 @@ export function buildBrowseQueryFromState(
   if (state.fav === "1") params.set("fav", "1");
   if (normalizedRange.min) params.set("min", normalizedRange.min);
   if (normalizedRange.max) params.set("max", normalizedRange.max);
-  if (state.sort !== "newest") params.set("sort", state.sort);
+  if (state.sort !== "newest" || !omitSortParamWhenNewest) {
+    params.set("sort", state.sort);
+  }
 
   Object.entries(dynamicValues).forEach(([key, value]) => {
     const trimmed = value.trim();
@@ -253,6 +258,26 @@ export function buildBrowseQueryFromState(
     query: params.toString(),
     normalizedRange,
   };
+}
+
+export function countBrowseActiveRefiners(
+  state: BrowseFilterState,
+  dynamicValues: Record<string, string>,
+) {
+  let count = 0;
+
+  if (state.cat) count += 1;
+  if (state.sub) count += 1;
+  if (state.city) count += 1;
+  if (state.condition) count += 1;
+  if (state.make) count += 1;
+  if (state.model) count += 1;
+  if (state.yearFrom || state.yearTo) count += 1;
+  if (state.fav === "1") count += 1;
+  if (state.min.trim() || state.max.trim()) count += 1;
+  if (Object.values(dynamicValues).some((value) => value.trim())) count += 1;
+
+  return count;
 }
 
 export function shouldSkipBrowseNavigation(

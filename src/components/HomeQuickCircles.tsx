@@ -83,35 +83,35 @@ export function HomeQuickCircles({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <div className="relative overflow-hidden rounded-[1.9rem] border border-border/45 bg-[radial-gradient(1200px_400px_at_10%_-10%,rgba(228,120,62,.12),transparent_60%),radial-gradient(900px_420px_at_90%_-10%,rgba(102,128,168,.12),transparent_60%)]">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.28] [background-image:linear-gradient(to_right,rgba(120,120,120,.10)_1px,transparent_1px),linear-gradient(to_bottom,rgba(120,120,120,.10)_1px,transparent_1px)] [background-size:28px_28px]" />
+      <div className="relative overflow-hidden rounded-[1.35rem] border border-border/30 bg-[radial-gradient(900px_320px_at_10%_-10%,rgba(228,120,62,.05),transparent_60%),radial-gradient(720px_280px_at_90%_-10%,rgba(102,128,168,.05),transparent_60%)]">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.15] [background-image:linear-gradient(to_right,rgba(120,120,120,.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(120,120,120,.08)_1px,transparent_1px)] [background-size:26px_26px]" />
 
-        <div className="relative px-4 py-4 sm:px-6 lg:px-8">
-          <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="relative px-3.5 py-2.5 sm:px-6 lg:px-8">
+          <div className="mb-2 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-primary/20 bg-background/70 shadow-sm">
-                <span className="absolute -inset-1 rounded-[18px] bg-gradient-to-br from-orange-500/20 to-blue-500/20 blur-md" />
-                <Flame size={16} className="relative text-primary" />
+              <span className="relative inline-flex h-6 w-6 items-center justify-center rounded-lg border border-primary/12 bg-background/72 shadow-sm">
+                <span className="absolute -inset-1 rounded-[14px] bg-gradient-to-br from-orange-500/12 to-blue-500/12 blur-md" />
+                <Flame size={14} className="relative text-primary" />
               </span>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 {title}
               </p>
             </div>
 
             <Link href="/browse" className="shrink-0">
-              <Button variant="ghost" size="sm" className="gap-1">
+              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px]">
                 {browseAllLabel} <ArrowRight size={14} />
               </Button>
             </Link>
           </div>
 
           <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-background via-background/60 to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-background via-background/60 to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background via-background/60 to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background via-background/60 to-transparent" />
 
             <div
               className={cn(
-                "absolute left-2 top-1/2 z-10 -translate-y-1/2 transition-opacity duration-200",
+                "absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 transition-opacity duration-200 md:block",
                 isHovering && canLeft ? "opacity-100" : "opacity-0",
               )}
             >
@@ -127,7 +127,7 @@ export function HomeQuickCircles({
 
             <div
               className={cn(
-                "absolute right-2 top-1/2 z-10 -translate-y-1/2 transition-opacity duration-200",
+                "absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 transition-opacity duration-200 md:block",
                 isHovering && canRight ? "opacity-100" : "opacity-0",
               )}
             >
@@ -143,7 +143,7 @@ export function HomeQuickCircles({
 
             <div
               ref={railRef}
-              className="flex gap-2 overflow-x-auto py-1 pr-2 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory overscroll-x-contain"
+              className="flex gap-2 overflow-x-auto py-0.5 pr-2 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory overscroll-x-contain"
             >
               {items.map((item) => (
                 <Link
@@ -152,27 +152,27 @@ export function HomeQuickCircles({
                   className="snap-start"
                   prefetch={false}
                 >
-                  <div className="group relative inline-flex min-w-[168px] items-center gap-3 rounded-2xl border border-border/70 bg-background/75 p-3 backdrop-blur transition-all duration-200 shadow-[0_0_0_1px_rgba(0,0,0,.02)] hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md">
+                  <div className="group relative inline-flex min-w-[144px] items-center gap-2 rounded-[1rem] border border-border/50 bg-background/72 p-2.25 backdrop-blur transition-all duration-200 shadow-[0_0_0_1px_rgba(0,0,0,.02)] hover:-translate-y-0.5 hover:border-primary/18 hover:shadow-md">
                     <span
-                      className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border/70"
+                      className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.9rem] border border-border/55"
                       style={{ backgroundImage: gradientFor(item.id) }}
                       aria-hidden="true"
                     >
-                      <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/40 to-transparent" />
+                      <span className="absolute inset-0 rounded-[1rem] bg-gradient-to-br from-white/40 to-transparent" />
                       <span className="relative h-2.5 w-2.5 rounded-full bg-foreground/70" />
                     </span>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{item.label}</p>
+                      <p className="truncate text-[12px] font-semibold">{item.label}</p>
                       {item.hint ? (
-                        <p className="truncate text-xs text-muted-foreground">
+                        <p className="truncate text-[10px] text-muted-foreground">
                           {item.hint}
                         </p>
                       ) : null}
                     </div>
 
                     <span
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/70 transition-all duration-200 group-hover:border-primary/25 group-hover:shadow-sm"
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.9rem] border border-border/55 bg-background/70 transition-all duration-200 group-hover:border-primary/22 group-hover:shadow-sm"
                       aria-hidden="true"
                     >
                       <ArrowRight
@@ -185,21 +185,21 @@ export function HomeQuickCircles({
               ))}
 
               <Link href="/browse" className="snap-start shrink-0" prefetch={false}>
-                <div className="group relative inline-flex min-w-[190px] items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
-                  <span className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-background/70">
-                    <span className="absolute -inset-1 rounded-[18px] bg-primary/10 blur-md" />
+                <div className="group relative inline-flex min-w-[164px] items-center gap-2 rounded-[1rem] border border-primary/14 bg-primary/5 p-2.25 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/24 hover:shadow-md">
+                  <span className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[1rem] border border-primary/18 bg-background/70">
+                    <span className="absolute -inset-1 rounded-[14px] bg-primary/10 blur-md" />
                     <ArrowRight size={16} className="relative text-primary" />
                   </span>
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{browseAllLabel}</p>
-                    <p className="truncate text-xs text-muted-foreground">
+                    <p className="truncate text-[12px] font-semibold">{browseAllLabel}</p>
+                    <p className="truncate text-[10px] text-muted-foreground">
                       {items.length}+ more
                     </p>
                   </div>
 
                   <span
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-background/70 transition-all duration-200 group-hover:border-primary/35"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[1rem] border border-primary/18 bg-background/70 transition-all duration-200 group-hover:border-primary/35"
                     aria-hidden="true"
                   >
                     <ArrowRight
@@ -211,9 +211,9 @@ export function HomeQuickCircles({
               </Link>
             </div>
 
-            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted/40">
+            <div className="mt-1.5 h-0.5 w-full overflow-hidden rounded-full bg-muted/25">
               <div
-                className="h-full w-1/3 rounded-full bg-gradient-to-r from-orange-500/40 via-primary/40 to-blue-500/40"
+                className="h-full w-1/3 rounded-full bg-gradient-to-r from-orange-500/30 via-primary/30 to-blue-500/30"
                 style={{
                   transform: `translateX(${railProgressPct}%)`,
                   transition: "transform 120ms linear",

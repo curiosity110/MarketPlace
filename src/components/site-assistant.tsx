@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { MessageCircle } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const AIHelper = dynamic(
@@ -70,6 +71,37 @@ function getConfig(pathname: string, locale: "en" | "mk"): AssistantConfig {
 export function SiteAssistant({ locale = "en" }: { locale?: "en" | "mk" }) {
   const pathname = usePathname();
   const config = useMemo(() => getConfig(pathname, locale), [pathname, locale]);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  const openLabel =
+    locale === "mk" ? "Отвори асистент за маркетплејс" : "Open marketplace assistant";
+  const askLabel = locale === "mk" ? "Прашај асистент" : "Ask assistant";
+
+  useEffect(() => {
+    function openAssistant() {
+      setShouldLoad(true);
+    }
+
+    window.addEventListener("mkd:open-assistant", openAssistant);
+    return () => {
+      window.removeEventListener("mkd:open-assistant", openAssistant);
+    };
+  }, []);
+
+  if (!shouldLoad) {
+    return (
+      <button
+        type="button"
+        onClick={() => setShouldLoad(true)}
+        className="fixed right-3 z-30 inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/55 bg-background/96 text-foreground shadow-[0_14px_28px_-24px_rgba(15,23,42,0.34)] backdrop-blur-md transition-colors hover:bg-muted sm:bottom-6 sm:left-auto sm:right-6 sm:z-40 sm:h-auto sm:w-auto sm:gap-2 sm:border-primary/30 sm:bg-gradient-to-r sm:from-orange-500 sm:to-blue-600 sm:px-4 sm:py-3 sm:text-sm sm:font-semibold sm:text-white sm:shadow-lg sm:hover:-translate-y-0.5 sm:hover:shadow-xl"
+        style={{ bottom: "calc(var(--app-mobile-fab-offset) + env(safe-area-inset-bottom, 0px))" }}
+        aria-label={openLabel}
+      >
+        <MessageCircle size={16} />
+        <span className="hidden md:inline">{askLabel}</span>
+      </button>
+    );
+  }
 
   return (
     <AIHelper
@@ -77,6 +109,7 @@ export function SiteAssistant({ locale = "en" }: { locale?: "en" | "mk" }) {
       placeholder={config.placeholder}
       title={config.title}
       locale={locale}
+      defaultOpen
     />
   );
 }

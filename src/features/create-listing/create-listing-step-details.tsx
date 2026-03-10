@@ -1,6 +1,7 @@
 "use client";
 
 import { ListingCondition } from "@prisma/client";
+import { CreateListingDynamicFieldsSection } from "@/components/create-listing/sections/dynamic-fields-section";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +9,7 @@ import { localizeCategoryName } from "@/lib/category-label";
 import type {
   CreateListingCategoryOption,
   CreateListingCityOption,
+  CreateListingTemplateMap,
 } from "@/features/create-listing/types";
 
 type Props = {
@@ -33,6 +35,12 @@ type Props = {
   cities: CreateListingCityOption[];
   noCityAvailableLabel: string;
   cityError: string | null;
+  identityFieldsLabel: string;
+  identityFieldsHint: string;
+  identityFieldsEmptyLabel: string;
+  primaryTemplateKeys: string[];
+  templatesByCategory: CreateListingTemplateMap;
+  dynamicValues: Record<string, string>;
   descriptionLabel: string;
   descriptionPlaceholder: string;
   descriptionValue: string;
@@ -42,6 +50,7 @@ type Props = {
   onCategoryChange: (categoryId: string, label: string) => void;
   onConditionChange: (condition: ListingCondition) => void;
   onCityChange: (cityId: string) => void;
+  onDynamicValuesChange: (values: Record<string, string>) => void;
   onDescriptionChange: (value: string) => void;
 };
 
@@ -68,6 +77,12 @@ export function CreateListingStepDetails({
   cities,
   noCityAvailableLabel,
   cityError,
+  identityFieldsLabel,
+  identityFieldsHint,
+  identityFieldsEmptyLabel,
+  primaryTemplateKeys,
+  templatesByCategory,
+  dynamicValues,
   descriptionLabel,
   descriptionPlaceholder,
   descriptionValue,
@@ -77,6 +92,7 @@ export function CreateListingStepDetails({
   onCategoryChange,
   onConditionChange,
   onCityChange,
+  onDynamicValuesChange,
   onDescriptionChange,
 }: Props) {
   return (
@@ -199,6 +215,28 @@ export function CreateListingStepDetails({
             {cityError ? <p className="text-sm text-destructive">{cityError}</p> : null}
           </label>
         </div>
+
+        {selectedCategoryId && primaryTemplateKeys.length > 0 ? (
+          <div className="space-y-2.5 rounded-[1.05rem] bg-[#f6f2ed] px-4 py-4">
+            <div className="space-y-1">
+              <p className="text-[0.95rem] font-medium text-foreground">{identityFieldsLabel}</p>
+              <p className="text-sm leading-5 text-[#74685c]">{identityFieldsHint}</p>
+            </div>
+            <CreateListingDynamicFieldsSection
+              titleLabel=""
+              emptyLabel={identityFieldsEmptyLabel}
+              categoryId={selectedCategoryId}
+              templatesByCategory={templatesByCategory}
+              initialValues={dynamicValues}
+              locale={locale}
+              visibleTemplateKeys={primaryTemplateKeys}
+              includeFormNames={false}
+              onValuesChange={onDynamicValuesChange}
+              compact
+              showHeader={false}
+            />
+          </div>
+        ) : null}
 
         <label className="block space-y-2.5">
           <span className="text-[0.95rem] font-medium text-foreground">{descriptionLabel}</span>

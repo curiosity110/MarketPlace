@@ -3,7 +3,7 @@ import { mk } from "@/messages/mk";
 
 export const LOCALE_COOKIE = "locale";
 export const LEGACY_LOCALE_COOKIE = "mp_locale";
-export const DEFAULT_LOCALE = "mk";
+export const DEFAULT_LOCALE = "en";
 
 export type Messages = typeof en;
 export type Locale = "en" | "mk";
@@ -39,10 +39,12 @@ function getMessageValue(
 
 export function t(locale: Locale, key: string): string {
   const localeMessages = getMessages(locale) as Record<string, unknown>;
+  const enMessages = getMessages("en") as Record<string, unknown>;
   const mkMessages = getMessages("mk") as Record<string, unknown>;
 
   return (
     getMessageValue(localeMessages, key) ??
+    getMessageValue(enMessages, key) ??
     getMessageValue(mkMessages, key) ??
     key
   );

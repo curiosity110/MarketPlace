@@ -47,6 +47,10 @@ export type BrowseFilterState = {
   sort: BrowseSort;
 };
 
+export type BuildBrowseQueryOptions = {
+  omitSortParamWhenNewest?: boolean;
+};
+
 export type BrowseFiltersMode = "desktop" | "mobile";
 
 export type BrowseFiltersProps = {
@@ -69,6 +73,9 @@ export type BrowseFiltersProps = {
     nextDynamicValues: Record<string, string>,
   ) => void;
   showResetButton?: boolean;
+  inferredCategoryId?: string;
+  inferredSubcategoryId?: string;
+  inferredCategoryConfidence?: "low" | "medium" | "high";
 };
 
 export type BrowseActiveFilterChip = {

@@ -5,10 +5,11 @@ import {
   ListingDetailsFlashMessages,
 } from "@/components/listing-details";
 import { BackLink, PageShell } from "@/components/ui/layout";
+import { ListingContact } from "@/features/listing-details/listing-contact";
+import { ListingDescription } from "@/features/listing-details/listing-description";
+import { ListingExtraDetails } from "@/features/listing-details/listing-extra-details";
 import { ListingHero } from "@/features/listing-details/listing-hero";
 import { ListingMedia } from "@/features/listing-details/listing-media";
-import { ListingDescription } from "@/features/listing-details/listing-description";
-import { ListingSellerStrip } from "@/features/listing-details/listing-seller-strip";
 import { ListingTopActions } from "@/features/listing-details/listing-top-actions";
 import {
   buildBackToBrowseHref,
@@ -154,13 +155,9 @@ export async function ListingDetailsFeaturePage({
   const categoryLabel = localizeCategoryPath(listing.category, locale);
   const whatsappHref = toWhatsappHref(listing.seller.phone);
   const isCarCategorySelected = isCarCategory(listing.category);
-  const descriptionPreview =
-    listing.description.trim().length > 200
-      ? `${listing.description.trim().slice(0, 197)}...`
-      : listing.description.trim();
 
   return (
-    <PageShell size="wide" className="space-y-6 pb-6 sm:space-y-8 sm:pb-8">
+    <PageShell size="wide" className="space-y-5 pb-6 sm:space-y-6 sm:pb-8">
       <ListingDetailsFlashMessages
         reportSaved={reportSaved}
         soldSaved={soldSaved}
@@ -185,8 +182,8 @@ export async function ListingDetailsFeaturePage({
         />
       </div>
 
-      <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.82fr)] xl:gap-12">
-        <div className="min-w-0 space-y-4 sm:space-y-5">
+      <section className="grid items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.82fr)] xl:gap-8">
+        <div className="min-w-0">
           <ListingMedia
             locale={locale}
             imageUrls={listing.images.map((image) => image.url)}
@@ -195,7 +192,7 @@ export async function ListingDetailsFeaturePage({
           />
         </div>
 
-        <aside className="min-w-0 space-y-6 xl:sticky xl:top-24">
+        <div className="min-w-0 space-y-4 xl:sticky xl:top-24">
           <ListingHero
             category={categoryLabel}
             condition={listing.condition}
@@ -203,12 +200,12 @@ export async function ListingDetailsFeaturePage({
             price={listing.priceCents}
             currency={listing.currency}
             location={listing.city.name}
-            description={descriptionPreview}
+            sellerName={listing.seller.name || listing.seller.email}
             locale={locale}
-            text={{ price: text.price }}
+            text={{ price: text.price, seller: text.seller }}
           />
 
-          <ListingSellerStrip
+          <ListingContact
             locale={locale}
             listingId={listing.id}
             sellerId={listing.seller.id}
@@ -222,19 +219,29 @@ export async function ListingDetailsFeaturePage({
             cityName={listing.city.name}
             text={text}
           />
-        </aside>
-      </div>
+        </div>
+      </section>
 
-      <ListingDescription
-        locale={locale}
-        descriptionTitle={text.description}
-        description={listing.description}
-        categoryDetailsTitle={text.categoryDetails}
-        noCategoryDetailsLabel={text.noCategoryDetails}
-        categoryDetails={categoryDetails}
-        valuesByKey={valuesByKey}
-        isCarCategory={isCarCategorySelected}
-      />
+      <div className="space-y-4 sm:space-y-5">
+        <ListingDescription
+          locale={locale}
+          descriptionTitle={text.description}
+          description={listing.description}
+          categoryDetailsTitle={text.categoryDetails}
+          noCategoryDetailsLabel={text.noCategoryDetails}
+          categoryDetails={categoryDetails}
+          valuesByKey={valuesByKey}
+          isCarCategory={isCarCategorySelected}
+        />
+
+        <ListingExtraDetails
+          locale={locale}
+          categoryDetailsTitle={text.categoryDetails}
+          categoryDetails={categoryDetails}
+          valuesByKey={valuesByKey}
+          isCarCategory={isCarCategorySelected}
+        />
+      </div>
     </PageShell>
   );
 }

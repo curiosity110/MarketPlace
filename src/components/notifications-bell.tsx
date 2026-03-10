@@ -45,9 +45,7 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
     left: number;
     width: number;
   } | null>(null);
-  const [readIds, setReadIds] = useState<Set<string>>(
-    new Set(items.filter((item) => item.readAt).map((item) => item.id)),
-  );
+  const [optimisticReadIds, setOptimisticReadIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
   const closePanel = useCallback(() => {
@@ -58,6 +56,7 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
     if (!open) {
       return;
     }
+    const triggerElement = triggerRef.current;
 
     previousActiveElementRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -70,7 +69,7 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
       if (isMobile) {
         unlockBodyScroll();
       }
-      const triggerButton = triggerRef.current?.querySelector("button");
+      const triggerButton = triggerElement?.querySelector("button");
       if (triggerButton instanceof HTMLButtonElement && triggerButton.isConnected) {
         triggerButton.focus();
       } else if (previousActiveElementRef.current?.isConnected) {
@@ -153,17 +152,18 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
     };
   }, [isMobile, open, updateDesktopPosition]);
 
-  useEffect(() => {
-    setReadIds(new Set(items.filter((item) => item.readAt).map((item) => item.id)));
-  }, [items]);
+  const serverReadIds = useMemo(
+    () => new Set(items.filter((item) => item.readAt).map((item) => item.id)),
+    [items],
+  );
 
   const unreadLocalCount = useMemo(
     () =>
       items.reduce((sum, item) => {
-        const isRead = item.readAt || readIds.has(item.id);
+        const isRead = item.readAt || serverReadIds.has(item.id) || optimisticReadIds.has(item.id);
         return isRead ? sum : sum + 1;
       }, 0),
-    [items, readIds],
+    [items, optimisticReadIds, serverReadIds],
   );
   const badgeCount = Math.max(unreadCount, unreadLocalCount);
   const canPortal = typeof document !== "undefined";
@@ -171,14 +171,14 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
   const markAll = () => {
     startTransition(async () => {
       await markAllRead();
-      setReadIds(new Set(items.map((item) => item.id)));
+      setOptimisticReadIds(new Set(items.map((item) => item.id)));
       router.refresh();
     });
   };
 
   const panelContent = (
-    <div className="space-y-2 p-2.5 sm:p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
+    <div className="space-y-2.5 p-3 sm:p-3">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-bold">{text.notifications}</p>
         <NotificationMarkAllButton
           label={text.markAllRead}
@@ -190,13 +190,14 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
       </div>
 
       {items.length === 0 ? (
-        <p className="rounded-xl border border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground">
+        <p className="rounded-[1rem] border border-border/60 bg-muted/18 p-3 text-sm text-muted-foreground">
           {text.noNotifications}
         </p>
       ) : (
-        <div className="max-h-[min(52dvh,24rem)] space-y-2 overflow-auto pr-1 sm:max-h-[60vh]">
+        <div className="max-h-[min(50dvh,23rem)] space-y-2 overflow-auto pr-1 sm:max-h-[60vh]">
           {items.map((item) => {
-            const isRead = Boolean(item.readAt) || readIds.has(item.id);
+            const isRead =
+              Boolean(item.readAt) || serverReadIds.has(item.id) || optimisticReadIds.has(item.id);
 
             return (
               <NotificationItemCard
@@ -211,7 +212,7 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
                 onMarkRead={() => {
                   startTransition(async () => {
                     await markNotificationRead(item.id);
-                    setReadIds((prev) => new Set(prev).add(item.id));
+                    setOptimisticReadIds((prev) => new Set(prev).add(item.id));
                     router.refresh();
                   });
                 }}
@@ -230,7 +231,7 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
           type="button"
           variant="outline"
           size="sm"
-          className="relative h-9 w-9 p-0"
+          className="relative h-11 w-11 p-0"
           onClick={() => setOpen((prev) => !prev)}
           aria-label={text.notifications}
           aria-expanded={open}
@@ -264,12 +265,14 @@ function NotificationsBellComponent({ locale, items, unreadCount }: Props) {
               <button
                 type="button"
                 aria-label={text.notifications}
-                className="absolute inset-0 bg-black/25 backdrop-blur-[1px]"
+                className="absolute inset-0 bg-black/20 backdrop-blur-[1px]"
                 onClick={closePanel}
               />
               <div
                 ref={panelRef}
-                className="absolute inset-x-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] max-h-[68dvh] overflow-hidden rounded-[1.6rem] border border-border/55 bg-background/96 shadow-[0_24px_64px_-36px_rgba(48,35,24,0.38)] backdrop-blur-xl"
+                className="absolute inset-x-2.5 max-h-[68dvh] overflow-hidden rounded-[1.35rem] border border-border/45 bg-background/97 shadow-[0_24px_64px_-36px_rgba(48,35,24,0.32)] backdrop-blur-xl"
+                style={{ bottom: "calc(var(--app-mobile-fab-offset) + env(safe-area-inset-bottom, 0px))" }}
+                data-mobile-safe-bottom="overlay"
               >
                 {panelContent}
               </div>

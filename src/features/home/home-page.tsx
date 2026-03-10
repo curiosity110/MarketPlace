@@ -100,7 +100,7 @@ export async function HomePage() {
   }
 
   return (
-    <PageShell className="space-y-12 md:space-y-16">
+    <PageShell className="space-y-5 md:space-y-16">
       <HomeHeroSection
         locale={locale}
         text={text}

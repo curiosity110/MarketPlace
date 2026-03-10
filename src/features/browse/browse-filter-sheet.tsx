@@ -12,7 +12,6 @@ import type {
 } from "@/features/browse/types";
 import { EMPTY_BROWSE_FILTER_STATE } from "@/components/browse-filters.utils";
 import { Button } from "@/components/ui/button";
-import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 
 type Props = {
@@ -26,6 +25,9 @@ type Props = {
   canUseFavoritesFilter: boolean;
   value: BrowseFilterState;
   dynamicValues: Record<string, string>;
+  inferredCategoryId?: string;
+  inferredSubcategoryId?: string;
+  inferredCategoryConfidence?: "low" | "medium" | "high";
   onChange: React.Dispatch<React.SetStateAction<BrowseFilterState>>;
   onDynamicValuesChange: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   onApply: () => void;
@@ -42,21 +44,42 @@ export function BrowseFilterSheet({
   canUseFavoritesFilter,
   value,
   dynamicValues,
+  inferredCategoryId,
+  inferredSubcategoryId,
+  inferredCategoryConfidence,
   onChange,
   onDynamicValuesChange,
   onApply,
 }: Props) {
   const previousActiveElementRef = React.useRef<HTMLElement | null>(null);
   const isMk = locale === "mk";
+  const inferredCategoryLabel = React.useMemo(() => {
+    if (!inferredCategoryId) return "";
+    const parent = categories.find((category) => category.id === inferredCategoryId);
+    if (!inferredSubcategoryId) return parent?.name || "";
+    const child =
+      parent?.children.find((subcategory) => subcategory.id === inferredSubcategoryId) ||
+      categories.flatMap((category) => category.children).find((subcategory) => subcategory.id === inferredSubcategoryId);
+    return child?.name || parent?.name || "";
+  }, [categories, inferredCategoryId, inferredSubcategoryId]);
+
   const text = isMk
     ? {
         filters: "Филтри",
+        helper:
+          inferredCategoryConfidence === "high" && inferredCategoryLabel
+            ? `Предлозите се приспособени за ${inferredCategoryLabel}.`
+            : "Прво пребарај, па брзо дофинирај со најважните филтри.",
         clearAll: "Исчисти сè",
         apply: "Примени",
         close: "Затвори",
       }
     : {
         filters: "Filters",
+        helper:
+          inferredCategoryConfidence === "high" && inferredCategoryLabel
+            ? `Suggestions are adapted for ${inferredCategoryLabel}.`
+            : "Search first, then refine quickly with the most useful filters.",
         clearAll: "Clear all",
         apply: "Apply",
         close: "Close",
@@ -90,42 +113,39 @@ export function BrowseFilterSheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] max-w-[100vw] overflow-hidden">
+    <div className="fixed inset-0 z-[90] max-w-[100vw] overflow-hidden sm:hidden">
       <button
         type="button"
-        className={uiModal.backdrop}
+        className="absolute inset-0 bg-black/24 backdrop-blur-[2px]"
         aria-label={text.close}
         onClick={onClose}
       />
+
       <div
-        className="absolute inset-x-0 bottom-0 flex h-[88dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-[1.8rem] bg-background shadow-[0_24px_64px_-36px_rgba(48,35,24,0.38)] ring-1 ring-black/8 md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[min(420px,100vw)] md:rounded-none md:ring-l md:ring-t-0 md:ring-r-0 md:ring-b-0 dark:ring-white/10"
-        data-mobile-safe-bottom
+        className="absolute inset-x-0 bottom-0 flex h-[86dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-[1.6rem] bg-background shadow-[0_24px_64px_-36px_rgba(48,35,24,0.32)] ring-1 ring-black/8 dark:ring-white/10"
+        data-mobile-safe-bottom="overlay"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/40 bg-background/96 px-4 py-4 backdrop-blur-xl sm:px-5">
-          <p className={uiTypography.eyebrow}>{text.filters}</p>
-          <div className="flex items-center gap-3">
+        <div className="sticky top-0 z-10 border-b border-border/35 bg-background/96 px-4 pb-3 pt-2.5 backdrop-blur-xl">
+          <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-border/75" aria-hidden="true" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                {text.filters}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground/82">{text.helper}</p>
+            </div>
             <button
               type="button"
-              className="min-h-10 text-xs font-semibold text-primary hover:underline"
-              onClick={() => {
-                onChange(EMPTY_BROWSE_FILTER_STATE);
-                onDynamicValuesChange({});
-              }}
-            >
-              {text.clearAll}
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               onClick={onClose}
               aria-label={text.close}
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
           <BrowseFilters
             mode="mobile"
             categories={categories}
@@ -134,21 +154,21 @@ export function BrowseFilterSheet({
             carMakes={carMakes}
             locale={locale}
             canUseFavoritesFilter={canUseFavoritesFilter}
-            showActiveChips={false}
-            showResetButton={false}
             value={value}
             dynamicValues={dynamicValues}
+            inferredCategoryId={inferredCategoryId}
+            inferredSubcategoryId={inferredSubcategoryId}
+            inferredCategoryConfidence={inferredCategoryConfidence}
             onChange={onChange}
             onDynamicValuesChange={onDynamicValuesChange}
-            onApply={onApply}
           />
         </div>
 
-        <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/40 bg-background/96 p-4 backdrop-blur-xl sm:p-5">
+        <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/35 bg-background/96 p-3.5 backdrop-blur-xl [padding-bottom:calc(0.95rem+env(safe-area-inset-bottom,0px))]">
           <Button
             type="button"
             variant="outline"
-            className="min-h-11"
+            className="min-h-12"
             onClick={() => {
               onChange(EMPTY_BROWSE_FILTER_STATE);
               onDynamicValuesChange({});
@@ -156,7 +176,7 @@ export function BrowseFilterSheet({
           >
             {text.clearAll}
           </Button>
-          <Button type="button" className="min-h-11" onClick={onApply}>
+          <Button type="button" className="min-h-12" onClick={onApply}>
             {text.apply}
           </Button>
         </div>

@@ -1,49 +1,78 @@
 "use client";
 
-import type { ChangeEvent } from "react";
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { CategoryFieldType, ListingCondition } from "@prisma/client";
-import { X } from "lucide-react";
-import { BrowseDesktopFiltersRow } from "@/components/browse/desktop-filters-row";
-import { BrowseFiltersActiveChips } from "@/components/browse/filters-active-chips";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import type {
   BrowseFilterState,
   BrowseFiltersProps,
-  BrowseSort,
-  BrowseTemplate as Template,
-} from "@/components/browse/filters.types";
-import { useDebouncedValue } from "@/components/browse/filters.hooks";
+  BrowseTemplate,
+} from "@/components/browse-filters.types";
 import {
-  TYPING_DEBOUNCE_MS,
-  areBrowseStatesEqual,
   areStringRecordsEqual,
-  buildBrowseQueryFromState,
   getBrowseDynamicValues,
   getBrowseFilterState,
-  hasAnyBrowseFilter,
-  isCarCoreTemplate,
   isCarExtraTemplate,
-  isCarIdentityTemplate,
   isCarsSlug,
-  normalizeMinMax,
   normalizeNumericInput,
   parseBrowseSort,
-  shouldSkipBrowseNavigation,
-  toPositiveInteger,
-} from "@/components/browse/filters.utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { uiModal, uiTypography } from "@/components/ui/ui-patterns";
-import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
+} from "@/components/browse-filters.utils";
 import { cn } from "@/lib/utils";
 
-export {
-  getBrowseDynamicValues,
-  getBrowseFilterState,
-} from "@/components/browse/filters.utils";
-export type { BrowseFilterState, BrowseSort } from "@/components/browse/filters.types";
+function findParentForChild(
+  categories: BrowseFiltersProps["categories"],
+  childId: string,
+) {
+  return categories.find((category) => category.children.some((child) => child.id === childId)) ?? null;
+}
+
+function FilterSection({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3 rounded-[1.2rem] bg-card/72 p-3.5 ring-1 ring-black/5 shadow-[0_12px_24px_-24px_rgba(15,23,42,0.18)] dark:ring-white/10">
+      <div className="space-y-1">
+        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          {title}
+        </p>
+        {hint ? <p className="text-xs leading-5 text-muted-foreground/82">{hint}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ChipButton({
+  active,
+  children,
+  onClick,
+}: {
+  active?: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium transition-colors",
+        active
+          ? "bg-foreground text-background shadow-[0_10px_18px_-18px_rgba(15,23,42,0.34)]"
+          : "bg-muted/36 text-foreground/80 ring-1 ring-black/5 hover:bg-muted/54 dark:ring-white/10",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function BrowseFilters({
   categories,
@@ -52,982 +81,296 @@ export function BrowseFilters({
   carMakes,
   locale = "en",
   canUseFavoritesFilter = false,
-  showActiveChips = true,
-  mode = "desktop",
+  mode = "mobile",
   value,
   dynamicValues: controlledDynamicValues,
   onChange,
   onDynamicValuesChange,
-  onApply,
-  showResetButton = true,
+  inferredCategoryId,
+  inferredSubcategoryId,
+  inferredCategoryConfidence,
 }: BrowseFiltersProps) {
-  const isMobileMode = mode === "mobile";
-  const router = useRouter();
-  const spReadonly = useSearchParams();
-  const spString = spReadonly.toString();
-  const sp = React.useMemo(() => new URLSearchParams(spString), [spString]);
-  const fallbackState = React.useMemo(() => getBrowseFilterState(sp), [sp]);
+  void mode;
+
+  const initialParams = React.useMemo(
+    () =>
+      typeof window === "undefined"
+        ? new URLSearchParams()
+        : new URLSearchParams(window.location.search),
+    [],
+  );
+  const [internalState, setInternalState] = React.useState<BrowseFilterState>(() =>
+    value ?? getBrowseFilterState(initialParams),
+  );
+  const [internalDynamicValues, setInternalDynamicValues] = React.useState<Record<string, string>>(
+    () => controlledDynamicValues ?? getBrowseDynamicValues(initialParams),
+  );
+
+  const state = value ?? internalState;
+  const dynamicValues = controlledDynamicValues ?? internalDynamicValues;
+
+  const setState = React.useCallback<React.Dispatch<React.SetStateAction<BrowseFilterState>>>(
+    (next) => {
+      if (onChange) {
+        onChange(next);
+        return;
+      }
+      setInternalState(next);
+    },
+    [onChange],
+  );
+
+  const setDynamicValues = React.useCallback<
+    React.Dispatch<React.SetStateAction<Record<string, string>>>
+  >(
+    (next) => {
+      if (onDynamicValuesChange) {
+        onDynamicValuesChange(next);
+        return;
+      }
+      setInternalDynamicValues(next);
+    },
+    [onDynamicValuesChange],
+  );
 
   const isMk = locale === "mk";
   const text = isMk
     ? {
         search: "Пребарување",
         searchPlaceholder: "Наслов, модел, клучен збор...",
+        searchHint: "Пребарај прво. Потоа дофинирај само ако треба.",
+        favoritesOnly: "Само омилени",
         category: "Категорија",
+        categoryHint: "Избери ако сакаш попрецизни резултати.",
         allCategories: "Сите категории",
-        subcategory: "Поткатегорија",
         allSubcategories: "Сите поткатегории",
-        selectCategoryFirst: "Прво избери категорија",
-        city: "Град",
-        allCities: "Сите градови",
-        condition: "Состојба",
-        anyCondition: "Секоја состојба",
-        priceRange: "Опсег на цена",
-        minPrice: "Мин цена",
-        maxPrice: "Макс цена",
+        selectCategoryFirst: "Избери категорија прво",
+        inferredCategory: "Предложено од пребарувањето",
+        price: "Цена",
+        priceHint: "Постави опсег само ако сакаш побрзо да стесниш.",
+        minPrice: "Мин",
+        maxPrice: "Макс",
         mkd: "МКД",
-        categoryFilters: "Филтри за категорија",
-        extraFilters: "Дополнителни филтри",
-        any: "Секој",
-        apply: "Примени филтри",
-        clear: "Исчисти сè",
-        orderBy: "Подреди по",
-        newest: "Најнови прво",
-        priceAsc: "Цена од ниска кон висока",
-        priceDesc: "Цена од висока кон ниска",
-        resetFilters: "Исчисти филтри",
-        activeFilters: "Активни филтри",
-        clearAll: "Исчисти сè",
-        searchChip: "Пребарување",
-        categoryChip: "Категорија",
-        subcategoryChip: "Поткатегорија",
-        cityChip: "Град",
-        conditionChip: "Состојба",
-        priceChip: "Цена",
-        makeChip: "Марка",
-        modelChip: "Модел",
-        yearChip: "Година",
+        condition: "Состојба",
+        anyCondition: "Секоја",
+        location: "Локација",
+        locationHint: "Избери град ако ти е важна близината.",
+        allCities: "Сите градови",
+        categorySpecific: "Релевантни детали",
+        categorySpecificHint: "Прикажани се само најкорисните филтри за ова пребарување.",
+        cars: "Авто детали",
+        carsHint: "Прво марка и модел, па дополнителни детали.",
         make: "Марка",
         model: "Модел",
         allMakes: "Сите марки",
         allModels: "Сите модели",
-        yearFrom: "Година од",
-        yearTo: "Година до",
-        carsFilters: "Филтри за коли",
-        selectMakeFirst: "Прво избери марка",
-        favoritesChip: "Омилени",
-        minLabel: "мин",
-        maxLabel: "макс",
-        removeFilter: "Отстрани филтер",
-        priceAutoFixed: "Мин/макс се усогласени автоматски.",
-        favoritesOnly: "Само омилени",
+        selectMakeFirst: "Избери марка прво",
+        yearFrom: "Од",
+        yearTo: "До",
+        sort: "Подреди",
+        newest: "Најнови",
+        priceAsc: "Најниска цена",
+        priceDesc: "Највисока цена",
+        yes: "Да",
+        no: "Не",
+        select: "Избери",
+        newCondition: "Ново",
+        usedCondition: "Користено",
+        refurbishedCondition: "Рефурбиширано",
       }
     : {
         search: "Search",
         searchPlaceholder: "Title, model, keyword...",
+        searchHint: "Search first. Refine only when you need to.",
+        favoritesOnly: "Favorites only",
         category: "Category",
+        categoryHint: "Pick one only if you want tighter results.",
         allCategories: "All categories",
-        subcategory: "Subcategory",
         allSubcategories: "All subcategories",
         selectCategoryFirst: "Select category first",
-        city: "City",
-        allCities: "All cities",
-        condition: "Condition",
-        anyCondition: "Any condition",
-        priceRange: "Price range",
-        minPrice: "Min price",
-        maxPrice: "Max price",
+        inferredCategory: "Suggested from your search",
+        price: "Price",
+        priceHint: "Set a range only when you want faster narrowing.",
+        minPrice: "Min",
+        maxPrice: "Max",
         mkd: "MKD",
-        categoryFilters: "Category specific filters",
-        extraFilters: "Extra filters",
-        any: "Any",
-        apply: "Apply filters",
-        clear: "Clear all",
-        orderBy: "Sort by",
-        newest: "Newest first",
-        priceAsc: "Price low to high",
-        priceDesc: "Price high to low",
-        resetFilters: "Reset filters",
-        activeFilters: "Active filters",
-        clearAll: "Clear all",
-        searchChip: "Search",
-        categoryChip: "Category",
-        subcategoryChip: "Subcategory",
-        cityChip: "City",
-        conditionChip: "Condition",
-        priceChip: "Price",
-        makeChip: "Make",
-        modelChip: "Model",
-        yearChip: "Year",
+        condition: "Condition",
+        anyCondition: "Any",
+        location: "Location",
+        locationHint: "Choose a city only if distance matters.",
+        allCities: "All cities",
+        categorySpecific: "Relevant details",
+        categorySpecificHint: "Only the most useful refiners for this search are shown.",
+        cars: "Car details",
+        carsHint: "Start with make and model, then narrow down.",
         make: "Make",
         model: "Model",
         allMakes: "All makes",
         allModels: "All models",
-        yearFrom: "Year from",
-        yearTo: "Year to",
-        carsFilters: "Cars filters",
         selectMakeFirst: "Select make first",
-        favoritesChip: "Favorites",
-        minLabel: "min",
-        maxLabel: "max",
-        removeFilter: "Remove filter",
-        priceAutoFixed: "Min/max were aligned automatically.",
-        favoritesOnly: "Favorites only",
+        yearFrom: "From",
+        yearTo: "To",
+        sort: "Sort",
+        newest: "Newest",
+        priceAsc: "Lowest price",
+        priceDesc: "Highest price",
+        yes: "Yes",
+        no: "No",
+        select: "Select",
+        newCondition: "New",
+        usedCondition: "Used",
+        refurbishedCondition: "Refurbished",
       };
-  const filtersLabel = isMk ? "Филтри" : "Filters";
-  const clearAllLabel = isMk ? "Исчисти сè" : "Clear all";
-  const resetLabel = isMk ? "Ресетирај" : "Reset";
-  const moreFiltersLabel = isMk ? "Повеќе филтри" : "More filters";
-  const priceLabel = isMk ? "Цена" : "Price";
-  const vehicleDetailsLabel = isMk ? "Детали за возило" : "Vehicle details";
-  const basicsLabel = isMk ? "Основни филтри" : "Basic filters";
 
-  const conditionLabelByValue = React.useMemo<Record<ListingCondition, string>>(
-    () =>
-      isMk
-        ? { NEW: "Ново", USED: "Користено", REFURBISHED: "Рефурбиширано" }
-        : { NEW: "New", USED: "Used", REFURBISHED: "Refurbished" },
-    [isMk],
-  );
-
-  const sortOptions = React.useMemo<{ value: BrowseSort; label: string }[]>(
-    () => [
-      { value: "newest", label: text.newest },
-      { value: "price-asc", label: text.priceAsc },
-      { value: "price-desc", label: text.priceDesc },
-    ],
-    [text.newest, text.priceAsc, text.priceDesc],
-  );
-
-  const [desktopState, setDesktopState] = React.useState<BrowseFilterState>(
-    fallbackState,
-  );
-  const [desktopDynamicValues, setDesktopDynamicValues] = React.useState<
-    Record<string, string>
-  >(
-    getBrowseDynamicValues(sp),
-  );
-  const state = React.useMemo(
-    () => (isMobileMode ? value ?? fallbackState : desktopState),
-    [desktopState, fallbackState, isMobileMode, value],
-  );
-  const dynamicValues = React.useMemo(
-    () =>
-      isMobileMode
-        ? controlledDynamicValues ?? {}
-        : desktopDynamicValues,
-    [controlledDynamicValues, desktopDynamicValues, isMobileMode],
-  );
-  const setState = React.useCallback<
-    React.Dispatch<React.SetStateAction<BrowseFilterState>>
-  >(
-    (next) => {
-      if (isMobileMode) {
-        onChange?.(next);
-        return;
-      }
-      setDesktopState(next);
-    },
-    [isMobileMode, onChange],
-  );
-  const setDynamicValues = React.useCallback<
-    React.Dispatch<React.SetStateAction<Record<string, string>>>
-  >(
-    (next) => {
-      if (isMobileMode) {
-        onDynamicValuesChange?.(next);
-        return;
-      }
-      setDesktopDynamicValues(next);
-    },
-    [isMobileMode, onDynamicValuesChange],
-  );
-
-  React.useEffect(() => {
-    if (isMobileMode) return;
-    const latest = new URLSearchParams(spString);
-    const nextState = getBrowseFilterState(latest);
-    const nextDynamicValues = getBrowseDynamicValues(latest);
-
-    setState((prev) => (areBrowseStatesEqual(prev, nextState) ? prev : nextState));
-    setDynamicValues((prev) =>
-      areStringRecordsEqual(prev, nextDynamicValues) ? prev : nextDynamicValues,
-    );
-  }, [isMobileMode, setDynamicValues, setState, spString]);
-
-  const parent = categories.find((category) => category.id === state.cat);
-  const subcategories = parent?.children ?? [];
-  const selectedCategoryId = state.sub || state.cat;
-  const selectedSubParent = state.sub
-    ? categories.find((category) =>
-        category.children.some((child) => child.id === state.sub),
-      )
+  const explicitParent = categories.find((category) => category.id === state.cat) ?? null;
+  const explicitSubParent = state.sub ? findParentForChild(categories, state.sub) : null;
+  const allowInferredCategoryFilters = inferredCategoryConfidence === "high";
+  const inferredParent = allowInferredCategoryFilters && inferredCategoryId
+    ? categories.find((category) => category.id === inferredCategoryId) ?? null
     : null;
-  const carsRootSlug = state.sub ? selectedSubParent?.slug : parent?.slug;
-  const isCarsCategorySelected = isCarsSlug(carsRootSlug);
-  const makeBySlug = React.useMemo(
-    () => new Map(carMakes.map((make) => [make.slug, make])),
-    [carMakes],
-  );
-  const selectedMake = state.make ? makeBySlug.get(state.make) : undefined;
-  const carModelOptions = React.useMemo(
-    () => selectedMake?.models ?? [],
-    [selectedMake],
-  );
-  const currentYear = new Date().getFullYear() + 1;
-  const carYearOptions = React.useMemo(
-    () =>
-      Array.from({ length: currentYear - 1980 + 1 }, (_, index) =>
-        String(currentYear - index),
-      ),
-    [currentYear],
-  );
+  const inferredSubParent = allowInferredCategoryFilters && inferredSubcategoryId
+    ? findParentForChild(categories, inferredSubcategoryId)
+    : null;
+
+  const contextCategoryId =
+    state.sub ||
+    state.cat ||
+    (allowInferredCategoryFilters ? inferredSubcategoryId || inferredCategoryId || "" : "");
+  const contextParentSlug =
+    (state.sub ? explicitSubParent?.slug : explicitParent?.slug) ||
+    (allowInferredCategoryFilters
+      ? inferredSubcategoryId
+        ? inferredSubParent?.slug
+        : inferredParent?.slug
+      : undefined) ||
+    "";
+  const inferredContextLabel =
+    (inferredSubcategoryId ? inferredSubParent?.children.find((child) => child.id === inferredSubcategoryId)?.name : undefined) ||
+    inferredSubParent?.name ||
+    inferredParent?.name ||
+    "";
+  const isCarsCategorySelected = isCarsSlug(contextParentSlug);
   const dynamicTemplates = React.useMemo(
-    () => templatesByCategory[selectedCategoryId] ?? [],
-    [selectedCategoryId, templatesByCategory],
+    () => (contextCategoryId ? templatesByCategory[contextCategoryId] ?? [] : []),
+    [contextCategoryId, templatesByCategory],
   );
-  const carExtraTemplates = isCarsCategorySelected
-    ? dynamicTemplates.filter((template) => isCarExtraTemplate(template))
-    : [];
-  const visibleDynamicTemplates = isCarsCategorySelected
-    ? dynamicTemplates.filter((template) => !isCarCoreTemplate(template))
-    : dynamicTemplates;
-
-  const allTemplateLabels = React.useMemo(() => {
-    const map = new Map<string, string>();
-    Object.values(templatesByCategory).forEach((templates) => {
-      templates.forEach((template) => map.set(template.key, template.label));
-    });
-    return map;
-  }, [templatesByCategory]);
-
-  const parentLabelById = React.useMemo(
-    () => new Map(categories.map((category) => [category.id, category.name])),
-    [categories],
-  );
-
-  const subLabelById = React.useMemo(
+  const visibleDynamicTemplates = React.useMemo(
     () =>
-      new Map(
-        categories.flatMap((category) =>
-          category.children.map((child) => [child.id, child.name] as const),
-        ),
-      ),
-    [categories],
+      isCarsCategorySelected
+        ? dynamicTemplates.filter((template) => !isCarExtraTemplate(template))
+        : dynamicTemplates,
+    [dynamicTemplates, isCarsCategorySelected],
   );
-
-  const cityLabelById = React.useMemo(
-    () => new Map(cities.map((cityItem) => [cityItem.id, cityItem.name])),
-    [cities],
+  const carExtraTemplates = React.useMemo(
+    () => (isCarsCategorySelected ? dynamicTemplates.filter((template) => isCarExtraTemplate(template)) : []),
+    [dynamicTemplates, isCarsCategorySelected],
   );
-  const makeLabelBySlug = React.useMemo(
-    () => new Map(carMakes.map((make) => [make.slug, make.name] as const)),
-    [carMakes],
+  const selectedMake = state.make
+    ? carMakes.find((make) => make.slug === state.make) ?? null
+    : null;
+  const carModelOptions = selectedMake?.models ?? [];
+  const currentYear = new Date().getFullYear() + 1;
+  const carYearOptions = Array.from({ length: currentYear - 1980 + 1 }, (_, index) =>
+    String(currentYear - index),
   );
-  const modelLabelBySlug = React.useMemo(
-    () =>
-      new Map(
-        carMakes.flatMap((make) =>
-          make.models.map((model) => [model.slug, model.name] as const),
-        ),
-      ),
-    [carMakes],
-  );
-
-  const hasAnyFilter = React.useMemo(
-    () => hasAnyBrowseFilter(state, dynamicValues),
-    [dynamicValues, state],
-  );
-
-  const applyFilters = React.useCallback(
-    (nextState: BrowseFilterState, nextDynamicValues: Record<string, string>) => {
-      if (isMobileMode) {
-        onApply?.(nextState, nextDynamicValues);
-        return;
-      }
-
-      const { query } = buildBrowseQueryFromState(
-        spString,
-        nextState,
-        nextDynamicValues,
-      );
-      if (shouldSkipBrowseNavigation(query, spString)) {
-        return;
-      }
-
-      router.replace(query ? `/browse?${query}` : "/browse", { scroll: false });
-    },
-    [isMobileMode, onApply, router, spString],
-  );
-
-  const debouncedQ = useDebouncedValue(state.q, TYPING_DEBOUNCE_MS);
-  const debouncedMin = useDebouncedValue(state.min, TYPING_DEBOUNCE_MS);
-  const debouncedMax = useDebouncedValue(state.max, TYPING_DEBOUNCE_MS);
-  const debouncedDynamicValues = useDebouncedValue(dynamicValues, TYPING_DEBOUNCE_MS);
-
-  const didMountRef = React.useRef(false);
-  React.useEffect(() => {
-    if (isMobileMode) return;
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
-    applyFilters(
-      {
-        ...state,
-        q: debouncedQ,
-        min: debouncedMin,
-        max: debouncedMax,
-      },
-      dynamicValues,
-    );
-  }, [
-    applyFilters,
-    debouncedMax,
-    debouncedMin,
-    debouncedQ,
-    dynamicValues,
-    isMobileMode,
-    state,
-  ]);
-
-  const dynamicDidMountRef = React.useRef(false);
-  React.useEffect(() => {
-    if (isMobileMode) return;
-    if (!dynamicDidMountRef.current) {
-      dynamicDidMountRef.current = true;
-      return;
-    }
-    applyFilters(state, debouncedDynamicValues);
-  }, [applyFilters, debouncedDynamicValues, isMobileMode, state]);
 
   React.useEffect(() => {
     setDynamicValues((prev) => {
-      const allowedTemplates = dynamicTemplates.filter(
-        (template) =>
-          !isCarsCategorySelected || !isCarIdentityTemplate(template),
-      );
-      const allowedKeys = new Set(
-        allowedTemplates.map((template) => template.key),
-      );
+      const allowedKeys = new Set(dynamicTemplates.map((template) => template.key));
       const next = Object.fromEntries(
         Object.entries(prev).filter(([key]) => allowedKeys.has(key)),
       );
       return areStringRecordsEqual(prev, next) ? prev : next;
     });
-  }, [dynamicTemplates, isCarsCategorySelected, setDynamicValues]);
+  }, [dynamicTemplates, setDynamicValues]);
 
-  React.useEffect(() => {
-    if (isMobileMode) return;
-    if (isCarsCategorySelected) return;
-    if (!state.make && !state.model && !state.yearFrom && !state.yearTo) return;
-    const nextState: BrowseFilterState = {
-      ...state,
-      make: "",
-      model: "",
-      yearFrom: "",
-      yearTo: "",
-    };
-    setState(nextState);
-    applyFilters(nextState, dynamicValues);
-  }, [
-    applyFilters,
-    dynamicValues,
-    isMobileMode,
-    isCarsCategorySelected,
-    setState,
-    state,
-  ]);
+  const renderDynamicInput = (template: BrowseTemplate) => {
+    const valueForKey = dynamicValues[template.key] ?? "";
 
-  React.useEffect(() => {
-    if (isMobileMode) return;
-    if (!isCarsCategorySelected) return;
-    if (!state.model) return;
-    if (!state.make) {
-      const nextState: BrowseFilterState = { ...state, model: "" };
-      setState(nextState);
-      applyFilters(nextState, dynamicValues);
-      return;
-    }
-    const modelIsValidForMake = carModelOptions.some(
-      (model) => model.slug === state.model,
-    );
-    if (!modelIsValidForMake) {
-      const nextState: BrowseFilterState = { ...state, model: "" };
-      setState(nextState);
-      applyFilters(nextState, dynamicValues);
-    }
-  }, [
-    applyFilters,
-    carModelOptions,
-    dynamicValues,
-    isMobileMode,
-    isCarsCategorySelected,
-    setState,
-    state,
-  ]);
-
-  const hasPriceSwap = React.useMemo(() => {
-    const minValue = toPositiveInteger(state.min);
-    const maxValue = toPositiveInteger(state.max);
-    return minValue !== undefined && maxValue !== undefined && minValue > maxValue;
-  }, [state.max, state.min]);
-  const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!isDrawerOpen) return;
-    lockBodyScroll();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsDrawerOpen(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      unlockBodyScroll();
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [isDrawerOpen]);
-
-  const resetAll = React.useCallback(() => {
-    const clearedState: BrowseFilterState = {
-      q: "",
-      cat: "",
-      sub: "",
-      city: "",
-      condition: "",
-      make: "",
-      model: "",
-      yearFrom: "",
-      yearTo: "",
-      fav: "",
-      min: "",
-      max: "",
-      sort: "newest",
-    };
-    setState(clearedState);
-    setDynamicValues({});
-    setIsDrawerOpen(false);
-    if (isMobileMode) return;
-    applyFilters(clearedState, {});
-  }, [applyFilters, isMobileMode, setDynamicValues, setState]);
-
-  const activeFilterChips = React.useMemo(() => {
-    const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
-
-    if (state.q.trim()) {
-      chips.push({
-        key: "q",
-        label: `${text.searchChip}: ${state.q.trim()}`,
-        onRemove: () => {
-          const nextState = { ...state, q: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.cat) {
-      const label = parentLabelById.get(state.cat) || state.cat;
-      chips.push({
-        key: "cat",
-        label: `${text.categoryChip}: ${label}`,
-        onRemove: () => {
-          const nextState = { ...state, cat: "", sub: "" };
-          setState(nextState);
-          setDynamicValues({});
-          applyFilters(nextState, {});
-        },
-      });
-    }
-
-    if (state.sub) {
-      const label = subLabelById.get(state.sub) || state.sub;
-      chips.push({
-        key: "sub",
-        label: `${text.subcategoryChip}: ${label}`,
-        onRemove: () => {
-          const nextState = { ...state, sub: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.city) {
-      const label = cityLabelById.get(state.city) || state.city;
-      chips.push({
-        key: "city",
-        label: `${text.cityChip}: ${label}`,
-        onRemove: () => {
-          const nextState = { ...state, city: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.condition) {
-      const label = conditionLabelByValue[state.condition as ListingCondition] || state.condition;
-      chips.push({
-        key: "condition",
-        label: `${text.conditionChip}: ${label}`,
-        onRemove: () => {
-          const nextState = { ...state, condition: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.make) {
-      const label = makeLabelBySlug.get(state.make) || state.make;
-      chips.push({
-        key: "make",
-        label: `${text.makeChip}: ${label}`,
-        onRemove: () => {
-          const nextState = { ...state, make: "", model: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.model) {
-      const label = modelLabelBySlug.get(state.model) || state.model;
-      chips.push({
-        key: "model",
-        label: `${text.modelChip}: ${label}`,
-        onRemove: () => {
-          const nextState = { ...state, model: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.yearFrom.trim() || state.yearTo.trim()) {
-      const yearLabel =
-        state.yearFrom.trim() && state.yearTo.trim()
-          ? `${state.yearFrom.trim()} - ${state.yearTo.trim()}`
-          : state.yearFrom.trim()
-            ? `${text.yearFrom}: ${state.yearFrom.trim()}`
-            : `${text.yearTo}: ${state.yearTo.trim()}`;
-
-      chips.push({
-        key: "year",
-        label: `${text.yearChip}: ${yearLabel}`,
-        onRemove: () => {
-          const nextState = { ...state, yearFrom: "", yearTo: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.fav === "1") {
-      chips.push({
-        key: "fav",
-        label: text.favoritesChip,
-        onRemove: () => {
-          const nextState = { ...state, fav: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.min.trim() || state.max.trim()) {
-      const normalizedRange = normalizeMinMax(state.min, state.max);
-      const minLabel = normalizedRange.min ? normalizedRange.min : text.minLabel;
-      const maxLabel = normalizedRange.max ? normalizedRange.max : text.maxLabel;
-
-      chips.push({
-        key: "price",
-        label: `${text.priceChip}: ${minLabel} - ${maxLabel} ${text.mkd}`,
-        onRemove: () => {
-          const nextState = { ...state, min: "", max: "" };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    if (state.sort !== "newest") {
-      const sortLabel =
-        sortOptions.find((option) => option.value === state.sort)?.label || state.sort;
-      chips.push({
-        key: "sort",
-        label: `${text.orderBy}: ${sortLabel}`,
-        onRemove: () => {
-          const nextState = { ...state, sort: "newest" as BrowseSort };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        },
-      });
-    }
-
-    Object.entries(dynamicValues).forEach(([key, value]) => {
-      const trimmed = value.trim();
-      if (!trimmed) return;
-      const label = allTemplateLabels.get(key) || key;
-      chips.push({
-        key: `df_${key}`,
-        label: `${label}: ${trimmed}`,
-        onRemove: () => {
-          const nextDynamic = { ...dynamicValues, [key]: "" };
-          setDynamicValues(nextDynamic);
-          applyFilters(state, nextDynamic);
-        },
-      });
-    });
-
-    return chips;
-  }, [
-    allTemplateLabels,
-    applyFilters,
-    cityLabelById,
-    conditionLabelByValue,
-    dynamicValues,
-    makeLabelBySlug,
-    modelLabelBySlug,
-    parentLabelById,
-    setDynamicValues,
-    setState,
-    state,
-    subLabelById,
-    text.categoryChip,
-    text.cityChip,
-    text.conditionChip,
-    text.favoritesChip,
-    text.maxLabel,
-    text.minLabel,
-    text.mkd,
-    text.makeChip,
-    text.modelChip,
-    text.priceChip,
-    text.searchChip,
-    text.subcategoryChip,
-    text.yearChip,
-    text.yearFrom,
-    text.yearTo,
-    text.orderBy,
-    sortOptions,
-  ]);
-
-  const onCategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextCat = event.target.value;
-    const allowedKeys = new Set(
-      (templatesByCategory[nextCat] ?? []).map((template) => template.key),
-    );
-    const nextDynamicValues = Object.fromEntries(
-      Object.entries(dynamicValues).filter(([key]) => allowedKeys.has(key)),
-    );
-
-    const nextState: BrowseFilterState = {
-      ...state,
-      cat: nextCat,
-      sub: "",
-      make: "",
-      model: "",
-      yearFrom: "",
-      yearTo: "",
-    };
-
-    setState(nextState);
-    setDynamicValues(nextDynamicValues);
-    if (isMobileMode) return;
-    applyFilters(nextState, nextDynamicValues);
-  };
-
-  const onSubcategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextSub = event.target.value;
-    const nextParent = categories.find((category) =>
-      category.children.some((child) => child.id === nextSub),
-    );
-    const subIsCars = isCarsSlug(nextParent?.slug);
-    const nextState: BrowseFilterState = {
-      ...state,
-      sub: nextSub,
-      ...(subIsCars
-        ? {}
-        : {
-            make: "",
-            model: "",
-            yearFrom: "",
-            yearTo: "",
-          }),
-    };
-    setState(nextState);
-    if (isMobileMode) return;
-    applyFilters(nextState, dynamicValues);
-  };
-
-  const onImmediateSelectChange =
-    (key: keyof Pick<BrowseFilterState, "city" | "condition" | "sort">) =>
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextState: BrowseFilterState = {
-        ...state,
-        [key]: event.target.value as BrowseFilterState[typeof key],
-      };
-      setState(nextState);
-      if (isMobileMode) return;
-      applyFilters(nextState, dynamicValues);
-    };
-
-  const onMakeChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextState: BrowseFilterState = {
-      ...state,
-      make: event.target.value,
-      model: "",
-    };
-    setState(nextState);
-    if (isMobileMode) return;
-    applyFilters(nextState, dynamicValues);
-  };
-
-  const onModelChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextState: BrowseFilterState = {
-      ...state,
-      model: event.target.value,
-    };
-    setState(nextState);
-    if (isMobileMode) return;
-    applyFilters(nextState, dynamicValues);
-  };
-
-  const onYearChange =
-    (key: "yearFrom" | "yearTo") => (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextState: BrowseFilterState = {
-        ...state,
-        [key]: event.target.value,
-      };
-      setState(nextState);
-      if (isMobileMode) return;
-      applyFilters(nextState, dynamicValues);
-    };
-
-  function renderDynamicInput(template: Template) {
-    const value = dynamicValues[template.key] ?? "";
-    const commonClasses = "h-10 min-w-0 w-full max-w-full";
-
-    if (template.type === CategoryFieldType.SELECT) {
+    if (template.type === CategoryFieldType.TEXT) {
       return (
-        <Select
-          name={`df_${template.key}`}
-          value={value}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-            const next = { ...dynamicValues, [template.key]: event.target.value };
-            setDynamicValues(next);
-            if (isMobileMode) return;
-            applyFilters(state, next);
-          }}
-          className={commonClasses}
-        >
-          <option value="">
-            {text.any} {template.label.toLowerCase()}
-          </option>
-          {template.options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </Select>
+        <Input
+          value={valueForKey}
+          onChange={(event) =>
+            setDynamicValues((prev) => ({ ...prev, [template.key]: event.target.value }))
+          }
+          placeholder={template.label}
+        />
+      );
+    }
+
+    if (template.type === CategoryFieldType.NUMBER) {
+      return (
+        <Input
+          type="text"
+          inputMode="numeric"
+          value={valueForKey}
+          onChange={(event) =>
+            setDynamicValues((prev) => ({
+              ...prev,
+              [template.key]: normalizeNumericInput(event.target.value),
+            }))
+          }
+          placeholder={template.label}
+        />
+      );
+    }
+
+    if (template.type === CategoryFieldType.BOOLEAN) {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <ChipButton
+            active={valueForKey === "true"}
+            onClick={() =>
+              setDynamicValues((prev) => ({ ...prev, [template.key]: valueForKey === "true" ? "" : "true" }))
+            }
+          >
+            {text.yes}
+          </ChipButton>
+          <ChipButton
+            active={valueForKey === "false"}
+            onClick={() =>
+              setDynamicValues((prev) => ({ ...prev, [template.key]: valueForKey === "false" ? "" : "false" }))
+            }
+          >
+            {text.no}
+          </ChipButton>
+        </div>
       );
     }
 
     return (
-      <Input
-        name={`df_${template.key}`}
-        value={value}
+      <Select
+        value={valueForKey}
         onChange={(event) =>
           setDynamicValues((prev) => ({ ...prev, [template.key]: event.target.value }))
         }
-        className={commonClasses}
-        type={template.type === CategoryFieldType.NUMBER ? "number" : "text"}
-        placeholder={`${text.any} ${template.label.toLowerCase()}`}
-        autoComplete="off"
-      />
+        aria-label={template.label}
+      >
+        <option value="">{template.label}</option>
+        {template.options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </Select>
     );
-  }
+  };
 
-  if (isMobileMode) {
-    return (
-      <div className="max-w-full space-y-4 overflow-x-hidden">
-        <label className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.search}
-          </span>
+  return (
+    <div className="space-y-3.5">
+      <FilterSection title={text.search} hint={text.searchHint}>
+        <div className="space-y-2.5">
           <Input
-            name="q"
             value={state.q}
-            onChange={(event) =>
-              setState((prev) => ({ ...prev, q: event.target.value }))
-            }
+            onChange={(event) => setState((prev) => ({ ...prev, q: event.target.value }))}
             placeholder={text.searchPlaceholder}
             autoComplete="off"
           />
-        </label>
-
-        <details className="group rounded-xl border border-border/70 bg-card/70 p-3" open>
-          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.category}
-          </summary>
-          <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.category}
-              </span>
-              <Select name="cat" value={state.cat} onChange={onCategoryChange}>
-                <option value="">{text.allCategories}</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.subcategory}
-              </span>
-              <Select
-                name="sub"
-                value={state.sub}
-                disabled={!state.cat}
-                onChange={onSubcategoryChange}
-              >
-                <option value="">
-                  {state.cat ? text.allSubcategories : text.selectCategoryFirst}
-                </option>
-                {subcategories.map((subcategory) => (
-                  <option key={subcategory.id} value={subcategory.id}>
-                    {subcategory.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </div>
-        </details>
-
-        <details className="group rounded-xl border border-border/70 bg-card/70 p-3">
-          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.city}
-          </summary>
-          <label className="mt-3 block space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {text.city}
-            </span>
-            <Select name="city" value={state.city} onChange={onImmediateSelectChange("city")}>
-              <option value="">{text.allCities}</option>
-              {cities.map((cityItem) => (
-                <option key={cityItem.id} value={cityItem.id}>
-                  {cityItem.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-        </details>
-
-        <details className="group rounded-xl border border-border/70 bg-card/70 p-3">
-          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.priceRange}
-          </summary>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <div className="relative">
-              <Input
-                name="min"
-                type="text"
-                inputMode="numeric"
-                value={state.min}
-                onChange={(event) =>
-                  setState((prev) => ({
-                    ...prev,
-                    min: normalizeNumericInput(event.target.value),
-                  }))
-                }
-                placeholder={text.minPrice}
-                autoComplete="off"
-                className="pr-12"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
-                {text.mkd}
-              </span>
-            </div>
-            <div className="relative">
-              <Input
-                name="max"
-                type="text"
-                inputMode="numeric"
-                value={state.max}
-                onChange={(event) =>
-                  setState((prev) => ({
-                    ...prev,
-                    max: normalizeNumericInput(event.target.value),
-                  }))
-                }
-                placeholder={text.maxPrice}
-                autoComplete="off"
-                className="pr-12"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
-                {text.mkd}
-              </span>
-            </div>
-          </div>
-        </details>
-
-        <details className="group rounded-xl border border-border/70 bg-card/70 p-3">
-          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {text.condition}
-          </summary>
-          <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.condition}
-              </span>
-              <Select
-                name="condition"
-                value={state.condition}
-                onChange={onImmediateSelectChange("condition")}
-              >
-                <option value="">{text.anyCondition}</option>
-                {Object.values(ListingCondition).map((item) => (
-                  <option key={item} value={item}>
-                    {conditionLabelByValue[item]}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {text.orderBy}
-              </span>
-              <Select
-                name="sort"
-                value={state.sort}
-                onChange={(event) => {
-                  const nextState: BrowseFilterState = {
-                    ...state,
-                    sort: parseBrowseSort(event.target.value),
-                  };
-                  setState(nextState);
-                }}
-              >
-                {sortOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            {canUseFavoritesFilter && (
-              <button
-                type="button"
-                className={cn(
-                  "inline-flex h-9 w-full items-center justify-center rounded-full border px-3 text-xs font-semibold transition-colors",
-                  state.fav === "1"
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border/70 bg-background text-muted-foreground hover:text-foreground",
-                )}
+          {canUseFavoritesFilter ? (
+            <div className="flex flex-wrap gap-2">
+              <ChipButton
+                active={state.fav === "1"}
                 onClick={() =>
                   setState((prev) => ({
                     ...prev,
@@ -1036,442 +379,307 @@ export function BrowseFilters({
                 }
               >
                 {text.favoritesOnly}
-              </button>
-            )}
+              </ChipButton>
+            </div>
+          ) : null}
+        </div>
+      </FilterSection>
+
+      <FilterSection title={text.category} hint={text.categoryHint}>
+        <div className="space-y-2.5">
+          {allowInferredCategoryFilters && !state.cat && inferredContextLabel ? (
+            <div className="inline-flex min-h-11 items-center rounded-full bg-primary/10 px-3 text-sm font-medium text-primary">
+              {text.inferredCategory}: {inferredContextLabel}
+            </div>
+          ) : null}
+          <Select
+            value={state.cat}
+            aria-label={text.category}
+            onChange={(event) => {
+              const nextState: BrowseFilterState = {
+                ...state,
+                cat: event.target.value,
+                sub: "",
+                make: "",
+                model: "",
+                yearFrom: "",
+                yearTo: "",
+              };
+              setState(nextState);
+              setDynamicValues({});
+            }}
+          >
+            <option value="">{text.allCategories}</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </Select>
+
+          {(state.cat || (allowInferredCategoryFilters && inferredCategoryId)) ? (
+            <Select
+              value={state.sub}
+              disabled={!state.cat}
+              aria-label={text.allSubcategories}
+              onChange={(event) => {
+                const nextState: BrowseFilterState = {
+                  ...state,
+                  sub: event.target.value,
+                  make: "",
+                  model: "",
+                  yearFrom: "",
+                  yearTo: "",
+                };
+                setState(nextState);
+                setDynamicValues({});
+              }}
+            >
+              <option value="">
+                {state.cat ? text.allSubcategories : text.selectCategoryFirst}
+              </option>
+              {(explicitParent?.children ?? []).map((subcategory) => (
+                <option key={subcategory.id} value={subcategory.id}>
+                  {subcategory.name}
+                </option>
+              ))}
+            </Select>
+          ) : null}
+        </div>
+      </FilterSection>
+
+      <FilterSection title={text.price} hint={text.priceHint}>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="relative">
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={state.min}
+              aria-label={text.minPrice}
+              onChange={(event) =>
+                setState((prev) => ({
+                  ...prev,
+                  min: normalizeNumericInput(event.target.value),
+                }))
+              }
+              placeholder={text.minPrice}
+              className="pr-12"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
+              {text.mkd}
+            </span>
           </div>
-        </details>
-
-        {isCarsCategorySelected && (
-          <details className="group rounded-xl border border-border/70 bg-card/70 p-3">
-            <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {text.carsFilters}
-            </summary>
-            <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
-              <label className="space-y-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {text.make}
-                </span>
-                <Select name="make" value={state.make} onChange={onMakeChange}>
-                  <option value="">{text.allMakes}</option>
-                  {carMakes.map((make) => (
-                    <option key={make.id} value={make.slug}>
-                      {make.name}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {text.model}
-                </span>
-                <Select
-                  name="model"
-                  value={state.model}
-                  onChange={onModelChange}
-                  disabled={!state.make}
-                >
-                  <option value="">
-                    {state.make ? text.allModels : text.selectMakeFirst}
-                  </option>
-                  {carModelOptions.map((model) => (
-                    <option key={model.id} value={model.slug}>
-                      {model.name}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="space-y-1">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {text.yearFrom}
-                  </span>
-                  <Select
-                    name="yearFrom"
-                    value={state.yearFrom}
-                    onChange={onYearChange("yearFrom")}
-                  >
-                    <option value="">{text.any}</option>
-                    {carYearOptions.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {text.yearTo}
-                  </span>
-                  <Select
-                    name="yearTo"
-                    value={state.yearTo}
-                    onChange={onYearChange("yearTo")}
-                  >
-                    <option value="">{text.any}</option>
-                    {carYearOptions.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              </div>
-            </div>
-          </details>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <form
-      className="max-w-full min-w-0 space-y-3 overflow-x-hidden"
-      onSubmit={(event) => {
-        event.preventDefault();
-        applyFilters(state, dynamicValues);
-      }}
-    >
-      <button type="submit" className="sr-only">
-        {text.apply}
-      </button>
-
-      <BrowseDesktopFiltersRow
-        searchLabel={text.search}
-        searchPlaceholder={text.searchPlaceholder}
-        searchValue={state.q}
-        onSearchChange={(value) =>
-          setState((prev) => ({ ...prev, q: value }))
-        }
-        orderByLabel={text.orderBy}
-        sortOptions={sortOptions}
-        sortValue={state.sort}
-        onSortChange={(value) => {
-          const nextState: BrowseFilterState = {
-            ...state,
-            sort: value,
-          };
-          setState(nextState);
-          applyFilters(nextState, dynamicValues);
-        }}
-        filtersLabel={filtersLabel}
-        activeFilterCount={activeFilterChips.length}
-        onOpenFilters={() => setIsDrawerOpen(true)}
-      />
-
-      {showActiveChips && (hasAnyFilter || activeFilterChips.length > 0) && (
-        <BrowseFiltersActiveChips
-          chips={activeFilterChips}
-          title={text.activeFilters}
-          clearAllLabel={clearAllLabel}
-          removeFilterLabel={text.removeFilter}
-          onClearAll={resetAll}
-        />
-      )}
-
-      {isDrawerOpen && (
-        <div className="fixed inset-0 z-[95] max-w-[100vw] overflow-hidden">
-          <button
-            type="button"
-            className={uiModal.backdrop}
-            aria-label={filtersLabel}
-            onClick={() => setIsDrawerOpen(false)}
-          />
-          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-2xl ring-1 ring-black/10 md:inset-y-0 md:right-0 md:left-auto md:h-auto md:max-h-none md:w-[min(420px,100vw)] md:rounded-none md:ring-l md:ring-t-0 md:ring-r-0 md:ring-b-0 dark:ring-white/10">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-background px-4 py-3">
-              <p className={uiTypography.eyebrow}>
-                {filtersLabel}
-              </p>
-              <div className="flex items-center gap-3">
-                {showResetButton && (
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-primary hover:underline"
-                    onClick={resetAll}
-                  >
-                    {resetLabel}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-                  onClick={() => setIsDrawerOpen(false)}
-                  aria-label={text.clear}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4">
-              <section className="min-w-0 space-y-3">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                  {basicsLabel}
-                </p>
-                <div className="grid max-w-full gap-3 [&>*]:min-w-0">
-                  <label className="space-y-1">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {text.category}
-                    </span>
-                    <Select name="cat" value={state.cat} onChange={onCategoryChange}>
-                      <option value="">{text.allCategories}</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-
-                  <label className="space-y-1">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {text.subcategory}
-                    </span>
-                    <Select
-                      name="sub"
-                      value={state.sub}
-                      disabled={!state.cat}
-                      onChange={onSubcategoryChange}
-                    >
-                      <option value="">
-                        {state.cat ? text.allSubcategories : text.selectCategoryFirst}
-                      </option>
-                      {subcategories.map((subcategory) => (
-                        <option key={subcategory.id} value={subcategory.id}>
-                          {subcategory.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-
-                  <label className="space-y-1">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {text.city}
-                    </span>
-                    <Select
-                      name="city"
-                      value={state.city}
-                      onChange={onImmediateSelectChange("city")}
-                    >
-                      <option value="">{text.allCities}</option>
-                      {cities.map((cityItem) => (
-                        <option key={cityItem.id} value={cityItem.id}>
-                          {cityItem.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-
-                  <label className="space-y-1">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {text.condition}
-                    </span>
-                    <Select
-                      name="condition"
-                      value={state.condition}
-                      onChange={onImmediateSelectChange("condition")}
-                    >
-                      <option value="">{text.anyCondition}</option>
-                      {Object.values(ListingCondition).map((item) => (
-                        <option key={item} value={item}>
-                          {conditionLabelByValue[item]}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                </div>
-
-                {canUseFavoritesFilter && (
-                  <button
-                    type="button"
-                    className={cn(
-                      "inline-flex h-8 w-full items-center justify-center rounded-full px-3 text-xs font-medium transition-colors",
-                      state.fav === "1"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-background text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={() => {
-                      const nextState: BrowseFilterState = {
-                        ...state,
-                        fav: state.fav === "1" ? "" : "1",
-                      };
-                      setState(nextState);
-                      applyFilters(nextState, dynamicValues);
-                    }}
-                  >
-                    {text.favoritesOnly}
-                  </button>
-                )}
-              </section>
-
-              <section className="min-w-0 space-y-2">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                  {priceLabel}
-                </p>
-                <div className="grid max-w-full gap-2">
-                  <div className="relative">
-                    <Input
-                      name="min"
-                      type="text"
-                      inputMode="numeric"
-                      value={state.min}
-                      onChange={(event) =>
-                        setState((prev) => ({
-                          ...prev,
-                          min: normalizeNumericInput(event.target.value),
-                        }))
-                      }
-                      placeholder={text.minPrice}
-                      autoComplete="off"
-                      className="pr-12"
-                    />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
-                      {text.mkd}
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      name="max"
-                      type="text"
-                      inputMode="numeric"
-                      value={state.max}
-                      onChange={(event) =>
-                        setState((prev) => ({
-                          ...prev,
-                          max: normalizeNumericInput(event.target.value),
-                        }))
-                      }
-                      placeholder={text.maxPrice}
-                      autoComplete="off"
-                      className="pr-12"
-                    />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
-                      {text.mkd}
-                    </span>
-                  </div>
-                </div>
-                {hasPriceSwap && (
-                  <p className="text-xs text-warning">{text.priceAutoFixed}</p>
-                )}
-              </section>
-
-              {isCarsCategorySelected && (
-                <section className="min-w-0 space-y-3">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                    {vehicleDetailsLabel}
-                  </p>
-                  <div className="grid max-w-full gap-3 [&>*]:min-w-0">
-                    <label className="space-y-1">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        {text.make}
-                      </span>
-                      <Select name="make" value={state.make} onChange={onMakeChange}>
-                        <option value="">{text.allMakes}</option>
-                        {carMakes.map((make) => (
-                          <option key={make.id} value={make.slug}>
-                            {make.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-
-                    <label className="space-y-1">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        {text.model}
-                      </span>
-                      <Select
-                        name="model"
-                        value={state.model}
-                        onChange={onModelChange}
-                        disabled={!state.make}
-                      >
-                        <option value="">
-                          {state.make ? text.allModels : text.selectMakeFirst}
-                        </option>
-                        {carModelOptions.map((model) => (
-                          <option key={model.id} value={model.slug}>
-                            {model.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="space-y-1">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          {text.yearFrom}
-                        </span>
-                        <Select
-                          name="yearFrom"
-                          value={state.yearFrom}
-                          onChange={onYearChange("yearFrom")}
-                        >
-                          <option value="">{text.any}</option>
-                          {carYearOptions.map((year) => (
-                            <option key={year} value={year}>
-                              {year}
-                            </option>
-                          ))}
-                        </Select>
-                      </label>
-
-                      <label className="space-y-1">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          {text.yearTo}
-                        </span>
-                        <Select
-                          name="yearTo"
-                          value={state.yearTo}
-                          onChange={onYearChange("yearTo")}
-                        >
-                          <option value="">{text.any}</option>
-                          {carYearOptions.map((year) => (
-                            <option key={year} value={year}>
-                              {year}
-                            </option>
-                          ))}
-                        </Select>
-                      </label>
-                    </div>
-
-                    {carExtraTemplates.map((template) => (
-                      <label key={`car-${template.key}`} className="space-y-1">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          {template.label}
-                        </span>
-                        {renderDynamicInput(template)}
-                      </label>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {visibleDynamicTemplates.length > 0 && (
-                <details className="rounded-xl bg-muted/30 p-3 ring-1 ring-black/5 dark:ring-white/10">
-                  <summary className="cursor-pointer list-none text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                    {moreFiltersLabel}
-                  </summary>
-                  <div className="mt-3 grid max-w-full gap-3 [&>*]:min-w-0">
-                    {visibleDynamicTemplates.map((template) => (
-                      <label key={template.key} className="space-y-1">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          {template.label}
-                        </span>
-                        {renderDynamicInput(template)}
-                      </label>
-                    ))}
-                  </div>
-                </details>
-              )}
-            </div>
-
-            <div className="border-t border-border/50 p-4">
-              <Button type="button" className="w-full" onClick={() => setIsDrawerOpen(false)}>
-                {text.apply}
-              </Button>
-            </div>
+          <div className="relative">
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={state.max}
+              aria-label={text.maxPrice}
+              onChange={(event) =>
+                setState((prev) => ({
+                  ...prev,
+                  max: normalizeNumericInput(event.target.value),
+                }))
+              }
+              placeholder={text.maxPrice}
+              className="pr-12"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground">
+              {text.mkd}
+            </span>
           </div>
         </div>
-      )}
-    </form>
+      </FilterSection>
+
+      <FilterSection title={text.condition}>
+        <div className="flex flex-wrap gap-2">
+          <ChipButton active={!state.condition} onClick={() => setState((prev) => ({ ...prev, condition: "" }))}>
+            {text.anyCondition}
+          </ChipButton>
+          <ChipButton
+            active={state.condition === ListingCondition.USED}
+            onClick={() =>
+              setState((prev) => ({
+                ...prev,
+                condition: prev.condition === ListingCondition.USED ? "" : ListingCondition.USED,
+              }))
+            }
+          >
+            {text.usedCondition}
+          </ChipButton>
+          <ChipButton
+            active={state.condition === ListingCondition.NEW}
+            onClick={() =>
+              setState((prev) => ({
+                ...prev,
+                condition: prev.condition === ListingCondition.NEW ? "" : ListingCondition.NEW,
+              }))
+            }
+          >
+            {text.newCondition}
+          </ChipButton>
+          <ChipButton
+            active={state.condition === ListingCondition.REFURBISHED}
+            onClick={() =>
+              setState((prev) => ({
+                ...prev,
+                condition:
+                  prev.condition === ListingCondition.REFURBISHED ? "" : ListingCondition.REFURBISHED,
+              }))
+            }
+          >
+            {text.refurbishedCondition}
+          </ChipButton>
+        </div>
+      </FilterSection>
+
+      <FilterSection title={text.location} hint={text.locationHint}>
+        <Select
+          value={state.city}
+          aria-label={text.location}
+          onChange={(event) =>
+            setState((prev) => ({
+              ...prev,
+              city: event.target.value,
+            }))
+          }
+        >
+          <option value="">{text.allCities}</option>
+          {cities.map((city) => (
+            <option key={city.id} value={city.id}>
+              {city.name}
+            </option>
+          ))}
+        </Select>
+      </FilterSection>
+
+      {isCarsCategorySelected ? (
+        <FilterSection title={text.cars} hint={text.carsHint}>
+          <div className="space-y-2.5">
+            <Select
+              value={state.make}
+              aria-label={text.make}
+              onChange={(event) => {
+                const nextMake = event.target.value;
+                setState((prev) => ({
+                  ...prev,
+                  make: nextMake,
+                  model: "",
+                }));
+              }}
+            >
+              <option value="">{text.allMakes}</option>
+              {carMakes.map((make) => (
+                <option key={make.id} value={make.slug}>
+                  {make.name}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              value={state.model}
+              disabled={!state.make}
+              aria-label={text.model}
+              onChange={(event) =>
+                setState((prev) => ({
+                  ...prev,
+                  model: event.target.value,
+                }))
+              }
+            >
+              <option value="">
+                {state.make ? text.allModels : text.selectMakeFirst}
+              </option>
+              {carModelOptions.map((model) => (
+                <option key={model.id} value={model.slug}>
+                  {model.name}
+                </option>
+              ))}
+            </Select>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <Select
+                value={state.yearFrom}
+                aria-label={text.yearFrom}
+                onChange={(event) =>
+                  setState((prev) => ({
+                    ...prev,
+                    yearFrom: event.target.value,
+                  }))
+                }
+              >
+                <option value="">{text.yearFrom}</option>
+                {carYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                value={state.yearTo}
+                aria-label={text.yearTo}
+                onChange={(event) =>
+                  setState((prev) => ({
+                    ...prev,
+                    yearTo: event.target.value,
+                  }))
+                }
+              >
+                <option value="">{text.yearTo}</option>
+                {carYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            {carExtraTemplates.map((template) => (
+              <div key={template.key} className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{template.label}</span>
+                {renderDynamicInput(template)}
+              </div>
+            ))}
+          </div>
+        </FilterSection>
+      ) : null}
+
+      {!isCarsCategorySelected && visibleDynamicTemplates.length > 0 ? (
+        <FilterSection title={text.categorySpecific} hint={text.categorySpecificHint}>
+          <div className="space-y-2.5">
+            {visibleDynamicTemplates.map((template) => (
+              <div key={template.key} className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{template.label}</span>
+                {renderDynamicInput(template)}
+              </div>
+            ))}
+          </div>
+        </FilterSection>
+      ) : null}
+
+      <FilterSection title={text.sort}>
+        <div className="flex flex-wrap gap-2">
+          <ChipButton
+            active={state.sort === "newest"}
+            onClick={() => setState((prev) => ({ ...prev, sort: parseBrowseSort("newest") }))}
+          >
+            {text.newest}
+          </ChipButton>
+          <ChipButton
+            active={state.sort === "price-asc"}
+            onClick={() => setState((prev) => ({ ...prev, sort: parseBrowseSort("price-asc") }))}
+          >
+            {text.priceAsc}
+          </ChipButton>
+          <ChipButton
+            active={state.sort === "price-desc"}
+            onClick={() => setState((prev) => ({ ...prev, sort: parseBrowseSort("price-desc") }))}
+          >
+            {text.priceDesc}
+          </ChipButton>
+        </div>
+      </FilterSection>
+    </div>
   );
 }

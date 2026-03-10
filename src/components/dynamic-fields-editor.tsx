@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CategoryFieldType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,11 @@ type Props = {
   initialValues?: Record<string, string>;
   suggestedValues?: Record<string, string>;
   locale?: "en" | "mk";
+  visibleTemplateKeys?: string[];
+  includeFormNames?: boolean;
+  onValuesChange?: (values: Record<string, string>) => void;
+  compact?: boolean;
+  showHeader?: boolean;
 };
 
 const CAR_BRANDS = [
@@ -106,6 +111,11 @@ export function DynamicFieldsEditor({
   initialValues = {},
   suggestedValues = {},
   locale = "en",
+  visibleTemplateKeys,
+  includeFormNames = true,
+  onValuesChange,
+  compact = false,
+  showHeader = true,
 }: Props) {
   const isMk = locale === "mk";
   const text = isMk
@@ -131,6 +141,17 @@ export function DynamicFieldsEditor({
   const templates = useMemo(
     () => templatesByCategory[categoryId] ?? [],
     [templatesByCategory, categoryId],
+  );
+  const visibleKeySet = useMemo(
+    () => (visibleTemplateKeys ? new Set(visibleTemplateKeys) : null),
+    [visibleTemplateKeys],
+  );
+  const visibleTemplates = useMemo(
+    () =>
+      visibleKeySet
+        ? templates.filter((template) => visibleKeySet.has(template.key))
+        : templates,
+    [templates, visibleKeySet],
   );
 
   const initialTemplateValues = useMemo(() => {
@@ -183,6 +204,10 @@ export function DynamicFieldsEditor({
     });
   }
 
+  useEffect(() => {
+    onValuesChange?.(fieldValues);
+  }, [fieldValues, onValuesChange]);
+
   function clearFields() {
     const cleared: Record<string, string> = {};
     templates.forEach((template) => {
@@ -218,7 +243,7 @@ export function DynamicFieldsEditor({
     return [];
   }
 
-  if (templates.length === 0) {
+  if (visibleTemplates.length === 0) {
     return (
       <div className="rounded-[1rem] border border-dashed border-border/80 bg-background/45 p-4 text-sm text-[#74685c]">
         {text.noAdditionalFields}
@@ -227,21 +252,30 @@ export function DynamicFieldsEditor({
   }
 
   return (
-    <div className="space-y-4 rounded-[1rem] border border-border/60 bg-[#f7f3ee] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-[#5f544a]">
-          {text.categoryFields}
-        </p>
-        <Button type="button" size="sm" variant="ghost" onClick={clearFields}>
-          {text.clear}
-        </Button>
-      </div>
+    <div
+      className={
+        compact
+          ? "space-y-3"
+          : "space-y-4 rounded-[1rem] border border-border/60 bg-[#f7f3ee] p-4"
+      }
+    >
+      {showHeader ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-[#5f544a]">
+            {text.categoryFields}
+          </p>
+          <Button type="button" size="sm" variant="ghost" onClick={clearFields}>
+            {text.clear}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-3 md:grid-cols-2">
-        {templates.map((template, index) => {
-          const name = `${DYNAMIC_FIELD_PREFIX}${template.key}`;
+        {visibleTemplates.map((template, index) => {
+          const name = includeFormNames ? `${DYNAMIC_FIELD_PREFIX}${template.key}` : undefined;
           const value = fieldValues[template.key] ?? "";
-          const isLastOddItem = templates.length % 2 === 1 && index === templates.length - 1;
+          const isLastOddItem =
+            visibleTemplates.length % 2 === 1 && index === visibleTemplates.length - 1;
 
           return (
             <label

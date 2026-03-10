@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { markAllRead, markNotificationRead } from "@/lib/actions/notifications";
 import { NotificationItemCard } from "@/components/notifications/notification-item-card";
@@ -24,22 +24,23 @@ type Props = {
 export function NotificationsList({ locale, items }: Props) {
   const router = useRouter();
   const text = getNotificationText(locale);
-  const [readIds, setReadIds] = useState<Set<string>>(
-    new Set(items.filter((item) => item.readAt).map((item) => item.id)),
-  );
+  const [optimisticReadIds, setOptimisticReadIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const serverReadIds = useMemo(
+    () => new Set(items.filter((item) => item.readAt).map((item) => item.id)),
+    [items],
+  );
   const unreadCount = useMemo(
     () =>
       items.reduce(
-        (count, item) => (item.readAt || readIds.has(item.id) ? count : count + 1),
+        (count, item) =>
+          item.readAt || serverReadIds.has(item.id) || optimisticReadIds.has(item.id)
+            ? count
+            : count + 1,
         0,
       ),
-    [items, readIds],
+    [items, optimisticReadIds, serverReadIds],
   );
-
-  useEffect(() => {
-    setReadIds(new Set(items.filter((item) => item.readAt).map((item) => item.id)));
-  }, [items]);
 
   return (
     <div className="space-y-3">
@@ -51,7 +52,7 @@ export function NotificationsList({ locale, items }: Props) {
           onClick={() => {
             startTransition(async () => {
               await markAllRead();
-              setReadIds(new Set(items.map((item) => item.id)));
+              setOptimisticReadIds(new Set(items.map((item) => item.id)));
               router.refresh();
             });
           }}
@@ -59,7 +60,8 @@ export function NotificationsList({ locale, items }: Props) {
       </div>
 
       {items.map((item) => {
-        const isRead = Boolean(item.readAt) || readIds.has(item.id);
+        const isRead =
+          Boolean(item.readAt) || serverReadIds.has(item.id) || optimisticReadIds.has(item.id);
 
         return (
           <NotificationItemCard
@@ -72,7 +74,7 @@ export function NotificationsList({ locale, items }: Props) {
             onMarkRead={() => {
               startTransition(async () => {
                 await markNotificationRead(item.id);
-                setReadIds((prev) => new Set(prev).add(item.id));
+                setOptimisticReadIds((prev) => new Set(prev).add(item.id));
                 router.refresh();
               });
             }}

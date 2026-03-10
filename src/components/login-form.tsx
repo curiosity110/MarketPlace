@@ -62,7 +62,7 @@ export function LoginForm({
   defaultMode = "login",
   initialError = null,
   nextPath = "/dashboard",
-  locale = "mk",
+  locale = "en",
 }: Props) {
   const isMk = locale === "mk";
   const text = isMk
@@ -82,8 +82,6 @@ export function LoginForm({
         sendMagicLink: "Испрати magic линк",
         policies:
           "Со продолжување се согласуваш со правилата и модерацијата на маркетплејсот.",
-        adminAccess:
-          "Админ пристапот се контролира преку улога во базата.",
         continueBrowsing: "Продолжи со пребарување",
       }
     : {
@@ -102,7 +100,6 @@ export function LoginForm({
         sendMagicLink: "Send magic link",
         policies:
           "By continuing you agree to marketplace policies and moderation rules.",
-        adminAccess: "Admin access is controlled by role in database.",
         continueBrowsing: "Continue browsing",
       };
 
@@ -120,6 +117,7 @@ export function LoginForm({
   const isRegister = mode === "register";
   const canSubmit = useMemo(() => {
     if (!email.trim() || !isValidEmail(email)) return false;
+    if (!password.trim()) return false;
     if (isRegister && password.trim().length < 8) return false;
     return true;
   }, [email, password, isRegister]);
@@ -168,7 +166,7 @@ export function LoginForm({
       const result = await callAuthApi("/api/auth/register", {
         email: email.trim(),
         password,
-        name,
+        name: name.trim(),
         nextPath: safeNextPath,
       });
       setMessage(t(locale, result.messageKey));
@@ -206,47 +204,59 @@ export function LoginForm({
     }
   }
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loadingAction !== null) return;
+    if (isRegister) {
+      void onRegister();
+      return;
+    }
+    void onLogin();
+  }
+
   return (
-    <>
     <div className="space-y-4">
       <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
         <button
           type="button"
           className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-            mode === "login"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground"
+            mode === "login" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
           }`}
-          onClick={() => setMode("login")}
+          onClick={() => {
+            setMode("login");
+            setMessage(null);
+          }}
         >
           {text.login}
         </button>
         <button
           type="button"
           className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-            mode === "register"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground"
+            mode === "register" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
           }`}
-          onClick={() => setMode("register")}
+          onClick={() => {
+            setMode("register");
+            setMessage(null);
+          }}
         >
           {text.register}
         </button>
       </div>
 
-      <div className="space-y-3">
-        {isRegister && (
+      <form className="space-y-3" onSubmit={handleSubmit}>
+        {isRegister ? (
           <label className="space-y-1">
             <span className="text-sm font-medium">{text.nameOptional}</span>
             <Input
               name="name"
+              type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={text.namePlaceholder}
               autoComplete="name"
             />
           </label>
-        )}
+        ) : null}
 
         <label className="space-y-1">
           <span className="text-sm font-medium">{text.email}</span>
@@ -258,6 +268,8 @@ export function LoginForm({
             placeholder={text.emailPlaceholder}
             required
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
           />
         </label>
 
@@ -272,9 +284,7 @@ export function LoginForm({
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder={
-                isRegister
-                  ? text.registerPasswordPlaceholder
-                  : text.loginPasswordPlaceholder
+                isRegister ? text.registerPasswordPlaceholder : text.loginPasswordPlaceholder
               }
               autoComplete={isRegister ? "new-password" : "current-password"}
               className="pr-10"
@@ -289,48 +299,41 @@ export function LoginForm({
             </button>
           </div>
         </label>
-      </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Button
-          type="button"
-          disabled={!canSubmit || loadingAction !== null}
-          onClick={isRegister ? onRegister : onLogin}
-          className="w-full"
-        >
-          {loadingAction === "login" || loadingAction === "register"
-            ? text.wait
-            : isRegister
-              ? text.createAccount
-              : text.login}
-        </Button>
+        <div className="space-y-2 pt-1">
+          <Button type="submit" disabled={!canSubmit || loadingAction !== null} className="w-full">
+            {loadingAction === "login" || loadingAction === "register"
+              ? text.wait
+              : isRegister
+                ? text.createAccount
+                : text.login}
+          </Button>
 
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!email.trim() || loadingAction !== null}
-          onClick={onSendMagicLink}
-          className="w-full"
-        >
-          {loadingAction === "magic" ? text.wait : text.sendMagicLink}
-        </Button>
-      </div>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!email.trim() || loadingAction !== null}
+            onClick={onSendMagicLink}
+            className="w-full"
+          >
+            {loadingAction === "magic" ? text.wait : text.sendMagicLink}
+          </Button>
+        </div>
+      </form>
 
-      <p className="text-xs text-muted-foreground">{text.policies}</p>
-
-      {message && (
+      {message ? (
         <p className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm">
           {message}
         </p>
-      )}
+      ) : null}
+
+      <p className="text-xs text-muted-foreground">{text.policies}</p>
 
       <p className="text-xs text-muted-foreground">
-        {text.adminAccess}{" "}
         <Link href="/browse" className="text-primary hover:underline">
           {text.continueBrowsing}
         </Link>
       </p>
     </div>
-    </>
   );
 }

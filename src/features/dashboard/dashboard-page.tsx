@@ -57,54 +57,52 @@ export async function DashboardFeaturePage({
   const publishDraftFromDashboard = createPublishDraftFromDashboardAction(isMk);
 
   return (
-    <div className="min-h-[calc(100vh-72px)] bg-background">
-      <PageShell size="wide" className="space-y-4">
-        <DashboardHeader
-          title={text.sellerDashboard}
-          subtitle={text.dashboardSubtitle}
-          ctaLabel={text.createNow}
-          selectedCategoryIdFromQuery={viewModel.selectedCategoryIdFromQuery}
-          canCreateListings={canCreateListings}
-          hasCategories={analyticsData[1].length > 0}
-        />
-        <DashboardAlertBanners
-          error={error}
-          draftSaved={draftSaved}
-          freeActivated={freeActivated}
-          paidActivated={paidActivated}
+    <PageShell size="wide" className="space-y-3.5 sm:space-y-4">
+      <DashboardHeader
+        title={text.sellerDashboard}
+        subtitle={text.dashboardSubtitle}
+        ctaLabel={text.createNow}
+        selectedCategoryIdFromQuery={viewModel.selectedCategoryIdFromQuery}
+        canCreateListings={canCreateListings}
+        hasCategories={analyticsData[1].length > 0}
+      />
+      <DashboardAlertBanners
+        error={error}
+        draftSaved={draftSaved}
+        freeActivated={freeActivated}
+        paidActivated={paidActivated}
+        text={text}
+      />
+      <DashboardAdminTools show={showAdminTools} text={text} />
+      <DashboardStatsRow
+        hasListings={viewModel.allListingsCount > 0}
+        activeCount={viewModel.activeListingsCount}
+        draftCount={viewModel.draftCount}
+        soldCount={viewModel.soldListingsCount}
+        totalCount={viewModel.allListingsCount}
+        text={text}
+      />
+      <SectionBlock
+        title={text.myCategories}
+        className="space-y-3.5"
+        contentClassName="space-y-3.5"
+      >
+        <DashboardListings
+          locale={locale}
           text={text}
+          allListings={viewModel.allListingsForClient}
+          initialFilters={{
+            cat: viewModel.selectedCategoryIdFromQuery || "all",
+            view: selectedView,
+            q: searchQuery,
+            sort: selectedSort,
+            layout: selectedLayout,
+          }}
+          requiresPaymentForCreate={viewModel.requiresPaymentForCreate}
+          hasActiveSubscription={viewModel.hasActiveSubscription}
+          publishDraftAction={publishDraftFromDashboard}
         />
-        <DashboardAdminTools show={showAdminTools} text={text} />
-        <DashboardStatsRow
-          hasListings={viewModel.allListingsCount > 0}
-          activeCount={viewModel.activeListingsCount}
-          draftCount={viewModel.draftCount}
-          soldCount={viewModel.soldListingsCount}
-          totalCount={viewModel.allListingsCount}
-          text={text}
-        />
-        <SectionBlock
-          title={text.myCategories}
-          className="space-y-4"
-          contentClassName="space-y-4"
-        >
-          <DashboardListings
-            locale={locale}
-            text={text}
-            allListings={viewModel.allListingsForClient}
-            initialFilters={{
-              cat: viewModel.selectedCategoryIdFromQuery || "all",
-              view: selectedView,
-              q: searchQuery,
-              sort: selectedSort,
-              layout: selectedLayout,
-            }}
-            requiresPaymentForCreate={viewModel.requiresPaymentForCreate}
-            hasActiveSubscription={viewModel.hasActiveSubscription}
-            publishDraftAction={publishDraftFromDashboard}
-          />
-        </SectionBlock>
-      </PageShell>
-    </div>
+      </SectionBlock>
+    </PageShell>
   );
 }

@@ -36,16 +36,16 @@ export function ProfileHeader({
 }: Props) {
   void sellerHandle;
 
-  return (
+    return (
     <section className="space-y-4">
       <BackLink label={backLabel} fallbackHref={backHref} className="w-fit" />
-      <div className="hero-surface space-y-5 rounded-[1.7rem] border border-border/40 p-4 sm:rounded-[1.9rem] sm:p-6">
-        <div className="flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:items-center">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-card/75 text-lg font-bold ring-1 ring-border/40 sm:h-18 sm:w-18 sm:text-xl">
+      <div className="hero-surface space-y-4 rounded-[1.45rem] border border-border/40 p-4 sm:rounded-[1.9rem] sm:p-6">
+        <div className="flex min-w-0 flex-col items-start gap-3.5 sm:flex-row sm:items-center">
+          <div className="flex h-[3.75rem] w-[3.75rem] shrink-0 items-center justify-center rounded-full bg-card/75 text-base font-bold ring-1 ring-border/40 sm:h-18 sm:w-18 sm:text-xl">
             {avatarInitials}
           </div>
           <div className="min-w-0">
-            <h1 className="break-words text-[1.8rem] font-semibold tracking-[-0.05em] [overflow-wrap:anywhere] sm:text-[2.2rem]">
+            <h1 className="break-words text-[1.55rem] font-semibold tracking-[-0.05em] [overflow-wrap:anywhere] sm:text-[2.2rem]">
               {displayName}
             </h1>
           </div>

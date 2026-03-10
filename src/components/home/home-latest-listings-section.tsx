@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ListingCard } from "@/components/listing-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { uiTypography } from "@/components/ui/ui-patterns";
 import type { HomeLatestListing, HomeText } from "@/components/home/home.types";
 import type { Locale } from "@/lib/i18n";
 
@@ -24,9 +23,11 @@ export function HomeLatestListingsSection({
   favoriteListingIdSet,
 }: Props) {
   return (
-    <section className="max-w-full min-w-0 space-y-5 overflow-x-hidden">
-      <div className="min-w-0 space-y-1">
-        <h2 className={uiTypography.pageTitle}>{text.latestListings}</h2>
+    <section className="max-w-full min-w-0 space-y-3 overflow-x-hidden">
+      <div className="min-w-0 space-y-0.5 pt-1">
+        <h2 className="text-[1.55rem] font-semibold tracking-[-0.05em] text-foreground sm:text-[2.05rem]">
+          {text.latestListings}
+        </h2>
       </div>
 
       {latestListings.length === 0 ? (
@@ -39,7 +40,7 @@ export function HomeLatestListingsSection({
           </CardContent>
         </Card>
       ) : (
-        <div className="responsive-grid gap-5">
+        <div className="responsive-grid gap-3 sm:gap-4">
           {latestListings.map((listing) => (
             <ListingCard
               key={listing.id}

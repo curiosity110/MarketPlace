@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const DEFAULT_LOCALE = "mk";
+const DEFAULT_LOCALE = "en";
 const LOCALE_COOKIE = "locale";
 const LEGACY_LOCALE_COOKIE = "mp_locale";
 

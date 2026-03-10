@@ -83,7 +83,13 @@ export function ModalShell({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className={cn(uiModal.panel, "max-w-full min-w-0 overflow-x-hidden", className)}
+        className={cn(
+          uiModal.panel,
+          "max-w-full min-w-0 overflow-x-hidden",
+          "data-[mobile-sheet=true]:pb-[env(safe-area-inset-bottom,0px)] sm:data-[mobile-sheet=true]:pb-0",
+          className,
+        )}
+        data-mobile-sheet="true"
       >
         {children}
       </div>

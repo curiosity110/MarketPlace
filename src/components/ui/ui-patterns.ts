@@ -37,12 +37,12 @@ export const uiControls = {
 };
 
 export const uiModal = {
-  overlayCenter: "fixed inset-0 flex items-center justify-center p-3",
+  overlayCenter: "fixed inset-0 flex items-end justify-center p-0 sm:items-center sm:p-3",
   overlayTop:
     "fixed inset-0 flex items-start justify-center overflow-y-auto p-2 pt-3 sm:p-4 sm:pt-5",
   backdrop: "absolute inset-0 bg-[rgba(33,26,20,0.26)] backdrop-blur-[2px]",
   panel:
-    "relative w-full rounded-[1.8rem] bg-background shadow-[0_28px_90px_-42px_rgba(48,35,24,0.38)] ring-1 ring-black/8 dark:ring-white/10",
+    "relative w-full max-h-[88dvh] overflow-hidden rounded-t-[1.5rem] bg-background shadow-[0_28px_90px_-42px_rgba(48,35,24,0.38)] ring-1 ring-black/8 dark:ring-white/10 sm:max-h-none sm:rounded-[1.8rem]",
   header:
     "flex items-start justify-between gap-2 border-b border-border/50 px-4 py-3 sm:px-5",
   body: "p-4 sm:p-5",

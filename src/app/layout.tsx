@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -38,15 +39,17 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <div className="min-h-screen bg-background text-foreground">
-            <Nav />
+            <Nav locale={locale} />
             <main className="min-h-[calc(100vh-4rem)] overflow-x-clip" data-no-horizontal-scroll>
-              <Container className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] pt-3 md:pb-10 md:pt-6">
+              <Container className="pb-[calc(var(--app-bottom-nav-height)+0.9rem+env(safe-area-inset-bottom,0px))] pt-2.5 md:pb-10 md:pt-6">
                 {children}
               </Container>
             </main>
             <SiteFooter locale={locale} />
             <SiteAssistant locale={locale} />
-            <CreateListingGlobalServer />
+            <Suspense fallback={null}>
+              <CreateListingGlobalServer />
+            </Suspense>
           </div>
         </ThemeProvider>
       </body>

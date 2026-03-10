@@ -9,6 +9,7 @@ type Props = {
   label: string;
   englishLabel: string;
   macedonianLabel: string;
+  compact?: boolean;
 };
 
 export function LanguageSwitcher({
@@ -16,6 +17,7 @@ export function LanguageSwitcher({
   label,
   englishLabel,
   macedonianLabel,
+  compact = false,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -38,15 +40,25 @@ export function LanguageSwitcher({
   }
 
   return (
-    <label className="inline-flex min-w-0 w-full items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-2 py-1 text-xs text-muted-foreground sm:w-auto sm:max-w-none">
-      <span className="hidden sm:inline">{label}</span>
+    <label
+      className={
+        compact
+          ? "inline-flex min-w-0 items-center gap-1.5 rounded-full border border-border/55 bg-background/72 px-1.5 py-1 text-[11px] text-muted-foreground"
+          : "inline-flex min-w-0 w-full items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-2 py-1 text-xs text-muted-foreground sm:w-auto sm:max-w-none"
+      }
+    >
+      <span className={compact ? "sr-only" : "hidden sm:inline"}>{label}</span>
       <select
         id="site-locale"
         name="locale"
         value={value}
         disabled={pending}
         onChange={(event) => onChange(event.target.value as Locale)}
-        className="min-w-0 w-full max-w-[120px] truncate rounded-full border border-border/70 bg-background px-2 py-1 text-xs font-medium text-foreground sm:max-w-none"
+        className={
+          compact
+            ? "min-w-0 max-w-[4.75rem] truncate rounded-full border border-border/55 bg-background px-2 py-1 text-[11px] font-medium text-foreground"
+            : "min-w-0 w-full max-w-[120px] truncate rounded-full border border-border/70 bg-background px-2 py-1 text-xs font-medium text-foreground sm:max-w-none"
+        }
         aria-label={label}
         autoComplete="off"
       >

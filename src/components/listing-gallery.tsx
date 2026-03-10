@@ -125,7 +125,7 @@ export function ListingGallery({ images, thumbs, locale = "en" }: Props) {
         className="relative block w-full overflow-hidden rounded-[1.35rem] bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         aria-label={text.openLightbox}
       >
-        <div className="relative aspect-[4/5] lg:aspect-[4/5]">
+        <div className="relative aspect-[4/3] sm:aspect-[16/11] xl:aspect-[4/3]">
           <Image
             src={currentImage}
             alt={`${text.listingPhoto} ${safeActiveIndex + 1}`}

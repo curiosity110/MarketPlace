@@ -13,8 +13,8 @@ export function Button({
   ...props
 }: ButtonProps) {
   const sizeStyles = {
-    sm: "h-[2.125rem] px-3 text-sm",
-    md: "h-[2.375rem] px-4 text-sm",
+    sm: "min-h-11 px-3 text-sm",
+    md: "min-h-11 px-4 text-sm",
     lg: "h-11 px-5 text-base",
   };
 

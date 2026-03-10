@@ -14,6 +14,7 @@ import { getCreateListingWizardText } from "@/components/create-listing/messages
 import { CreateListingPaymentModal } from "@/components/create-listing/payment-modal";
 import { validateCreateListingPhotos } from "@/components/create-listing/state/wizard-form.validation";
 import { localizeCategoryName } from "@/lib/category-label";
+import { DYNAMIC_FIELD_PREFIX } from "@/lib/listing-fields";
 import { CreateListingHeader } from "@/features/create-listing/create-listing-header";
 import { CreateListingStepDetails } from "@/features/create-listing/create-listing-step-details";
 import { CreateListingStepPhotos } from "@/features/create-listing/create-listing-step-photos";
@@ -34,6 +35,7 @@ import {
   getCreateListingInitialStep,
   getCreateListingModalText,
   getCreateListingPhoneCountryOptions,
+  getCreateListingPrimaryTemplateKeys,
   getCreateListingStepMeta,
   resolveCreateJumpStep,
   resolveCreateNormalizedErrorField,
@@ -117,6 +119,9 @@ export function CreateListingFormNew({
   const [plan, setPlan] = useState<CreateListingPlanOption>(
     initial?.plan ?? "pay-per-listing",
   );
+  const [dynamicFieldValues, setDynamicFieldValues] = useState<Record<string, string>>(
+    initial?.dynamicValues ?? {},
+  );
   const [paymentDraft, setPaymentDraft] = useState<CreateListingPaymentDraft>({
     cardNumber: "",
     expiry: "",
@@ -147,9 +152,25 @@ export function CreateListingFormNew({
   const selectedCategoryLabel = selectedCategory
     ? localizeCategoryName(selectedCategory, locale)
     : null;
-  const selectedTemplatesCount = selectedCategoryId
-    ? templatesByCategory[selectedCategoryId]?.length ?? 0
-    : 0;
+  const selectedTemplates = useMemo(
+    () => (selectedCategoryId ? templatesByCategory[selectedCategoryId] ?? [] : []),
+    [selectedCategoryId, templatesByCategory],
+  );
+  const primaryTemplateKeys = useMemo(
+    () => getCreateListingPrimaryTemplateKeys(selectedTemplates),
+    [selectedTemplates],
+  );
+  const primaryTemplateKeySet = useMemo(
+    () => new Set(primaryTemplateKeys),
+    [primaryTemplateKeys],
+  );
+  const secondaryTemplateKeys = useMemo(
+    () =>
+      selectedTemplates
+        .map((template) => template.key)
+        .filter((key) => !primaryTemplateKeySet.has(key)),
+    [primaryTemplateKeySet, selectedTemplates],
+  );
   const normalizedServerErrorField = useMemo(
     () => resolveCreateNormalizedErrorField(serverErrorMessage, serverErrorFieldState),
     [serverErrorMessage, serverErrorFieldState],
@@ -212,6 +233,10 @@ export function CreateListingFormNew({
       photoPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [photoPreviewUrls]);
+
+  useEffect(() => {
+    setShowMoreDetails(false);
+  }, [selectedCategoryId]);
 
   const validatePhotos = (files: FileList | null) =>
     validateCreateListingPhotos(files, {
@@ -341,39 +366,52 @@ export function CreateListingFormNew({
       ? serverErrorMessage
       : null;
 
-  const stepCopy = useMemo(
-    () =>
-    locale === "mk"
-      ? {
-          photosHeading: "Додај фотографии",
-          photosHelper: "Добрите фотографии помагаат побрзо да се продаде.",
-          detailsHeading: "Детали за предметот",
-          priceHeading: "Постави цена",
-          priceHelper: "Подоцна можеш да ја промениш.",
-          addMoreDetails: "Додај повеќе детали",
-          hideMoreDetails: "Сокриј повеќе детали",
-          moreDetailsHint:
-            selectedTemplatesCount > 0
-              ? "Дополнителните полиња се опционални, но помагаат за подобро пребарување."
-              : "Нема дополнителни полиња за избраната категорија.",
-          moreDetailsEmpty: "Нема дополнителни полиња за оваа категорија.",
-        }
-      : {
-          photosHeading: "Add photos",
-          photosHelper: "Good photos help your item sell faster.",
-          detailsHeading: "Item details",
-          priceHeading: "Set your price",
-          priceHelper: "You can always change this later.",
-          addMoreDetails: "Add more details",
-          hideMoreDetails: "Hide more details",
-          moreDetailsHint:
-            selectedTemplatesCount > 0
-              ? "Extra category details are optional, but they improve search and matching."
-              : "No extra details are available for this category.",
-          moreDetailsEmpty: "No additional fields for this category.",
-        },
-    [locale, selectedTemplatesCount],
-  );
+  const stepCopy = useMemo(() => {
+    if (locale === "mk") {
+      return {
+        photosHeading: "Додај фотографии",
+        photosHelper: "Добрите фотографии помагаат побрзо да се продаде.",
+        detailsHeading: "Детали за предметот",
+        identityFieldsLabel: "Клучни детали",
+        identityFieldsHint:
+          "Додај само што најмногу помага купувачите да го пронајдат огласот.",
+        identityFieldsEmpty: "Нема клучни детали за оваа категорија.",
+        priceHeading: "Постави цена",
+        priceHelper: "Подоцна можеш да ја промениш.",
+        addMoreDetails:
+          secondaryTemplateKeys.length > 0
+            ? `Додај уште ${secondaryTemplateKeys.length} детали`
+            : "Додај повеќе детали",
+        hideMoreDetails: "Сокриј дополнителни детали",
+        moreDetailsHint:
+          secondaryTemplateKeys.length > 0
+            ? "Овие детали се опционални. Додај ги само ако му даваат повеќе контекст на огласот."
+            : "Нема дополнителни полиња за избраната категорија.",
+        moreDetailsEmpty: "Нема дополнителни полиња за оваа категорија.",
+      };
+    }
+
+    return {
+      photosHeading: "Add photos",
+      photosHelper: "Good photos help your item sell faster.",
+      detailsHeading: "Item details",
+      identityFieldsLabel: "Key details",
+      identityFieldsHint: "Add only the details that help buyers recognize what you are selling.",
+      identityFieldsEmpty: "No key details are available for this category.",
+      priceHeading: "Set your price",
+      priceHelper: "You can always change this later.",
+      addMoreDetails:
+        secondaryTemplateKeys.length > 0
+          ? `Add ${secondaryTemplateKeys.length} more details`
+          : "Add more details",
+      hideMoreDetails: "Hide extra details",
+      moreDetailsHint:
+        secondaryTemplateKeys.length > 0
+          ? "These extra category details are optional. Add them only when they improve search and buyer confidence."
+          : "No extra details are available for this category.",
+      moreDetailsEmpty: "No additional fields for this category.",
+    };
+  }, [locale, secondaryTemplateKeys.length]);
 
   return (
     <>
@@ -383,6 +421,14 @@ export function CreateListingFormNew({
         <input type="hidden" name="plan" value={plan} />
         <input type="hidden" name="condition" value={condition} />
         <input type="hidden" name="categoryId" value={selectedCategoryId} />
+        {selectedTemplates.map((template) => (
+          <input
+            key={template.key}
+            type="hidden"
+            name={`${DYNAMIC_FIELD_PREFIX}${template.key}`}
+            value={dynamicFieldValues[template.key] ?? ""}
+          />
+        ))}
         {paymentProvider !== "none" ? (
           <input type="hidden" name="paymentProvider" value={paymentProvider} />
         ) : null}
@@ -405,8 +451,8 @@ export function CreateListingFormNew({
           onClose={onClose}
         />
 
-        <div className="flex-1 overflow-y-auto px-4 pb-32 pt-6 sm:px-6 sm:pb-36 sm:pt-7">
-          <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4 sm:px-6 sm:pb-36 sm:pt-7">
+          <div className="space-y-4.5 sm:space-y-5">
             <CreateListingFeedback
               successMessage={successMessage}
               isClosingAfterSuccess={isClosingAfterSuccess}
@@ -468,6 +514,12 @@ export function CreateListingFormNew({
                 cities={cities}
                 noCityAvailableLabel={text.noCityAvailable}
                 cityError={cityError}
+                identityFieldsLabel={stepCopy.identityFieldsLabel}
+                identityFieldsHint={stepCopy.identityFieldsHint}
+                identityFieldsEmptyLabel={stepCopy.identityFieldsEmpty}
+                primaryTemplateKeys={primaryTemplateKeys}
+                templatesByCategory={templatesByCategory}
+                dynamicValues={dynamicFieldValues}
                 descriptionLabel={text.description}
                 descriptionPlaceholder={text.descriptionPlaceholder}
                 descriptionValue={description}
@@ -490,6 +542,7 @@ export function CreateListingFormNew({
                   setStepError(null);
                   setServerErrorMessage(null);
                 }}
+                onDynamicValuesChange={setDynamicFieldValues}
                 onDescriptionChange={setDescription}
               />
             ) : null}
@@ -525,7 +578,8 @@ export function CreateListingFormNew({
                 showMoreDetails={showMoreDetails}
                 selectedCategoryId={selectedCategoryId}
                 templatesByCategory={templatesByCategory}
-                initialDynamicValues={initial?.dynamicValues}
+                dynamicValues={dynamicFieldValues}
+                secondaryTemplateKeys={secondaryTemplateKeys}
                 isActionBusy={isActionBusy}
                 onPriceChange={(value) => {
                   setPrice(value);
@@ -541,6 +595,7 @@ export function CreateListingFormNew({
                 }}
                 onPlanChange={setPlan}
                 onToggleMoreDetails={() => setShowMoreDetails((value) => !value)}
+                onDynamicValuesChange={setDynamicFieldValues}
               />
             ) : null}
           </div>

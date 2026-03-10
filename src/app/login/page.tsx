@@ -30,7 +30,7 @@ export default async function LoginPage({
         openRegister: "Отвори регистрација",
       }
     : {
-        welcomeBack: "Welcome Back",
+        welcomeBack: "Welcome back",
         subtitle: "Login or register and start trading immediately.",
         accountAccess: "Account access",
         secureSession: "Secure session handling through Supabase",
@@ -40,10 +40,7 @@ export default async function LoginPage({
       };
   const sp = await searchParams;
   const errorRaw = sp.error ? safeDecodeURIComponent(sp.error) : null;
-  const error =
-    errorRaw && errorRaw.startsWith("auth.")
-      ? t(locale, errorRaw)
-      : errorRaw;
+  const error = errorRaw && errorRaw.startsWith("auth.") ? t(locale, errorRaw) : errorRaw;
   const next =
     sp.next && sp.next !== "/" && sp.next.startsWith("/") && !sp.next.startsWith("//")
       ? sp.next
@@ -51,27 +48,20 @@ export default async function LoginPage({
   const encodedNext = encodeURIComponent(next);
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <section className="text-center">
+    <div className="mx-auto max-w-lg space-y-5 sm:space-y-6">
+      <section className="space-y-2 text-center">
         <h1 className="bg-gradient-to-r from-orange-500 to-blue-600 bg-clip-text text-4xl font-black text-transparent sm:text-5xl">
           {text.welcomeBack}
         </h1>
-        <p className="mt-2 text-muted-foreground">
-          {text.subtitle}
-        </p>
+        <p className="text-muted-foreground">{text.subtitle}</p>
       </section>
 
       <Card className="border-border/75">
-        <CardHeader>
+        <CardHeader className="pb-4">
           <CardTitle className="text-2xl">{text.accountAccess}</CardTitle>
         </CardHeader>
         <CardContent>
-          <LoginForm
-            defaultMode="login"
-            initialError={error}
-            nextPath={next}
-            locale={locale}
-          />
+          <LoginForm defaultMode="login" initialError={error} nextPath={next} locale={locale} />
         </CardContent>
       </Card>
 

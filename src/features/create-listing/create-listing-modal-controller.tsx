@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Currency, ListingCondition } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CreateListingPopout } from "@/components/create-listing-popout";
 
 type Category = { id: string; name: string; slug: string; parentId?: string | null };
 type City = { id: string; name: string };
@@ -49,6 +49,11 @@ function resolvePlan(value: string | null): ListingPlan | undefined {
 }
 
 const OPEN_EVENT_NAME = "mkd:open-create-modal";
+const loadCreateListingPopout = () =>
+  import("@/components/create-listing-popout").then(
+    (module) => module.CreateListingPopout,
+  );
+const CreateListingPopout = dynamic(loadCreateListingPopout, { ssr: false });
 
 export function CreateListingModalController({
   action,
@@ -67,14 +72,15 @@ export function CreateListingModalController({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [manualOpen, setManualOpen] = useState(false);
+  const queryCreateRequested = searchParams.get("create") === "1";
   const [pendingOpenParams, setPendingOpenParams] = useState<URLSearchParams | null>(
     null,
   );
-  const queryCreateRequested = searchParams.get("create") === "1";
   const createRequested = forceOpen || manualOpen || queryCreateRequested;
 
   const openModal = useCallback(
     (params?: URLSearchParams | null) => {
+      void loadCreateListingPopout();
       if (params) {
         setPendingOpenParams(new URLSearchParams(params.toString()));
       }
@@ -263,6 +269,10 @@ export function CreateListingModalController({
     router,
     searchParams,
   ]);
+
+  if (!createRequested) {
+    return null;
+  }
 
   return (
     <CreateListingPopout

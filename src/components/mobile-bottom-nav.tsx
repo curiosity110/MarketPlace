@@ -102,8 +102,8 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
   ];
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 md:hidden">
-      <div className="pointer-events-auto mx-auto grid max-w-xl grid-cols-4 gap-1.5 rounded-[1.6rem] border border-border/45 bg-background/90 p-1.5 shadow-[0_24px_64px_-36px_rgba(48,35,24,0.32)] backdrop-blur-xl">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-2.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-2 md:hidden">
+      <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-4 gap-1 rounded-[1.2rem] border border-border/38 bg-background/88 p-1.5 shadow-[0_20px_44px_-34px_rgba(48,35,24,0.24)] backdrop-blur-xl">
         {items
           .filter((item) => item.show !== false)
           .map((item) => {
@@ -120,11 +120,11 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
                   : isActivePath(pathname, itemPath);
 
             const className = cn(
-              "flex flex-col items-center justify-center gap-1 rounded-[1.2rem] px-2 py-2.5 text-[11px] transition-all",
-              "min-h-[3.9rem]",
+              "flex flex-col items-center justify-center gap-1 rounded-[0.95rem] px-2 py-2.5 text-[10px] transition-all",
+              "min-h-[3.55rem]",
               active
-                ? "bg-card font-semibold text-foreground shadow-[0_12px_24px_-22px_rgba(48,35,24,0.3)]"
-                : "font-medium text-foreground/70 hover:bg-card/70",
+                ? "bg-card/88 font-semibold text-foreground shadow-[0_10px_18px_-18px_rgba(48,35,24,0.18)] ring-1 ring-black/5 dark:ring-white/10"
+                : "font-medium text-foreground/62 hover:bg-card/50",
             );
 
             if (item.action) {
@@ -135,8 +135,8 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
                   onClick={item.action}
                   className={className}
                 >
-                  <item.icon size={17} />
-                  <span className="max-w-full truncate text-[11px]">{item.label}</span>
+                  <item.icon size={17} className={active ? "text-foreground" : "text-foreground/68"} />
+                  <span className="max-w-full truncate text-[10px] leading-none">{item.label}</span>
                 </button>
               );
             }
@@ -147,8 +147,8 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
                 href={item.href || "/"}
                 className={className}
               >
-                <item.icon size={17} />
-                <span className="max-w-full truncate text-[11px]">{item.label}</span>
+                <item.icon size={17} className={active ? "text-foreground" : "text-foreground/68"} />
+                <span className="max-w-full truncate text-[10px] leading-none">{item.label}</span>
               </Link>
             );
           })}

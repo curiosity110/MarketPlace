@@ -18,7 +18,7 @@ export function HomeTrustSection({
   dbUnavailableLabel,
 }: Props) {
   return (
-    <section className="space-y-5">
+    <section className="space-y-2.5">
       <HomeQuickCircles
         title={quickTitle}
         browseAllLabel={browseAllLabel}
@@ -27,7 +27,7 @@ export function HomeTrustSection({
 
       {dbUnavailable ? (
         <Card className="bg-warning/10">
-          <CardContent className="py-4 text-sm text-foreground">
+          <CardContent className="py-3 text-sm text-foreground">
             {dbUnavailableLabel}
           </CardContent>
         </Card>

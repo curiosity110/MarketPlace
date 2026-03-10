@@ -24,13 +24,13 @@ export function DashboardHeader({
     <PageHeader
       title={title}
       subtitle={subtitle}
-      className="rounded-[1.9rem] border border-border/40 px-5 py-5 hero-surface sm:px-6"
+      className="rounded-[1.55rem] border border-border/40 px-4 py-4 hero-surface sm:rounded-[1.9rem] sm:px-6 sm:py-5"
       actions={
         <OpenCreateListingButton
           label={ctaLabel}
           params={selectedCategoryIdFromQuery ? { cat: selectedCategoryIdFromQuery } : undefined}
           disabled={!canCreateListings || !hasCategories}
-          className="h-11 w-full sm:w-auto"
+          className="min-h-12 w-full sm:min-h-11 sm:w-auto"
         />
       }
     />

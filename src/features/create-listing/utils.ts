@@ -117,6 +117,53 @@ export function getCreateListingPhoneCountryOptions(): CreateListingPhoneCountry
   ];
 }
 
+function normalizeCreateTemplateIdentifier(input: string) {
+  return input
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+export function getCreateListingPrimaryTemplateKeys(
+  templates: Array<{
+    key: string;
+    label: string;
+    type: string;
+    required?: boolean;
+  }>,
+) {
+  const prioritizedPatterns = [
+    /(brand|make|manufacturer|model|year|storage|memory|ram|size|service type|company|position|sqm|square meters|rooms|material)/,
+    /(fuel|transmission|km|kilometers|mileage|color)/,
+  ];
+
+  const sorted = [...templates]
+    .map((template) => {
+      const source = normalizeCreateTemplateIdentifier(`${template.key} ${template.label}`);
+      const priority =
+        prioritizedPatterns.findIndex((pattern) => pattern.test(source)) >= 0
+          ? prioritizedPatterns.findIndex((pattern) => pattern.test(source))
+          : 99;
+
+      return {
+        key: template.key,
+        required: Boolean(template.required),
+        type: template.type,
+        priority,
+      };
+    })
+    .filter((template) => template.priority < 99 || template.required)
+    .filter((template) => template.type !== "BOOLEAN")
+    .sort((left, right) => {
+      if (left.priority !== right.priority) return left.priority - right.priority;
+      if (left.required !== right.required) return left.required ? -1 : 1;
+      return left.key.localeCompare(right.key);
+    });
+
+  return [...new Set(sorted.slice(0, 3).map((template) => template.key))];
+}
+
 export function normalizeCreateListingSearchText(value: string) {
   return value
     .normalize("NFKD")

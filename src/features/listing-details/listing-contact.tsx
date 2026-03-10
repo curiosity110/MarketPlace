@@ -1,99 +1,90 @@
-"use client";
-
 import Link from "next/link";
-import { Phone } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MapPin, MessageCircle, Phone, UserRound } from "lucide-react";
 import { ContactSellerPopout } from "@/components/contact-seller-popout";
-
-type Props = {
-  locale: "en" | "mk";
-  listingId: string;
-  sellerName: string;
-  sellerPhone: string | null;
-  sellerEmail: string;
-  sellerId: string;
-  isSold: boolean;
-  isAuthenticated: boolean;
-  browseQuery: string;
-  whatsappHref: string;
-  text: any;
-};
+import { Button } from "@/components/ui/button";
+import type { ListingDetailsSellerCardProps } from "@/features/listing-details/types";
 
 export function ListingContact({
   locale,
   listingId,
-  sellerName,
-  sellerPhone,
-  sellerEmail,
   sellerId,
+  sellerNameOrEmail,
+  sellerPhone,
+  isOwner,
   isSold,
-  isAuthenticated,
   browseQuery,
   whatsappHref,
+  cityName,
   text,
-}: Props) {
-  if (isSold) {
-    return (
-      <div className="text-center py-6 text-sm text-muted-foreground">
-        <p>{text.itemSold}</p>
-      </div>
-    );
-  }
+}: ListingDetailsSellerCardProps) {
+  const primaryAction =
+    !isOwner && !isSold ? (
+      sellerPhone ? (
+        <a href={`tel:${sellerPhone}`} className="block">
+          <Button size="lg" className="h-12 w-full justify-center gap-2 rounded-full">
+            <Phone size={16} />
+            {text.contactSeller}
+          </Button>
+        </a>
+      ) : (
+        <ContactSellerPopout
+          listingId={listingId}
+          locale={locale}
+          className="h-12 w-full justify-center rounded-full"
+        />
+      )
+    ) : null;
 
   return (
-    <div className="space-y-4 rounded-[1.4rem] bg-card/65 p-4 ring-1 ring-border/45 sm:p-5">
-      {/* Seller Info */}
-      <div>
-        <p className="text-sm font-medium text-foreground">{text.seller}</p>
-        <p className="text-base font-semibold text-foreground [overflow-wrap:anywhere]">{sellerName}</p>
+    <section className="rounded-[1.35rem] bg-card/72 p-4 ring-1 ring-black/5 dark:ring-white/10 sm:p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted/60 text-foreground">
+          <UserRound size={18} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {text.seller}
+          </p>
+          <p className="truncate text-sm font-semibold text-foreground">{sellerNameOrEmail}</p>
+          {cityName ? (
+            <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPin size={12} />
+              {cityName}
+            </p>
+          ) : null}
+        </div>
       </div>
 
-      {/* Contact Methods - vertical stack on mobile, horizontal on desktop */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
-        {/* Primary CTA: Contact Seller */}
-        {sellerPhone ? (
-          <a href={`tel:${sellerPhone}`} className="sm:col-span-2">
-            <Button size="lg" className="h-12 w-full gap-2">
-              <Phone size={16} />
-              <span>{text.contactSeller}</span>
-            </Button>
-          </a>
-        ) : (
-          <div className="sm:col-span-2">
-            <ContactSellerPopout
-              listingId={listingId}
-              locale={locale}
-              className="h-12 w-full justify-center"
-            />
-          </div>
-        )}
+      {primaryAction ? <div className="mt-4">{primaryAction}</div> : null}
 
-        {/* Secondary: WhatsApp if available */}
-        {sellerPhone && (
-          <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="lg" className="h-12 w-full">
-              WhatsApp
-            </Button>
-          </a>
-        )}
-
-        {/* View Profile */}
-        <Link href={`/seller/${sellerId}${browseQuery ? `?${browseQuery}` : ""}`}>
-          <Button variant="outline" size="lg" className="h-12 w-full">
-            {text.viewProfile}
-          </Button>
-        </Link>
-      </div>
-
-      {/* Report Link - small and subtle */}
-      <div className="text-center pt-2">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         <Link
-          href={`/listing/${listingId}?action=report${browseQuery ? `&${browseQuery}` : ""}`}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          href={`/seller/${sellerId}${browseQuery ? `?${browseQuery}` : ""}`}
+          className="text-muted-foreground transition-colors hover:text-foreground"
         >
-          {text.report}
+          {text.viewProfile}
         </Link>
+        {sellerPhone ? (
+          <a
+            href={`tel:${sellerPhone}`}
+            className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Phone size={13} />
+            {text.call}
+          </a>
+        ) : null}
+        {whatsappHref ? (
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <MessageCircle size={13} />
+            {text.whatsapp}
+          </a>
+        ) : null}
       </div>
-    </div>
+    </section>
   );
 }

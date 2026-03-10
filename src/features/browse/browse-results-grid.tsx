@@ -18,7 +18,7 @@ export function BrowseResultsGrid({
   browseQuery,
 }: Props) {
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-7 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-y-5">
       {listings.map((listing) => (
         <BrowseCard
           key={listing.id}

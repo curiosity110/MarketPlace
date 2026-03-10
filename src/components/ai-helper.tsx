@@ -11,6 +11,7 @@ interface AIHelperProps {
   placeholder?: string;
   title?: string;
   locale?: "en" | "mk";
+  defaultOpen?: boolean;
 }
 
 type AssistantMessage = {
@@ -78,6 +79,7 @@ export function AIHelper({
   placeholder = "Ask anything...",
   title = "Marketplace Assistant",
   locale = "en",
+  defaultOpen = false,
 }: AIHelperProps) {
   const isMk = locale === "mk";
   const text = isMk
@@ -138,7 +140,7 @@ export function AIHelper({
     [isMk],
   );
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -221,17 +223,21 @@ export function AIHelper({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-[calc(5.4rem+env(safe-area-inset-bottom))] left-3 z-30 inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/95 text-foreground shadow-[0_16px_36px_-24px_rgba(15,23,42,0.45)] backdrop-blur-md transition-colors hover:bg-muted sm:bottom-6 sm:left-auto sm:right-6 sm:z-40 sm:h-auto sm:w-auto sm:gap-2 sm:border-primary/30 sm:bg-gradient-to-r sm:from-orange-500 sm:to-blue-600 sm:px-4 sm:py-3 sm:text-sm sm:font-semibold sm:text-white sm:shadow-lg sm:hover:-translate-y-0.5 sm:hover:shadow-xl"
+          className="fixed right-3 z-30 inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-background/95 text-foreground shadow-[0_16px_32px_-24px_rgba(15,23,42,0.4)] backdrop-blur-md transition-colors hover:bg-muted sm:bottom-6 sm:left-auto sm:right-6 sm:z-40 sm:h-auto sm:w-auto sm:gap-2 sm:border-primary/30 sm:bg-gradient-to-r sm:from-orange-500 sm:to-blue-600 sm:px-4 sm:py-3 sm:text-sm sm:font-semibold sm:text-white sm:shadow-lg sm:hover:-translate-y-0.5 sm:hover:shadow-xl"
+          style={{ bottom: "calc(var(--app-mobile-fab-offset) + env(safe-area-inset-bottom, 0px))" }}
           aria-label={text.openAssistant}
         >
-          <MessageCircle size={18} />
+          <MessageCircle size={17} />
           <span className="hidden md:inline">{text.askAssistant}</span>
         </button>
       )}
 
       {isOpen && (
-        <section className="fixed inset-x-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[55] flex h-[min(68dvh,34rem)] flex-col overflow-hidden rounded-[1.5rem] border border-border/70 bg-background/98 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.5)] backdrop-blur-sm sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[560px] sm:w-[calc(100vw-2rem)] sm:max-w-[430px] sm:rounded-2xl sm:border-border/80 sm:bg-background">
-          <header className="flex items-center justify-between border-b border-border/60 bg-background/96 px-4 py-3">
+        <section
+          className="fixed inset-x-2.5 z-[55] flex h-[min(70dvh,34rem)] flex-col overflow-hidden rounded-[1.35rem] border border-border/65 bg-background/98 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.42)] backdrop-blur-sm sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[560px] sm:w-[calc(100vw-2rem)] sm:max-w-[430px] sm:rounded-2xl sm:border-border/80 sm:bg-background"
+          style={{ bottom: "calc(var(--app-mobile-fab-offset) + env(safe-area-inset-bottom, 0px))" }}
+        >
+          <header className="flex items-center justify-between border-b border-border/55 bg-background/96 px-4 py-3">
             <div>
               <h3 className="text-base font-bold">{title}</h3>
               <p className="hidden text-xs text-muted-foreground sm:block">{text.alwaysAvailable}</p>
@@ -246,7 +252,7 @@ export function AIHelper({
             </button>
           </header>
 
-          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/15 p-3 sm:p-4">
+          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/12 p-3 sm:p-4">
             {messages.length === 0 ? (
               <div className="space-y-3">
                 <p className="rounded-xl border border-dashed border-border/70 bg-card px-3 py-2 text-sm text-muted-foreground">
@@ -311,7 +317,7 @@ export function AIHelper({
             )}
           </div>
 
-          <footer className="border-t border-border/80 bg-background p-3">
+          <footer className="border-t border-border/75 bg-background p-3 [padding-bottom:calc(0.75rem+env(safe-area-inset-bottom,0px))]">
             <div className="flex items-center gap-2">
               <Input
                 id="assistant-question"
@@ -336,7 +342,7 @@ export function AIHelper({
                 onClick={() => sendMessage(input)}
                 disabled={!canSend}
                 size="sm"
-                className="h-10 px-3"
+                className="min-h-11 px-3"
               >
                 <Send size={14} />
                 <span className="sr-only">{text.sendLabel}</span>

@@ -49,16 +49,35 @@ function resolveNextPath(pathname: string) {
 
 export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
   const pathname = usePathname() || "/";
+  return (
+    <NavMobileMenuContent
+      key={pathname}
+      pathname={pathname}
+      isLoggedIn={isLoggedIn}
+      isAdmin={isAdmin}
+      locale={locale}
+      labels={labels}
+    />
+  );
+}
+
+type ContentProps = Props & {
+  pathname: string;
+};
+
+function NavMobileMenuContent({
+  pathname,
+  isLoggedIn,
+  isAdmin,
+  locale,
+  labels,
+}: ContentProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const nextPath = resolveNextPath(pathname);
   const encodedNext = encodeURIComponent(nextPath);
   const canPortal = typeof document !== "undefined";
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -90,10 +109,11 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
 
   useEffect(() => {
     if (!open) return;
+    const triggerElement = triggerRef.current;
     lockBodyScroll();
     return () => {
       unlockBodyScroll();
-      const triggerButton = triggerRef.current?.querySelector("button");
+      const triggerButton = triggerElement?.querySelector("button");
       if (triggerButton instanceof HTMLButtonElement && triggerButton.isConnected) {
         triggerButton.focus();
       }
@@ -107,7 +127,7 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
           type="button"
           variant="outline"
           size="sm"
-          className="h-10 w-10 p-0"
+          className="h-11 w-11 p-0"
           aria-label={labels.menu}
           aria-expanded={open}
           aria-haspopup="dialog"
@@ -129,15 +149,15 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
 
               <div
                 ref={panelRef}
-                className="absolute inset-x-0 bottom-0 overflow-hidden rounded-t-[1.75rem] border border-border/55 bg-background/96 p-4 shadow-[0_24px_64px_-32px_rgba(48,35,24,0.34)] backdrop-blur-xl"
-                style={{ maxHeight: "min(82dvh, 42rem)" }}
-                data-mobile-safe-bottom
+                className="absolute inset-x-2.5 overflow-hidden rounded-[1.35rem] border border-border/45 bg-background/97 p-3 shadow-[0_24px_64px_-32px_rgba(48,35,24,0.3)] backdrop-blur-xl"
+                style={{ bottom: "calc(var(--app-mobile-fab-offset) + env(safe-area-inset-bottom, 0px))", maxHeight: "min(72dvh, 38rem)" }}
+                data-mobile-safe-bottom="overlay"
                 data-mobile-safe-top
               >
-                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/80" aria-hidden="true" />
-                <div className="space-y-4 overflow-y-auto pr-1">
+                <div className="mx-auto mb-2.5 h-1.5 w-10 rounded-full bg-border/75" aria-hidden="true" />
+                <div className="space-y-2.5 overflow-y-auto pr-0.5">
                   {isLoggedIn ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 rounded-[1rem] bg-muted/14 p-2.5 ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
                       <Link href="/profile" onClick={() => setOpen(false)}>
                         <Button type="button" variant="outline" className="min-h-11 w-full justify-start">
                           {labels.profile}
@@ -157,7 +177,7 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
                       ) : null}
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2 rounded-[1rem] bg-muted/14 p-2.5 ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
                       <Link href={`/login?next=${encodedNext}`} onClick={() => setOpen(false)}>
                         <Button type="button" className="min-h-11 w-full justify-start">
                           {labels.login}
@@ -171,7 +191,7 @@ export function NavMobileMenu({ isLoggedIn, isAdmin, locale, labels }: Props) {
                     </div>
                   )}
 
-                  <div className="space-y-3 border-t border-border/70 pt-4">
+                  <div className="space-y-2.5 rounded-[1rem] border border-border/50 bg-background/72 p-3">
                     <div className="space-y-1">
                       <span className="text-xs font-medium text-muted-foreground">
                         {labels.language}

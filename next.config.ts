@@ -50,6 +50,7 @@ const nextConfig: NextConfig = {
   ],
 
   images: {
+    qualities: [72, 75],
     remotePatterns,
   },
 };

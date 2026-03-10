@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
+import type { ListingDetailsText } from "@/features/listing-details/types";
 
 type Props = {
   listingId: string;
   priceCents: number;
   locale: "en" | "mk";
   isSold: boolean;
-  text: any;
+  text: Pick<ListingDetailsText, "edit">;
 };
 
 export function ListingOwnerActions({

@@ -124,7 +124,7 @@ export async function ProfileFeaturePage({
   const profileEmail = userRecord?.email || user.email;
 
   return (
-    <PageShell className="space-y-4">
+    <PageShell className="space-y-3.5 sm:space-y-4">
       <ProfileHeader
         backLabel={text.backToDashboard}
         backHref={dashboardHref}
@@ -159,7 +159,7 @@ export async function ProfileFeaturePage({
         activeListings={activeListings}
       />
 
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         <ProfileSettingsSection
           locale={locale}
           userRecord={userRecord}

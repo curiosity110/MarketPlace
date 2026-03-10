@@ -28,6 +28,7 @@ export function ListingCardMedia({
   imageUrl,
   emptyLabel,
   price,
+  showPrice = true,
   topLeft,
   topRight,
   sizes,
@@ -37,7 +38,8 @@ export function ListingCardMedia({
   title: string;
   imageUrl?: string | null;
   emptyLabel: string;
-  price: string;
+  price?: string;
+  showPrice?: boolean;
   topLeft?: React.ReactNode;
   topRight?: React.ReactNode;
   sizes: string;
@@ -71,18 +73,20 @@ export function ListingCardMedia({
         </div>
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/72 via-slate-950/18 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/62 via-slate-950/14 to-transparent" />
 
-      {topLeft ? <div className="absolute left-3 top-3 z-20 flex flex-wrap gap-2">{topLeft}</div> : null}
+      {topLeft ? <div className="absolute left-2.5 top-2.5 z-20 flex flex-wrap gap-2">{topLeft}</div> : null}
       {topRight ? (
-        <div className="absolute right-3 top-3 z-20 flex items-center gap-2">{topRight}</div>
+        <div className="absolute right-2.5 top-2.5 z-20 flex items-center gap-2">{topRight}</div>
       ) : null}
 
-      <div className="absolute inset-x-0 bottom-0 z-20 p-3">
-        <div className="inline-flex max-w-full items-center rounded-full bg-background/92 px-3 py-1.5 text-lg font-semibold tracking-tight text-foreground shadow-[0_14px_30px_-22px_rgba(15,23,42,0.65)] ring-1 ring-black/5">
-          <span className="truncate">{price}</span>
+      {showPrice && price ? (
+        <div className="absolute inset-x-0 bottom-0 z-20 p-3">
+          <div className="inline-flex max-w-full items-center rounded-full bg-background/92 px-3 py-1.5 text-lg font-semibold tracking-tight text-foreground shadow-[0_14px_30px_-22px_rgba(15,23,42,0.65)] ring-1 ring-black/5">
+            <span className="truncate">{price}</span>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

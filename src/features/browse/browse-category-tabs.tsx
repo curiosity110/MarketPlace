@@ -21,16 +21,16 @@ export function BrowseCategoryTabs({
   onSelect,
 }: Props) {
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="inline-flex min-w-max items-center gap-2">
+    <div className="-mx-1 overflow-x-auto px-1 pb-0.5 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="inline-flex min-w-max items-center gap-2 pr-3">
         <button
           type="button"
           onClick={() => onSelect("")}
           className={cn(
-            "rounded-full px-4 py-2 text-sm transition-colors",
+            "h-8.5 rounded-full px-3 text-[12px] font-medium tracking-[-0.01em] transition-colors",
             activeCategoryId
-              ? "text-muted-foreground hover:text-foreground"
-              : "bg-foreground text-background",
+              ? "bg-muted/42 text-foreground/70 ring-1 ring-black/5 hover:bg-muted/60 dark:ring-white/10"
+              : "bg-foreground text-background shadow-[0_12px_22px_-18px_rgba(15,23,42,0.42)]",
           )}
         >
           {allLabel}
@@ -45,10 +45,10 @@ export function BrowseCategoryTabs({
               type="button"
               onClick={() => onSelect(category.id)}
               className={cn(
-                "rounded-full px-4 py-2 text-sm transition-colors",
+                "h-8.5 rounded-full px-3 text-[12px] font-medium tracking-[-0.01em] transition-colors",
                 isActive
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "bg-foreground text-background shadow-[0_12px_22px_-18px_rgba(15,23,42,0.42)]"
+                  : "bg-muted/35 text-foreground/72 ring-1 ring-black/5 hover:bg-muted/55 dark:ring-white/10",
               )}
             >
               {category.name}

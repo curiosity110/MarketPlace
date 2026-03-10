@@ -27,10 +27,15 @@ import { PageShell } from "@/components/ui/layout";
 import { BrowseEmptyState } from "@/features/browse/browse-empty-state-new";
 import { BrowseHeader } from "@/features/browse/browse-header";
 import { BrowseResultsGrid } from "@/features/browse/browse-results-grid";
+import {
+  buildBrowseSearchFilters,
+  buildImplicitCategoryFilter,
+  resolveBrowseSearchIntent,
+  scoreBrowseListingSearchIntent,
+} from "@/features/browse/search-intent";
 import { getBrowsePageText } from "@/features/browse/utils";
 import { getSessionUser } from "@/lib/auth";
 import {
-  BROWSE_SIMILARITY_CLEAR_KEYS,
   patchBrowseParams,
   parseBrowseSimilarityQuery,
 } from "@/lib/browse/params";
@@ -52,7 +57,36 @@ import {
 import { parseTemplateOptions } from "@/lib/listing-fields";
 
 const PAGE_SIZE = 10;
+const SEARCH_RERANK_BUFFER = 120;
+const SEARCH_RERANK_MAX_CANDIDATES = 600;
 export const revalidate = 60;
+
+const browseListingSelect = Prisma.validator<Prisma.ListingDefaultArgs>()({
+  select: {
+    ...listingCardSelect.select,
+    description: true,
+    carMake: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    },
+    carModel: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    },
+    fieldValues: {
+      select: {
+        key: true,
+        value: true,
+      },
+    },
+  },
+});
 
 const getCachedBrowseParentCategories = unstable_cache(
   async () =>
@@ -261,6 +295,10 @@ export default async function BrowsePage({
   const modelSlugParam = (getBrowseParam(sp, "model") || "").trim().toLowerCase();
   const yearFromParam = getBrowseParam(sp, "yearFrom");
   const yearToParam = getBrowseParam(sp, "yearTo");
+  let implicitCategoryId = "";
+  let implicitSubcategoryId = "";
+  let implicitMakeSlug = "";
+  let implicitModelSlug = "";
 
   const minCents =
     minRaw !== undefined && minRaw >= 0 ? Math.round(minRaw * 100) : undefined;
@@ -284,7 +322,7 @@ export default async function BrowsePage({
     }))
     .filter((entry) => entry.value.length > 0);
 
-  let listings: Array<Prisma.ListingGetPayload<typeof listingCardSelect>> = [];
+  let listings: Array<Prisma.ListingGetPayload<typeof browseListingSelect>> = [];
   let totalCount = 0;
   let parentCategories: Awaited<ReturnType<typeof getCachedBrowseParentCategories>> = [];
   let cities: Awaited<ReturnType<typeof getCachedBrowseCities>> = [];
@@ -311,9 +349,6 @@ export default async function BrowsePage({
   const safeNotTransmission = similarityQuery.notTransmission || "";
   let safeNotCity = similarityQuery.notCity || "";
   let isCarsCategorySelected = false;
-  let seedListingTitle: string | null = null;
-
-  let selectedCategoryLabel: string | null = null;
   let selectedCategoryId = "";
   let hasAppliedFilters = false;
   let hasInvalidCat = false;
@@ -330,27 +365,31 @@ export default async function BrowsePage({
   let hasInvalidNotMake = false;
   let hasInvalidNotModel = false;
   let hasInvalidNotCity = false;
+  let searchIntent = resolveBrowseSearchIntent({
+    query: search,
+    categories: [],
+    carMakes: [],
+  });
 
   try {
     if (!shouldSkipPrismaCalls()) {
-      const seedListingPromise = similarityQuery.seed
-        ? prisma.listing.findUnique({
-            where: { id: similarityQuery.seed },
-            select: { id: true, title: true },
-          })
-        : Promise.resolve(null);
-
-      const [nextParentCategories, nextCities, nextCarMakes, seedListing] =
-        await Promise.all([
-          getCachedBrowseParentCategories(),
-          getCachedBrowseCities(),
-          getCachedCarMakesWithModels(),
-          seedListingPromise,
-        ]);
+      const [nextParentCategories, nextCities, nextCarMakes] = await Promise.all([
+        getCachedBrowseParentCategories(),
+        getCachedBrowseCities(),
+        getCachedCarMakesWithModels(),
+      ]);
       parentCategories = nextParentCategories;
       cities = nextCities;
       carMakes = nextCarMakes;
-      seedListingTitle = seedListing?.title || null;
+      searchIntent = resolveBrowseSearchIntent({
+        query: search,
+        categories: parentCategories,
+        carMakes,
+      });
+      implicitCategoryId = !cat && !sub ? searchIntent.inferredCategoryId || "" : "";
+      implicitSubcategoryId = !cat && !sub ? searchIntent.inferredSubcategoryId || "" : "";
+      implicitMakeSlug = !makeSlugParam ? searchIntent.inferredMakeSlug || "" : "";
+      implicitModelSlug = !modelSlugParam ? searchIntent.inferredModelSlug || "" : "";
 
       const validParentCategoryIds = new Set(
         parentCategories.map((category) => category.id),
@@ -379,7 +418,7 @@ export default async function BrowsePage({
           ? (condition as ListingCondition)
           : undefined;
 
-      selectedCategoryId = safeSub || safeCat;
+      selectedCategoryId = safeSub || safeCat || implicitSubcategoryId || implicitCategoryId;
 
       const parentByChildId = new Map(
         parentCategories.flatMap((category) =>
@@ -393,10 +432,6 @@ export default async function BrowsePage({
       );
       const selectedCategory = selectedCategoryId
         ? categoryById.get(selectedCategoryId)
-        : null;
-
-      selectedCategoryLabel = selectedCategory
-        ? localizeCategoryName(selectedCategory, locale)
         : null;
 
       const carsRootSlug = safeSub
@@ -428,20 +463,22 @@ export default async function BrowsePage({
         })),
       );
 
-      const safeMake = makeSlugParam ? makeBySlug.get(makeSlugParam) : undefined;
+      const requestedMakeSlug = makeSlugParam || implicitMakeSlug;
+      const safeMake = requestedMakeSlug ? makeBySlug.get(requestedMakeSlug) : undefined;
       hasInvalidMake = Boolean(makeSlugParam && !safeMake);
       safeMakeSlug = safeMake?.slug || "";
 
-      if (modelSlugParam) {
+      const requestedModelSlug = modelSlugParam || implicitModelSlug;
+      if (requestedModelSlug) {
         const candidates = modelsWithMake.filter(
           (model) =>
-            model.slug === modelSlugParam &&
+            model.slug === requestedModelSlug &&
             (!safeMake || model.makeId === safeMake.id),
         );
         if (candidates.length === 1) {
           safeModelSlug = candidates[0].slug;
           safeModelId = candidates[0].id;
-        } else {
+        } else if (modelSlugParam) {
           hasInvalidModel = true;
         }
       }
@@ -530,13 +567,15 @@ export default async function BrowsePage({
 
       const andFilters: Prisma.ListingWhereInput[] = [];
 
-      if (search) {
-        andFilters.push({
-          OR: [
-            { title: { contains: search, mode: "insensitive" } },
-            { description: { contains: search, mode: "insensitive" } },
-          ],
-        });
+      andFilters.push(...buildBrowseSearchFilters(searchIntent));
+
+      const implicitCategoryFilter = buildImplicitCategoryFilter({
+        intent: searchIntent,
+        explicitCategoryId: safeCat,
+        explicitSubcategoryId: safeSub,
+      });
+      if (implicitCategoryFilter) {
+        andFilters.push(implicitCategoryFilter);
       }
 
       if (selectedCategoryId) {
@@ -679,10 +718,40 @@ export default async function BrowsePage({
         ...(andFilters.length > 0 ? { AND: andFilters } : {}),
       };
 
-      [listings, totalCount] = await Promise.all([
-        prisma.listing.findMany({
+      totalCount = await prisma.listing.count({ where });
+
+      const shouldRerankByIntent = Boolean(searchIntent.normalizedQuery) && sort === "newest";
+
+      if (shouldRerankByIntent) {
+        const candidateTake = Math.min(
+          Math.max(page * PAGE_SIZE + SEARCH_RERANK_BUFFER, PAGE_SIZE),
+          SEARCH_RERANK_MAX_CANDIDATES,
+        );
+        const candidates = await prisma.listing.findMany({
           where,
-          ...listingCardSelect,
+          ...browseListingSelect,
+          orderBy: { createdAt: "desc" },
+          take: Math.min(candidateTake, Math.max(totalCount, PAGE_SIZE)),
+        });
+
+        listings = candidates
+          .map((listing) => ({
+            listing,
+            score: scoreBrowseListingSearchIntent(listing, searchIntent),
+          }))
+          .sort((left, right) => {
+            if (right.score !== left.score) return right.score - left.score;
+            return (
+              new Date(right.listing.createdAt).getTime() -
+              new Date(left.listing.createdAt).getTime()
+            );
+          })
+          .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+          .map((entry) => entry.listing);
+      } else {
+        listings = await prisma.listing.findMany({
+          where,
+          ...browseListingSelect,
           orderBy:
             sort === "price-asc"
               ? { priceCents: "asc" }
@@ -691,9 +760,8 @@ export default async function BrowsePage({
                 : { createdAt: "desc" },
           skip: (page - 1) * PAGE_SIZE,
           take: PAGE_SIZE,
-        }),
-        prisma.listing.count({ where }),
-      ]);
+        });
+      }
 
       if (listings.length > 0) {
         const similarityRows = await prisma.listing.findMany({
@@ -943,17 +1011,6 @@ export default async function BrowsePage({
       href: hrefWithout("transmission"),
     });
   }
-  const hasSimilarityExplainBar =
-    similarityQuery.mode === "similar" ||
-    Boolean(similarityQuery.seed) ||
-    Boolean(safeNotMakeSlug) ||
-    Boolean(safeNotModelSlug) ||
-    Boolean(safeNotFuel) ||
-    Boolean(safeNotTransmission) ||
-    Boolean(safeNotCity);
-  const clearSimilarityHref = patchBrowseParams(params, {
-    clear: BROWSE_SIMILARITY_CLEAR_KEYS,
-  });
   const similarityChips: ActiveFilterChip[] = [];
 
   if (similarityQuery.mode === "similar") {
@@ -1058,11 +1115,6 @@ export default async function BrowsePage({
     });
   }
 
-  const headerSupport = hasAppliedFilters
-    ? locale === "mk"
-      ? "Резултатите се ажурираат според тековното пребарување и филтри."
-      : "Results update from your current search and filters."
-    : pageText.support;
 
   return (
     <PageShell size="wide" className="space-y-5">
@@ -1078,6 +1130,9 @@ export default async function BrowsePage({
         canUseFavoritesFilter={Boolean(sessionUser)}
         totalCount={totalCount}
         resultsLabel={pageText.resultsLabel}
+        inferredCategoryId={searchIntent.inferredCategoryId}
+        inferredSubcategoryId={searchIntent.inferredSubcategoryId}
+        inferredCategoryConfidence={searchIntent.confidence}
       />
 
       {dbUnavailable && (
