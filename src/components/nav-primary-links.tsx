@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import { isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -24,26 +24,17 @@ export function NavPrimaryLinks({
 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const dashboardHref = isLoggedIn ? "/dashboard" : "/login?next=%2Fdashboard";
   const openCreateListing = useCallback(() => {
-    const currentPath = pathname || "/browse";
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("create", "1");
-    const nextQuery = nextParams.toString();
-    const createHref = nextQuery ? `${currentPath}?${nextQuery}` : currentPath;
     const openParams = Object.fromEntries(nextParams.entries());
-
-    if (!isLoggedIn) {
-      router.push(`/login?next=${encodeURIComponent(createHref)}`);
-      return;
-    }
     window.dispatchEvent(
       new CustomEvent(OPEN_CREATE_MODAL_EVENT, {
         detail: { params: openParams },
       }),
     );
-  }, [isLoggedIn, pathname, router, searchParams]);
+  }, [searchParams]);
 
   const links = [
     { href: "/browse", prefix: "/browse", label: labels.browse },

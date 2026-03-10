@@ -12,6 +12,26 @@ export function formatListingCardDate(value: string | Date, locale: Locale) {
   return new Date(value).toLocaleDateString(locale === "mk" ? "mk-MK" : "en-US");
 }
 
+/** Relative date for cards: Today, Yesterday, 3 days ago, Last week, 2 weeks ago, or "Feb 2026". */
+export function formatListingCardDateRelative(value: string | Date, locale: Locale): string {
+  const date = new Date(value);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffMs = todayStart.getTime() - dateStart.getTime();
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+
+  if (diffDays === 0) return locale === "mk" ? "Денес" : "Today";
+  if (diffDays === 1) return locale === "mk" ? "Вчера" : "Yesterday";
+  if (diffDays >= 2 && diffDays <= 6) return locale === "mk" ? `Пред ${diffDays} дена` : `${diffDays} days ago`;
+  if (diffDays >= 7 && diffDays < 14) return locale === "mk" ? "Минатата недела" : "Last week";
+  if (diffDays >= 14 && diffDays < 30) return locale === "mk" ? `Пред ${Math.floor(diffDays / 7)} недели` : `${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays >= 30) {
+    return date.toLocaleDateString(locale === "mk" ? "mk-MK" : "en-US", { month: "short", year: "numeric" });
+  }
+  return date.toLocaleDateString(locale === "mk" ? "mk-MK" : "en-US");
+}
+
 export function getListingConditionLabel(condition: ListingCondition, locale: Locale) {
   const labels: Record<ListingCondition, { en: string; mk: string }> = {
     NEW: { en: "New", mk: "Ново" },
@@ -20,6 +40,32 @@ export function getListingConditionLabel(condition: ListingCondition, locale: Lo
   };
 
   return labels[condition][locale];
+}
+
+/** Category-specific badge for cards: Jobs → Hiring, Real Estate → Rent/Sale, Services → Service; else condition (physical products). */
+export function getListingCardBadge(
+  categorySlug: string | null | undefined,
+  parentSlug: string | null | undefined,
+  condition: ListingCondition,
+  locale: Locale,
+  dealType?: "rent" | "sale" | null,
+): { label: string; variant: "default" | "secondary" | "success" } {
+  const parent = (parentSlug || categorySlug || "").toLowerCase();
+  if (parent === "jobs") {
+    return { label: locale === "mk" ? "Вработување" : "Hiring", variant: "success" };
+  }
+  if (parent === "real-estate") {
+    const isSale = dealType === "sale" || (categorySlug || "").toLowerCase().includes("sale");
+    return {
+      label: isSale ? (locale === "mk" ? "Продажба" : "Sale") : (locale === "mk" ? "Наем" : "Rent"),
+      variant: "default",
+    };
+  }
+  if (parent === "services") {
+    return { label: locale === "mk" ? "Услуга" : "Service", variant: "default" };
+  }
+  const label = getListingConditionLabel(condition, locale);
+  return { label, variant: "secondary" };
 }
 
 export function ListingCardMedia({

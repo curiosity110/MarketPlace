@@ -538,6 +538,15 @@ function slugify(value: string): string {
 
 const TEST_TITLE_PATTERNS = ["asdasdasd", "asadsad", "mohooo", "test", "asdasd"];
 
+const SEED_SELLERS = [
+  { name: "Ana Todoroska", citySlug: "skopje", email: "ana.todoroska@marketplace-mkd.example.com" },
+  { name: "Marko Petrovski", citySlug: "bitola", email: "marko.petrovski@marketplace-mkd.example.com" },
+  { name: "Stefan Ilievski", citySlug: "ohrid", email: "stefan.ilievski@marketplace-mkd.example.com" },
+  { name: "Elena Nikolova", citySlug: "strumica", email: "elena.nikolova@marketplace-mkd.example.com" },
+  { name: "Bojan Risteski", citySlug: "kumanovo", email: "bojan.risteski@marketplace-mkd.example.com" },
+  { name: "Ivana Miteva", citySlug: "skopje", email: "ivana.miteva@marketplace-mkd.example.com" },
+];
+
 async function deleteTestListings() {
   const testListings = await prisma.listing.findMany({
     where: {
@@ -565,12 +574,22 @@ async function main() {
   const deleted = await prisma.listing.deleteMany({});
   console.log(`Deleted ${deleted.count} listings.`);
 
-  const seller = await prisma.user.findFirst({
-    where: { role: { in: [Role.SELLER, Role.ADMIN, Role.CEO] }, bannedAt: null },
-    select: { id: true, supabaseAuthId: true },
-  });
-  if (!seller) {
-    throw new Error("No seller user. Run: pnpm prisma:seed");
+  const sellers: { id: string; supabaseAuthId: string | null }[] = [];
+  for (const s of SEED_SELLERS) {
+    const user = await prisma.user.upsert({
+      where: { email: s.email },
+      update: { name: s.name, role: Role.SELLER, bannedAt: null },
+      create: {
+        email: s.email,
+        name: s.name,
+        role: Role.SELLER,
+      },
+      select: { id: true, supabaseAuthId: true },
+    });
+    sellers.push({ id: user.id, supabaseAuthId: user.supabaseAuthId });
+  }
+  if (sellers.length === 0) {
+    throw new Error("No sellers. Run: pnpm prisma:seed");
   }
 
   const cities = await prisma.city.findMany({
@@ -605,6 +624,7 @@ async function main() {
   let created = 0;
 
   for (const seed of LISTINGS) {
+    const seller = sellers[created % sellers.length];
     const city = cityBySlug.get(seed.citySlug) ?? cities[created % cities.length];
     const category = categoryBySlug.get(seed.categorySlug);
     if (!category) {

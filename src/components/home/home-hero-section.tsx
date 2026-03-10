@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useCallback } from "react";
 import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +10,8 @@ import { HomeHeroSearch } from "@/components/home/home-hero-search";
 import { localizeCategoryName } from "@/lib/category-label";
 import type { HomeCategoryHighlight, HomeText } from "@/components/home/home.types";
 import type { Locale } from "@/lib/i18n";
+
+const OPEN_CREATE_MODAL_EVENT = "mkd:open-create-modal";
 
 type Props = {
   locale: Locale;
@@ -21,6 +26,11 @@ export function HomeHeroSection({
   createHref,
   categoryHighlights,
 }: Props) {
+  const openCreateModal = useCallback(() => {
+    window.dispatchEvent(
+      new CustomEvent(OPEN_CREATE_MODAL_EVENT, { detail: { params: { create: "1" } } }),
+    );
+  }, []);
   const heroCategories = categoryHighlights.slice(0, 5);
   const highlightCategories = categoryHighlights.slice(0, 5);
 
@@ -64,11 +74,15 @@ export function HomeHeroSection({
                 {text.explore} <ArrowRight size={16} />
               </Button>
             </Link>
-            <Link href={createHref}>
-              <Button size="lg" variant="outline" className="h-11 gap-2 px-5">
-                {text.startSelling} <ArrowRight size={16} />
-              </Button>
-            </Link>
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              className="h-11 gap-2 px-5"
+              onClick={openCreateModal}
+            >
+              {text.startSelling} <ArrowRight size={16} />
+            </Button>
           </div>
         </div>
 

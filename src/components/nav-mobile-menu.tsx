@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Heart, LayoutDashboard, Menu, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -20,6 +20,7 @@ type Props = {
     profile: string;
     dashboard: string;
     admin: string;
+    favorites: string;
     login: string;
     register: string;
     logout: string;
@@ -159,18 +160,27 @@ function NavMobileMenuContent({
                   {isLoggedIn ? (
                     <div className="space-y-2 rounded-[1rem] bg-muted/14 p-2.5 ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
                       <Link href="/profile" onClick={() => setOpen(false)}>
-                        <Button type="button" variant="outline" className="min-h-11 w-full justify-start">
+                        <Button type="button" variant="outline" className="min-h-11 w-full justify-start gap-2">
+                          <UserRound size={16} className="shrink-0 text-muted-foreground" />
                           {labels.profile}
                         </Button>
                       </Link>
+                      <Link href="/favorites" onClick={() => setOpen(false)}>
+                        <Button type="button" variant="outline" className="min-h-11 w-full justify-start gap-2">
+                          <Heart size={16} className="shrink-0 text-orange-500 fill-orange-500" />
+                          {labels.favorites}
+                        </Button>
+                      </Link>
                       <Link href="/dashboard" onClick={() => setOpen(false)}>
-                        <Button type="button" variant="outline" className="min-h-11 w-full justify-start">
+                        <Button type="button" variant="outline" className="min-h-11 w-full justify-start gap-2">
+                          <LayoutDashboard size={16} className="shrink-0 text-muted-foreground" />
                           {labels.dashboard}
                         </Button>
                       </Link>
                       {isAdmin ? (
                         <Link href="/admin" onClick={() => setOpen(false)}>
-                          <Button type="button" variant="outline" className="min-h-11 w-full justify-start">
+                          <Button type="button" variant="outline" className="min-h-11 w-full justify-start gap-2">
+                            <UserRound size={16} className="shrink-0 text-muted-foreground" />
                             {labels.admin}
                           </Button>
                         </Link>

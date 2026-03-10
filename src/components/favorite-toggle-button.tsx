@@ -75,7 +75,12 @@ export function FavoriteToggleButton({
       type="button"
       variant={iconOnly ? "outline" : favorited ? "secondary" : "ghost"}
       size="sm"
-      className={cn(iconOnly ? "h-8 w-8 p-0" : "gap-1.5", className)}
+      className={cn(
+        iconOnly ? "h-8 w-8 p-0" : "gap-1.5",
+        iconOnly && favorited && "border-0 bg-orange-500 text-white shadow-md hover:bg-orange-600",
+        iconOnly && !favorited && "text-white border-0",
+        className,
+      )}
       aria-label={favorited ? text.removeFavorite : text.addFavorite}
       disabled={isPending}
       onClick={() => {
@@ -94,7 +99,9 @@ export function FavoriteToggleButton({
           size={14}
           className={cn(
             "transition-colors",
-            favorited ? "fill-current text-red-500" : "",
+            favorited && iconOnly && "fill-current text-white",
+            favorited && !iconOnly && "fill-current text-orange-500",
+            !favorited && iconOnly && "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]",
           )}
         />
       )}

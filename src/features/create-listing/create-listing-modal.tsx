@@ -100,6 +100,25 @@ function CreateListingModalContent({
   defaultsSaved,
   onClose,
 }: Omit<Props, "isOpen" | "isActive">) {
+  const isMk = locale === "mk";
+  if (categories.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+        <p className="text-sm text-muted-foreground">
+          {isMk
+            ? "Нема достапни категории за огласување. Обидете се подоцна или контактирајте го тимот."
+            : "No categories available for listing. Please try again later or contact support."}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
+        >
+          {isMk ? "Затвори" : "Close"}
+        </button>
+      </div>
+    );
+  }
   if (initial?.id) {
     return (
       <div className="flex-1 min-w-0 overflow-y-auto overscroll-contain px-4 pb-5 pt-4 sm:px-6 sm:pb-6">

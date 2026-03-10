@@ -30,7 +30,7 @@ export function getHomePageContent(
           "Базата е привремено недостапна. Прикажуваме ограничена содржина.",
         sellerPricing: "Цени за продавачи",
         sellerPricingDesc:
-          "Едноставно: $4 за еден оглас (30 дена), или $30 месечна претплата.",
+          "Едноставно: 220 ден. за еден оглас (30 дена), или 1,650 ден. месечна претплата.",
         recommended: "Препорачано",
         latestListings: "Најнови огласи",
         latestListingsDesc: "Свежи огласи од продавачи од Македонија и пошироко.",
@@ -60,7 +60,7 @@ export function getHomePageContent(
           "Marketplace database is temporarily unreachable. Showing limited content.",
         sellerPricing: "Seller Pricing",
         sellerPricingDesc:
-          "Simple model: $4 one listing for 30 days, or $30 monthly subscription.",
+          "Simple model: 220 ден. one listing for 30 days, or 1,650 ден. monthly subscription.",
         recommended: "Recommended",
         latestListings: "Latest Listings",
         latestListingsDesc: "Fresh items from sellers in Macedonia and beyond.",
@@ -73,7 +73,7 @@ export function getHomePageContent(
     ? [
         {
           name: "Плаќање по оглас",
-          price: "$4",
+          price: "220 ден.",
           cadence: "за 30 дена",
           description: "Одлично за повремени продавачи",
           bullets: [
@@ -82,13 +82,13 @@ export function getHomePageContent(
             "Фотографии и динамични полиња",
             "Основни увиди за продавач",
           ],
-          cta: "Почни со $4",
+          cta: "Почни со 220 ден.",
           href: createPayPerHref,
           featured: false,
         },
         {
           name: "Претплата за продавач",
-          price: "$30",
+          price: "1,650 ден.",
           cadence: "месечно",
           description: "Најдобро за активни продавници и препродавачи",
           bullets: [
@@ -97,7 +97,7 @@ export function getHomePageContent(
             "Напредна аналитика",
             "Поголема видливост",
           ],
-          cta: "Претплати се за $30",
+          cta: "Претплати се за 1,650 ден.",
           href: createSubscriptionHref,
           featured: true,
         },
@@ -105,7 +105,7 @@ export function getHomePageContent(
     : [
         {
           name: "Pay Per Listing",
-          price: "$4",
+          price: "220 ден.",
           cadence: "for 30 days",
           description: "Great for occasional sellers",
           bullets: [
@@ -114,13 +114,13 @@ export function getHomePageContent(
             "Photos and dynamic category fields",
             "Basic seller insights",
           ],
-          cta: "Start with $4",
+          cta: "Start with 220 ден.",
           href: createPayPerHref,
           featured: false,
         },
         {
           name: "Seller Subscription",
-          price: "$30",
+          price: "1,650 ден.",
           cadence: "per month",
           description: "Best for active stores and resellers",
           bullets: [
@@ -129,7 +129,7 @@ export function getHomePageContent(
             "Advanced analytics dashboard",
             "Higher visibility options",
           ],
-          cta: "Subscribe for $30",
+          cta: "Subscribe for 1,650 ден.",
           href: createSubscriptionHref,
           featured: true,
         },

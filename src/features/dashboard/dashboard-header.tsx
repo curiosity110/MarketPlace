@@ -7,7 +7,6 @@ type Props = {
   ctaLabel: string;
   selectedCategoryIdFromQuery?: string;
   canCreateListings: boolean;
-  hasCategories: boolean;
 };
 
 export function DashboardHeader({
@@ -16,7 +15,6 @@ export function DashboardHeader({
   ctaLabel,
   selectedCategoryIdFromQuery,
   canCreateListings,
-  hasCategories,
 }: Props) {
   void subtitle;
 
@@ -29,7 +27,7 @@ export function DashboardHeader({
         <OpenCreateListingButton
           label={ctaLabel}
           params={selectedCategoryIdFromQuery ? { cat: selectedCategoryIdFromQuery } : undefined}
-          disabled={!canCreateListings || !hasCategories}
+          disabled={!canCreateListings}
           className="min-h-12 w-full sm:min-h-11 sm:w-auto"
         />
       }

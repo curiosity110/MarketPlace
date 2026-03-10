@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { Currency, ListingCondition } from "@prisma/client";
 import { CreateListingFeedback } from "@/components/create-listing/feedback";
 import { getCreateListingWizardText } from "@/components/create-listing/messages";
@@ -128,7 +129,9 @@ export function CreateListingFormNew({
     cvc: "",
     cardholder: "",
   });
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
+  const router = useRouter();
   const deferredCategorySearch = useDeferredValue(categorySearch);
   const stepMeta = getCreateListingStepMeta(currentStep, {
     photos: text.photos,
@@ -187,7 +190,17 @@ export function CreateListingFormNew({
           setNeedsEditListingId(null);
           setSuccessMessage(result.message || text.publishedSuccess);
 
-          if (result.status === "ACTIVE") {
+          if (result.listingId) {
+            setIsClosingAfterSuccess(true);
+            if (successTimerRef.current) {
+              window.clearTimeout(successTimerRef.current);
+            }
+            successTimerRef.current = window.setTimeout(() => {
+              setIsClosingAfterSuccess(false);
+              router.push(`/listing/${result.listingId}`);
+              onPublished?.();
+            }, 800);
+          } else if (result.status === "ACTIVE") {
             setIsClosingAfterSuccess(true);
             if (successTimerRef.current) {
               window.clearTimeout(successTimerRef.current);
@@ -289,6 +302,11 @@ export function CreateListingFormNew({
     if (!formRef.current) return;
     const formData = new FormData(formRef.current);
     formData.set("intent", "publish");
+    formData.set("title", title);
+    formData.set("description", description);
+    formData.set("cityId", cityId);
+    formData.set("phoneCountry", phoneCountry);
+    selectedFiles.forEach((file) => formData.append("photos", file));
     await formAction(formData);
   }
 
@@ -477,14 +495,14 @@ export function CreateListingFormNew({
                 photosInputRef={photosInputRef}
                 isActionBusy={isActionBusy}
                 onPhotoChange={(files) => {
+                  const fileList = files ? Array.from(files).slice(0, 10) : [];
+                  setSelectedFiles(fileList);
                   const nextError = validatePhotos(files);
                   setPhotoValidationError(nextError);
                   setStepError(nextError);
                   setPhotoPreviewUrls((previous) => {
                     previous.forEach((url) => URL.revokeObjectURL(url));
-                    return files
-                      ? Array.from(files).slice(0, 10).map((file) => URL.createObjectURL(file))
-                      : [];
+                    return fileList.map((file) => URL.createObjectURL(file));
                   });
                 }}
               />

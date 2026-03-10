@@ -133,6 +133,7 @@ export async function Nav({ locale: providedLocale }: Props) {
                 profile: messages.market.profile,
                 dashboard: messages.nav.dashboard,
                 admin: messages.nav.admin,
+                favorites: messages.market.favorites,
                 login: messages.nav.login,
                 register: messages.nav.register,
                 logout: messages.nav.logout,

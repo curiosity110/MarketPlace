@@ -57,7 +57,6 @@ export async function DashboardPageContent({
           ctaLabel={text.createNow}
           selectedCategoryIdFromQuery={viewModel.selectedCategoryIdFromQuery}
           canCreateListings={canCreateListings}
-          hasCategories={analyticsData[1].length > 0}
         />
 
         <DashboardAlertBanners

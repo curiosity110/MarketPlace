@@ -326,6 +326,7 @@ export default async function BrowsePage({
   let listings: Array<Prisma.ListingGetPayload<typeof browseListingSelect>> = [];
   let totalCount = 0;
   let parentCategories: Awaited<ReturnType<typeof getCachedBrowseParentCategories>> = [];
+  let categoryIdsWithListings = new Set<string>();
   let cities: Awaited<ReturnType<typeof getCachedBrowseCities>> = [];
   let carMakes: CarMakeOption[] = [];
   const favoriteListingIdSet = new Set<string>();
@@ -382,6 +383,12 @@ export default async function BrowsePage({
       parentCategories = nextParentCategories;
       cities = nextCities;
       carMakes = nextCarMakes;
+      const listingCountByCategory = await prisma.listing.groupBy({
+        by: ["categoryId"],
+        where: { status: ListingStatus.ACTIVE, sale: null },
+        _count: { categoryId: true },
+      });
+      categoryIdsWithListings = new Set(listingCountByCategory.map((r) => r.categoryId));
       searchIntent = resolveBrowseSearchIntent({
         query: search,
         categories: parentCategories,
@@ -877,7 +884,12 @@ export default async function BrowsePage({
 
     return acc;
   }, {});
-  const categoryOptions = parentCategories.map((category) => ({
+  const parentCategoriesWithListings = parentCategories.filter(
+    (category) =>
+      categoryIdsWithListings.has(category.id) ||
+      category.children.some((child) => categoryIdsWithListings.has(child.id)),
+  );
+  const categoryOptions = parentCategoriesWithListings.map((category) => ({
     id: category.id,
     slug: category.slug,
     name: localizeCategoryName(category, locale),
@@ -891,9 +903,15 @@ export default async function BrowsePage({
     cities.map((cityItem) => [cityItem.id, cityItem.name] as const),
   );
   const categoryLabelById = new Map([
-    ...categoryOptions.map((category) => [category.id, category.name] as const),
-    ...categoryOptions.flatMap((category) =>
-      category.children.map((child) => [child.id, child.name] as const),
+    ...parentCategories.map((category) => [
+      category.id,
+      localizeCategoryName(category, locale),
+    ] as const),
+    ...parentCategories.flatMap((category) =>
+      category.children.map((child) => [
+        child.id,
+        localizeCategoryName(child, locale),
+      ] as const),
     ),
   ]);
   const makeLabelBySlug = new Map(

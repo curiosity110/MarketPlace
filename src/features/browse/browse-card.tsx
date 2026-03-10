@@ -3,8 +3,8 @@ import { Pencil, UserRound } from "lucide-react";
 import { FavoriteToggleButton } from "@/components/favorite-toggle-button";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
 import {
-  formatListingCardDate,
-  getListingConditionLabel,
+  formatListingCardDateRelative,
+  getListingCardBadge,
   ListingCardMedia,
   ListingCardMeta,
   ListingCardTag,
@@ -33,10 +33,18 @@ export function BrowseCard({
   const isSold = Boolean(listing.sale);
   const createdMs = listing.createdAt ? new Date(listing.createdAt).getTime() : 0;
   const isNew24h = createdMs > 0 && Date.now() - createdMs < 24 * 60 * 60 * 1000;
-  const formattedPrice = formatCurrencyFromCents(listing.priceCents, listing.currency);
-  const conditionLabel = getListingConditionLabel(listing.condition, locale);
-  const listedDate = formatListingCardDate(listing.createdAt, locale);
-  const topLeftBadgeLabel = isSold ? "Sold" : isNew24h ? "🔥 New" : conditionLabel;
+  const parentSlug = (listing.category?.parent?.slug || listing.category?.slug || "").toLowerCase();
+  const isJob = parentSlug === "jobs";
+  const formattedPrice = formatCurrencyFromCents(listing.priceCents, listing.currency) + (isJob ? (locale === "mk" ? "/мес." : "/mo") : "");
+  const categoryBadge = getListingCardBadge(
+    listing.category?.slug,
+    listing.category?.parent?.slug,
+    listing.condition,
+    locale,
+  );
+  const listedDate = formatListingCardDateRelative(listing.createdAt, locale);
+  const topLeftBadgeLabel = isSold ? "Sold" : isNew24h ? "🔥 New" : categoryBadge.label;
+  const topLeftVariant = isSold ? "default" : isNew24h ? "default" : categoryBadge.variant;
   const listingHref = browseQuery
     ? `/listing/${listing.id}?${browseQuery}`
     : `/listing/${listing.id}`;
@@ -73,8 +81,14 @@ export function BrowseCard({
           roundedTopOnly
           topLeft={
             <ListingCardTag
-              variant={isSold ? "default" : isNew24h ? "default" : "secondary"}
-              className={isNew24h ? "bg-orange-500 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5" : "bg-black/50 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5"}
+              variant={topLeftVariant}
+              className={
+                isNew24h
+                  ? "bg-orange-500 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5"
+                  : categoryBadge.variant === "success"
+                    ? "bg-emerald-600 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5"
+                    : "bg-black/50 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5"
+              }
             >
               {topLeftBadgeLabel}
             </ListingCardTag>
@@ -87,7 +101,7 @@ export function BrowseCard({
                 isAuthenticated={Boolean(currentAuthUserId)}
                 initialFavorited={isFavorited}
                 iconOnly
-                className="h-8 w-8 rounded-full border-0 bg-white/90 backdrop-blur-sm p-0 text-foreground/90 shadow-sm hover:bg-white"
+                className="h-8 w-8 rounded-full border-0 bg-white/95 backdrop-blur-sm p-0 shadow-[0_1px_3px_rgba(0,0,0,0.35)] hover:bg-white hover:shadow-[0_2px_6px_rgba(0,0,0,0.25)]"
               />
             ) : null
           }

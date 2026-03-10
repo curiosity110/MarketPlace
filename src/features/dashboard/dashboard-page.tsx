@@ -64,7 +64,6 @@ export async function DashboardFeaturePage({
         ctaLabel={text.createNow}
         selectedCategoryIdFromQuery={viewModel.selectedCategoryIdFromQuery}
         canCreateListings={canCreateListings}
-        hasCategories={analyticsData[1].length > 0}
       />
       <DashboardAlertBanners
         error={error}
