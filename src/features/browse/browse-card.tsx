@@ -31,9 +31,12 @@ export function BrowseCard({
 }: BrowseCardProps) {
   const isOwner = Boolean(currentAuthUserId && listing.ownerId === currentAuthUserId);
   const isSold = Boolean(listing.sale);
+  const createdMs = listing.createdAt ? new Date(listing.createdAt).getTime() : 0;
+  const isNew24h = createdMs > 0 && Date.now() - createdMs < 24 * 60 * 60 * 1000;
   const formattedPrice = formatCurrencyFromCents(listing.priceCents, listing.currency);
   const conditionLabel = getListingConditionLabel(listing.condition, locale);
   const listedDate = formatListingCardDate(listing.createdAt, locale);
+  const topLeftBadgeLabel = isSold ? "Sold" : isNew24h ? "🔥 New" : conditionLabel;
   const listingHref = browseQuery
     ? `/listing/${listing.id}?${browseQuery}`
     : `/listing/${listing.id}`;
@@ -70,10 +73,10 @@ export function BrowseCard({
           roundedTopOnly
           topLeft={
             <ListingCardTag
-              variant={isSold ? "default" : "secondary"}
-              className="bg-black/50 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5"
+              variant={isSold ? "default" : isNew24h ? "default" : "secondary"}
+              className={isNew24h ? "bg-orange-500 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5" : "bg-black/50 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5"}
             >
-              {isSold ? "Sold" : conditionLabel}
+              {topLeftBadgeLabel}
             </ListingCardTag>
           }
           topRight={

@@ -71,6 +71,29 @@ export type BrowseSearchIntent = {
   confidence: "low" | "medium" | "high";
 };
 
+/** Which filter fields to show below search based on detected intent. */
+export type IntentFilterSuggestion = {
+  showCategory: boolean;
+  showMake: boolean;
+  showModel: boolean;
+  showYearRange: boolean;
+  showPriceRange: boolean;
+  showCondition: boolean;
+  showCity: boolean;
+  showFuel: boolean;
+  /** For real estate: show rent/sale (deal type). */
+  showDealType: boolean;
+  /** For jobs: show salary. */
+  showSalary: boolean;
+  /** Pre-filled category id (parent or child). */
+  suggestedCategoryId?: string;
+  suggestedSubcategoryId?: string;
+  suggestedMakeSlug?: string;
+  suggestedModelSlug?: string;
+  suggestedCityId?: string;
+  suggestedCondition?: string;
+};
+
 const STOP_WORDS = new Set([
   "a",
   "an",
@@ -354,6 +377,152 @@ export function resolveBrowseSearchIntent(input: {
   } satisfies BrowseSearchIntent;
 }
 
+type CategoryNodeForIntent = { id: string; name: string; slug: string; children: { id: string; slug: string }[] };
+type CityForIntent = { id: string; name: string };
+
+/** Returns which filter fields to show below search and suggested values from intent. */
+export function getIntentFilterSuggestion(
+  intent: BrowseSearchIntent,
+  categories: CategoryNodeForIntent[],
+  carMakes: BrowseCarMakeNode[],
+  cities: CityForIntent[],
+): IntentFilterSuggestion {
+  const empty: IntentFilterSuggestion = {
+    showCategory: false,
+    showMake: false,
+    showModel: false,
+    showYearRange: false,
+    showPriceRange: true,
+    showCondition: true,
+    showCity: false,
+    showFuel: false,
+    showDealType: false,
+    showSalary: false,
+  };
+
+  if (!intent.normalizedQuery || intent.confidence === "low") {
+    return empty;
+  }
+
+  const norm = (s: string) => normalizeText(s);
+  const tokens = intent.tokens;
+  const matchedCity = cities.find(
+    (c) => tokens.includes(norm(c.name)) || norm(c.name).split(/\s+/).some((part) => tokens.includes(part)),
+  );
+
+  const carsCat = categories.find((c) => c.slug === "cars");
+  const realEstateCat = categories.find((c) => c.slug === "real-estate");
+  const electronicsCat = categories.find((c) => c.slug === "electronics");
+  const jobsCat = categories.find((c) => c.slug === "jobs");
+
+  const parentOfInferred = categories.find(
+    (p) =>
+      p.id === intent.inferredCategoryId ||
+      p.children.some(
+        (ch) => ch.id === intent.inferredCategoryId || ch.id === intent.inferredSubcategoryId,
+      ),
+  );
+  const inferredSlug = parentOfInferred?.slug;
+
+  const isCars =
+    inferredSlug === "cars" ||
+    (carsCat && Boolean(intent.inferredMakeSlug));
+  const isRealEstate =
+    inferredSlug === "real-estate" ||
+    (realEstateCat && tokens.some((t) => ["apartment", "house", "rent", "sale", "flat", "land"].includes(t)));
+  const isElectronics =
+    inferredSlug === "electronics" ||
+    (electronicsCat && tokens.some((t) => ["iphone", "phone", "laptop", "tv", "macbook", "ipad"].includes(t)));
+  const isJobs =
+    inferredSlug === "jobs" ||
+    (jobsCat && tokens.some((t) => ["job", "jobs", "developer", "work", "salary", "remote"].includes(t)));
+
+  if (isCars && carsCat) {
+    return {
+      ...empty,
+      showCategory: true,
+      showMake: true,
+      showModel: true,
+      showYearRange: true,
+      showPriceRange: true,
+      showCondition: true,
+      showCity: true,
+      showFuel: true,
+      showDealType: false,
+      showSalary: false,
+      suggestedCategoryId: intent.inferredSubcategoryId || intent.inferredCategoryId || carsCat.id,
+      suggestedSubcategoryId: intent.inferredSubcategoryId || undefined,
+      suggestedMakeSlug: intent.inferredMakeSlug,
+      suggestedModelSlug: intent.inferredModelSlug,
+      suggestedCityId: matchedCity?.id,
+      suggestedCondition: undefined,
+    };
+  }
+
+  if (isElectronics && electronicsCat) {
+    return {
+      ...empty,
+      showCategory: true,
+      showMake: false,
+      showModel: false,
+      showYearRange: false,
+      showPriceRange: true,
+      showCondition: true,
+      showCity: true,
+      showFuel: false,
+      showDealType: false,
+      showSalary: false,
+      suggestedCategoryId: intent.inferredSubcategoryId || intent.inferredCategoryId || electronicsCat.id,
+      suggestedSubcategoryId: intent.inferredSubcategoryId,
+      suggestedCityId: matchedCity?.id,
+    };
+  }
+
+  if (isRealEstate && realEstateCat) {
+    return {
+      ...empty,
+      showCategory: true,
+      showMake: false,
+      showModel: false,
+      showYearRange: false,
+      showPriceRange: true,
+      showCondition: false,
+      showCity: true,
+      showFuel: false,
+      showDealType: true,
+      showSalary: false,
+      suggestedCategoryId: intent.inferredSubcategoryId || intent.inferredCategoryId || realEstateCat.id,
+      suggestedSubcategoryId: intent.inferredSubcategoryId,
+      suggestedCityId: matchedCity?.id,
+    };
+  }
+
+  if (isJobs && jobsCat) {
+    return {
+      ...empty,
+      showCategory: true,
+      showMake: false,
+      showModel: false,
+      showYearRange: false,
+      showPriceRange: true,
+      showCondition: false,
+      showCity: true,
+      showFuel: false,
+      showDealType: false,
+      showSalary: true,
+      suggestedCategoryId: intent.inferredSubcategoryId || intent.inferredCategoryId || jobsCat.id,
+      suggestedSubcategoryId: intent.inferredSubcategoryId,
+      suggestedCityId: matchedCity?.id,
+    };
+  }
+
+  return {
+    ...empty,
+    showCity: true,
+    suggestedCityId: matchedCity?.id,
+  };
+}
+
 function buildTextMatchClauses(term: string): Prisma.ListingWhereInput[] {
   const normalizedSlug = normalizeSlug(term);
 
@@ -481,6 +650,7 @@ export function buildImplicitCategoryFilter(input: {
   return null;
 }
 
+/** Exact title match = highest; exact make+model = second; partial = lowest. */
 export function scoreBrowseListingSearchIntent(
   listing: SearchableListing,
   intent: BrowseSearchIntent,
@@ -512,13 +682,40 @@ export function scoreBrowseListingSearchIntent(
 
   let score = 0;
 
-  if (includesTerm(title, phrase)) score += 140;
-  if (title.startsWith(phrase)) score += 50;
+  // 1. Exact / full-phrase title match = highest priority (e.g. "Audi R8" in "Audi R8 V10 2019")
+  const titleContainsFullPhrase = phrase.length > 0 && includesTerm(title, phrase);
+  const titleEqualsPhrase = title === phrase;
+  if (titleEqualsPhrase) score += 2500;
+  else if (titleContainsFullPhrase) score += 2000;
+
+  // 2. Exact make+model match = second priority
+  const identityContainsFullPhrase =
+    identityLine.length > 0 && phrase.length > 0 && includesTerm(identityLine, phrase);
+  const identityEqualsPhrase = identityLine === phrase;
+  if (identityEqualsPhrase) score += 1800;
+  else if (identityContainsFullPhrase) score += 1500;
+
+  // 3. All tokens in title (strong relevance)
+  const titleTokenCount = intent.tokens.filter((token) => includesTerm(title, token)).length;
+  const allTokensInTitle =
+    intent.tokens.length > 0 && titleTokenCount === intent.tokens.length;
+  if (allTokensInTitle && !titleContainsFullPhrase) score += 600;
+
+  // 4. All tokens in make+model
+  const identityTokenCount = intent.tokens.filter((token) =>
+    includesTerm(identityLine, token),
+  ).length;
+  const allTokensInIdentity =
+    identityLine.length > 0 &&
+    intent.tokens.length > 0 &&
+    identityTokenCount === intent.tokens.length;
+  if (allTokensInIdentity && !identityContainsFullPhrase) score += 500;
+
+  // 5. Partial / legacy relevance (lowest)
   if (includesTerm(description, phrase)) score += 35;
   if (fieldValues.some((value) => includesTerm(value, phrase))) score += 50;
   if (includesTerm(carMake, phrase)) score += 90;
   if (includesTerm(carModel, phrase)) score += 90;
-  if (identityLine && includesTerm(identityLine, phrase)) score += 130;
 
   phraseVariants.forEach((variant) => {
     if (includesTerm(title, variant)) score += 42;
@@ -527,45 +724,36 @@ export function scoreBrowseListingSearchIntent(
   });
 
   intent.tokens.forEach((token) => {
-    if (includesTerm(title, token)) score += 24;
-    if (includesTerm(description, token)) score += 8;
-    if (fieldValues.some((value) => includesTerm(value, token))) score += 12;
-    if (categoryParts.some((value) => includesTerm(value, token))) score += 14;
-    if (includesTerm(carMake, token)) score += 32;
-    if (includesTerm(carModel, token)) score += 32;
+    if (includesTerm(title, token)) score += 20;
+    if (includesTerm(description, token)) score += 6;
+    if (fieldValues.some((value) => includesTerm(value, token))) score += 10;
+    if (categoryParts.some((value) => includesTerm(value, token))) score += 12;
+    if (includesTerm(carMake, token)) score += 28;
+    if (includesTerm(carModel, token)) score += 28;
   });
 
   const matchedTokenCount = intent.tokens.filter((token) =>
     searchableParts.some((part) => includesTerm(part, token)),
   ).length;
-  const titleTokenCount = intent.tokens.filter((token) => includesTerm(title, token)).length;
-  const identityTokenCount = intent.tokens.filter((token) => includesTerm(identityLine, token)).length;
-
   if (intent.tokens.length > 1 && matchedTokenCount === intent.tokens.length) {
-    score += 85;
-  }
-  if (intent.tokens.length > 1 && titleTokenCount === intent.tokens.length) {
-    score += 110;
-  }
-  if (intent.tokens.length > 1 && identityLine && identityTokenCount === intent.tokens.length) {
-    score += 120;
+    score += 60;
   }
 
   if (intent.inferredSubcategoryId && listing.category.id === intent.inferredSubcategoryId) {
-    score += 120;
+    score += 80;
   } else if (
     intent.inferredCategoryId &&
     (listing.category.id === intent.inferredCategoryId ||
       listing.category.parent?.id === intent.inferredCategoryId)
   ) {
-    score += 70;
+    score += 50;
   }
 
   if (intent.inferredMakeSlug && listing.carMake?.slug === intent.inferredMakeSlug) {
-    score += 110;
+    score += 90;
   }
   if (intent.inferredModelSlug && listing.carModel?.slug === intent.inferredModelSlug) {
-    score += 120;
+    score += 100;
   }
 
   const createdAtTime = new Date(listing.createdAt).getTime();

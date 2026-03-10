@@ -76,6 +76,8 @@ export type BrowseFiltersProps = {
   inferredCategoryId?: string;
   inferredSubcategoryId?: string;
   inferredCategoryConfidence?: "low" | "medium" | "high";
+  /** When true, sheet only shows Category, Price range slider, Condition (with icons), Location. No search, no sort. */
+  minimalSheet?: boolean;
 };
 
 export type BrowseActiveFilterChip = {

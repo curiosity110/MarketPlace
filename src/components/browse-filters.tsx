@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { CategoryFieldType, ListingCondition } from "@prisma/client";
+import { Check, Package, RefreshCw, Wrench } from "lucide-react";
+import { DualRangeSlider } from "@/components/ui/dual-range-slider";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type {
@@ -94,6 +96,7 @@ export function BrowseFilters({
   inferredCategoryId,
   inferredSubcategoryId,
   inferredCategoryConfidence,
+  minimalSheet = false,
 }: BrowseFiltersProps) {
   void mode;
 
@@ -113,6 +116,10 @@ export function BrowseFilters({
 
   const state = value ?? internalState;
   const dynamicValues = controlledDynamicValues ?? internalDynamicValues;
+
+  const PRICE_SLIDER_MAX = 10_000_000;
+  const minNum = Math.min(Number(state.min) || 0, PRICE_SLIDER_MAX);
+  const maxNum = Math.min(Math.max(Number(state.max) || PRICE_SLIDER_MAX, minNum), PRICE_SLIDER_MAX);
 
   const setState = React.useCallback<React.Dispatch<React.SetStateAction<BrowseFilterState>>>(
     (next) => {
@@ -362,34 +369,127 @@ export function BrowseFilters({
     );
   };
 
+  if (minimalSheet) {
+    return (
+      <div className="space-y-5">
+        <FilterSection title={text.category}>
+          <Select
+            value={state.sub || state.cat}
+            aria-label={text.category}
+            onChange={(e) => {
+              const val = e.target.value;
+              const parent = categories.find((p) => p.id === val || p.children.some((c) => c.id === val));
+              const isChild = parent?.children.some((c) => c.id === val);
+              setState((prev) => ({
+                ...prev,
+                cat: parent && !isChild ? val : parent?.id ?? "",
+                sub: isChild ? val : "",
+              }));
+            }}
+          >
+            <option value="">{text.allCategories}</option>
+            {categories.map((p) => (
+              <React.Fragment key={p.id}>
+                <option value={p.id}>{p.name}</option>
+                {p.children.map((c) => (
+                  <option key={c.id} value={c.id}>— {c.name}</option>
+                ))}
+              </React.Fragment>
+            ))}
+          </Select>
+        </FilterSection>
+
+        <FilterSection title={text.price} hint={text.priceHint}>
+          <DualRangeSlider
+            min={0}
+            max={PRICE_SLIDER_MAX}
+            valueMin={minNum}
+            valueMax={maxNum}
+            maxBound={PRICE_SLIDER_MAX}
+            step={50000}
+            formatValue={(n) => (isMk ? `${n.toLocaleString("mk-MK")} ден.` : `${n.toLocaleString()} MKD`)}
+            onChange={(minVal, maxVal) =>
+              setState((prev) => ({ ...prev, min: String(minVal), max: String(maxVal) }))
+            }
+          />
+        </FilterSection>
+
+        <FilterSection title={text.condition}>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setState((prev) => ({ ...prev, condition: "" }))}
+              className={cn(
+                "flex min-h-14 items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold transition-colors",
+                !state.condition
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Check size={18} />
+              {text.anyCondition}
+            </button>
+            <button
+              type="button"
+              onClick={() => setState((prev) => ({ ...prev, condition: ListingCondition.NEW }))}
+              className={cn(
+                "flex min-h-14 items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold transition-colors",
+                state.condition === ListingCondition.NEW
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Package size={18} />
+              {text.newCondition}
+            </button>
+            <button
+              type="button"
+              onClick={() => setState((prev) => ({ ...prev, condition: ListingCondition.USED }))}
+              className={cn(
+                "flex min-h-14 items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold transition-colors",
+                state.condition === ListingCondition.USED
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <RefreshCw size={18} />
+              {text.usedCondition}
+            </button>
+            <button
+              type="button"
+              onClick={() => setState((prev) => ({ ...prev, condition: ListingCondition.REFURBISHED }))}
+              className={cn(
+                "flex min-h-14 items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold transition-colors",
+                state.condition === ListingCondition.REFURBISHED
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Wrench size={18} />
+              {text.refurbishedCondition}
+            </button>
+          </div>
+        </FilterSection>
+
+        <FilterSection title={text.location} hint={text.locationHint}>
+          <Select
+            value={state.city}
+            aria-label={text.location}
+            onChange={(e) => setState((prev) => ({ ...prev, city: e.target.value }))}
+            className="w-full rounded-xl border-border bg-background"
+          >
+            <option value="">{text.allCities}</option>
+            {cities.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </Select>
+        </FilterSection>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3.5">
-      <FilterSection title={text.search} hint={text.searchHint}>
-        <div className="space-y-2.5">
-          <Input
-            value={state.q}
-            onChange={(event) => setState((prev) => ({ ...prev, q: event.target.value }))}
-            placeholder={text.searchPlaceholder}
-            autoComplete="off"
-          />
-          {canUseFavoritesFilter ? (
-            <div className="flex flex-wrap gap-2">
-              <ChipButton
-                active={state.fav === "1"}
-                onClick={() =>
-                  setState((prev) => ({
-                    ...prev,
-                    fav: prev.fav === "1" ? "" : "1",
-                  }))
-                }
-              >
-                {text.favoritesOnly}
-              </ChipButton>
-            </div>
-          ) : null}
-        </div>
-      </FilterSection>
-
       <FilterSection title={text.category} hint={text.categoryHint}>
         <div className="space-y-2.5">
           {allowInferredCategoryFilters && !state.cat && inferredContextLabel ? (

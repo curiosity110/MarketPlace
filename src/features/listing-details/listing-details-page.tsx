@@ -4,6 +4,7 @@ import {
   ListingDetailsDbUnavailable,
   ListingDetailsFlashMessages,
 } from "@/components/listing-details";
+import { RecordListingView } from "@/components/recently-viewed/record-listing-view";
 import { ContactSellerPopout } from "@/components/contact-seller-popout";
 import { BackLink, PageShell } from "@/components/ui/layout";
 import { Button } from "@/components/ui/button";
@@ -213,6 +214,7 @@ export async function ListingDetailsFeaturePage({
 
   return (
     <PageShell size="wide" className="space-y-5 pb-24 sm:space-y-6 sm:pb-8">
+      <RecordListingView listingId={listing.id} />
       <ListingDetailsFlashMessages
         reportSaved={reportSaved}
         soldSaved={soldSaved}
@@ -322,9 +324,9 @@ export async function ListingDetailsFeaturePage({
         />
       )}
 
-      {/* Sticky contact seller button (mobile) */}
+      {/* Sticky contact seller button (mobile) — visible without scrolling */}
       {!isOwner && !listing.sale && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/96 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,0.18)] backdrop-blur-md sm:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/96 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.18)] backdrop-blur-md sm:hidden">
           {listing.seller.phone ? (
             <a href={`tel:${listing.seller.phone}`} className="block">
               <Button

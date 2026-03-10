@@ -18,12 +18,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { BrowseCategoryShortcuts } from "@/features/browse/browse-category-shortcuts";
 import { BrowseFilterSheet } from "@/features/browse/browse-filter-sheet";
-import {
-  BrowseSearchAssist,
-  type BrowseSearchAssistChip,
-} from "@/features/browse/browse-search-assist";
+import { BrowseIntentChips } from "@/features/browse/browse-intent-chips";
+import { BrowseIntentFilters } from "@/features/browse/browse-intent-filters";
 import { BrowseSearch } from "@/features/browse/browse-search";
-import { resolveBrowseSearchIntent } from "@/features/browse/search-intent";
+import {
+  getIntentFilterSuggestion,
+  resolveBrowseSearchIntent,
+} from "@/features/browse/search-intent";
 import { BrowseSort, type BrowseVisibleSort } from "@/features/browse/browse-sort";
 import type {
   BrowseCarMake,
@@ -144,6 +145,12 @@ export function BrowseHeader({
       }),
     [carMakes, categories, state.q],
   );
+
+  const intentFilterSuggestion = React.useMemo(
+    () =>
+      getIntentFilterSuggestion(liveSearchIntent, categories, carMakes, cities),
+    [liveSearchIntent, categories, carMakes, cities],
+  );
   const visibleSort = React.useMemo<BrowseVisibleSort>(() => {
     const parsed = parseBrowseSort(currentSortParam);
     if (currentSearchQuery && !currentSortParam) {
@@ -254,127 +261,30 @@ export function BrowseHeader({
     [applyState, dynamicValues, state],
   );
 
-  const assistTitle = locale === "mk" ? "Паметни предлози" : "Smart suggestions";
-  const popularAssistTitle = locale === "mk" ? "Брзи пребарувања" : "Quick searches";
   const clearSearchLabel = locale === "mk" ? "Исчисти пребарување" : "Clear search";
-  const usedLabel = locale === "mk" ? "Користено" : "Used";
-  const newestLabel = locale === "mk" ? "Најнови" : "Newest";
 
-  const popularAssistChips = React.useMemo<BrowseSearchAssistChip[]>(
-    () =>
-      ["Opel Meriva", "autobuses", "iPhone 13", "Nike shoes"].map((query) => ({
-        key: `popular-${query}`,
-        label: query,
-        onSelect: () => {
-          const nextState = { ...state, q: query };
-          applyAssistState(nextState);
-        },
-      })),
-    [applyAssistState, state],
+  const hasIntentFilters =
+    intentFilterSuggestion.showCategory ||
+    intentFilterSuggestion.showMake ||
+    intentFilterSuggestion.showModel ||
+    intentFilterSuggestion.showYearRange ||
+    intentFilterSuggestion.showPriceRange ||
+    intentFilterSuggestion.showCondition ||
+    intentFilterSuggestion.showCity ||
+    intentFilterSuggestion.showFuel;
+
+  const handleIntentFilterChange = React.useCallback(
+    (nextState: BrowseFilterState, nextDynamic?: Record<string, string>) => {
+      setState(nextState);
+      if (nextDynamic !== undefined) {
+        setDynamicValues(nextDynamic);
+      }
+      applyState(nextState, nextDynamic ?? dynamicValues, {
+        omitSortParamWhenNewest: shouldOmitNewestSortParam(nextState),
+      });
+    },
+    [applyState, dynamicValues, shouldOmitNewestSortParam],
   );
-
-  const assistChips = React.useMemo<BrowseSearchAssistChip[]>(() => {
-    if (!state.q.trim()) {
-      return popularAssistChips;
-    }
-
-    const chips: BrowseSearchAssistChip[] = [];
-    const inferredCategoryLabel =
-      localizedCategoryById.get(liveSearchIntent.inferredSubcategoryId || "") ||
-      localizedCategoryById.get(liveSearchIntent.inferredCategoryId || "");
-
-    if (inferredCategoryLabel && liveSearchIntent.confidence !== "low") {
-      chips.push({
-        key: `assist-category-${liveSearchIntent.inferredSubcategoryId || liveSearchIntent.inferredCategoryId}`,
-        label: inferredCategoryLabel,
-        tone: "primary",
-        onSelect: () => {
-          const nextState: BrowseFilterState = {
-            ...state,
-            cat: liveSearchIntent.inferredCategoryId || "",
-            sub: liveSearchIntent.inferredSubcategoryId || "",
-            make: "",
-            model: "",
-            yearFrom: "",
-            yearTo: "",
-          };
-          applyAssistState(nextState);
-        },
-      });
-    }
-
-    if (liveSearchIntent.inferredMakeSlug) {
-      const makeLabel = makeNameBySlug.get(liveSearchIntent.inferredMakeSlug);
-      if (makeLabel) {
-        chips.push({
-          key: `assist-make-${liveSearchIntent.inferredMakeSlug}`,
-          label: makeLabel,
-          onSelect: () => {
-            const nextState: BrowseFilterState = {
-              ...state,
-              cat: liveSearchIntent.inferredCategoryId || state.cat,
-              sub: liveSearchIntent.inferredSubcategoryId || state.sub,
-              make: liveSearchIntent.inferredMakeSlug || "",
-              model: "",
-            };
-            applyAssistState(nextState);
-          },
-        });
-      }
-    }
-
-    if (liveSearchIntent.inferredModelSlug) {
-      const modelLabel = modelNameBySlug.get(liveSearchIntent.inferredModelSlug);
-      if (modelLabel) {
-        chips.push({
-          key: `assist-model-${liveSearchIntent.inferredModelSlug}`,
-          label: modelLabel,
-          onSelect: () => {
-            const nextState: BrowseFilterState = {
-              ...state,
-              cat: liveSearchIntent.inferredCategoryId || state.cat,
-              sub: liveSearchIntent.inferredSubcategoryId || state.sub,
-              make: liveSearchIntent.inferredMakeSlug || state.make,
-              model: liveSearchIntent.inferredModelSlug || "",
-            };
-            applyAssistState(nextState);
-          },
-        });
-      }
-    }
-
-    if (!state.condition && liveSearchIntent.confidence !== "low") {
-      chips.push({
-        key: "assist-condition-used",
-        label: usedLabel,
-        onSelect: () => applyAssistState({ ...state, condition: "USED" }),
-      });
-    }
-
-    if (visibleSort !== "newest") {
-      chips.push({
-        key: "assist-sort-newest",
-        label: newestLabel,
-        onSelect: () => handleSortChange("newest"),
-      });
-    }
-
-    return chips.slice(0, 5);
-  }, [
-    applyAssistState,
-    handleSortChange,
-    liveSearchIntent,
-    localizedCategoryById,
-    makeNameBySlug,
-    modelNameBySlug,
-    newestLabel,
-    popularAssistChips,
-    state,
-    usedLabel,
-    visibleSort,
-  ]);
-
-  const shouldShowAssist = isSearchActive || Boolean(state.q.trim());
 
   return (
     <section className="space-y-2.5 sm:space-y-3">
@@ -403,22 +313,33 @@ export function BrowseHeader({
         }}
       />
 
-      {shouldShowAssist ? (
-        <BrowseSearchAssist
-          title={state.q.trim() ? assistTitle : popularAssistTitle}
-          chips={assistChips}
-          compact={Boolean(state.q.trim())}
+      {state.q.trim() ? (
+        <BrowseIntentChips
+          locale={locale}
+          query={state.q}
+          intent={liveSearchIntent}
+          state={state}
+          dynamicValues={dynamicValues}
+          categories={categories}
+          cities={cities}
+          onApply={handleIntentFilterChange}
         />
       ) : null}
 
-      <div className="flex items-center gap-2">
-        <BrowseSort
+      {state.q.trim() && hasIntentFilters ? (
+        <BrowseIntentFilters
           locale={locale}
-          value={visibleSort}
-          hasQuery={Boolean(currentSearchQuery)}
-          onChange={handleSortChange}
+          suggestion={intentFilterSuggestion}
+          state={state}
+          dynamicValues={dynamicValues}
+          categories={categories}
+          cities={cities}
+          carMakes={carMakes}
+          onChange={handleIntentFilterChange}
         />
+      ) : null}
 
+      <div className="flex justify-end">
         <Button
           type="button"
           variant="outline"
@@ -445,13 +366,21 @@ export function BrowseHeader({
         onSelect={handleShortcutSelect}
       />
 
-      <p className="px-0.5 text-[11px] font-medium tracking-[0.01em] text-muted-foreground/65 sm:text-xs">
-        {currentSearchQuery
-          ? (locale === "mk"
-              ? `${totalCount} ${resultsLabel} за „${currentSearchQuery}"`
-              : `${totalCount} ${resultsLabel} for "${currentSearchQuery}"`)
-          : `${totalCount} ${resultsLabel}`}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+        <p className="text-[11px] font-medium tracking-[0.01em] text-muted-foreground/65 sm:text-xs">
+          {currentSearchQuery
+            ? (locale === "mk"
+                ? `${totalCount} ${resultsLabel} за „${currentSearchQuery}"`
+                : `${totalCount} ${resultsLabel} for "${currentSearchQuery}"`)
+            : `${totalCount} ${resultsLabel}`}
+        </p>
+        <BrowseSort
+          locale={locale}
+          value={visibleSort}
+          hasQuery={Boolean(currentSearchQuery)}
+          onChange={handleSortChange}
+        />
+      </div>
 
       <BrowseFilterSheet
         open={isSheetOpen}

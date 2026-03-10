@@ -27,6 +27,7 @@ import { PageShell } from "@/components/ui/layout";
 import { BrowseEmptyState } from "@/features/browse/browse-empty-state-new";
 import { BrowseHeader } from "@/features/browse/browse-header";
 import { BrowseResultsGrid } from "@/features/browse/browse-results-grid";
+import { RecentlyViewedStrip } from "@/components/recently-viewed/recently-viewed-strip";
 import {
   buildBrowseSearchFilters,
   buildImplicitCategoryFilter,
@@ -1194,6 +1195,8 @@ export default async function BrowsePage({
         previousHref={prevHref}
         nextHref={nextHref}
       />
+
+      <RecentlyViewedStrip locale={locale} className="pt-4" />
     </PageShell>
   );
 }

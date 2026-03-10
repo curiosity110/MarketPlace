@@ -11,7 +11,7 @@ const CAR_DATA: Array<{ make: string; slug: string; models: string[] }> = [
   {
     make: "Audi",
     slug: "audi",
-    models: ["A1", "A3", "A4", "A5", "A6", "A7", "Q2", "Q3", "Q5", "Q7", "Q8"],
+    models: ["A1", "A3", "A4", "A5", "A6", "A7", "R8", "Q2", "Q3", "Q5", "Q7", "Q8"],
   },
   {
     make: "BMW",

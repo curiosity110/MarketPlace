@@ -148,6 +148,7 @@ export function BrowseFilterSheet({
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
           <BrowseFilters
             mode="mobile"
+            minimalSheet
             categories={categories}
             cities={cities}
             templatesByCategory={templatesByCategory}
@@ -164,20 +165,25 @@ export function BrowseFilterSheet({
           />
         </div>
 
-        <div className="sticky bottom-0 z-10 grid max-w-full grid-cols-2 gap-2 border-t border-border/35 bg-background/96 p-3.5 backdrop-blur-xl [padding-bottom:calc(0.95rem+env(safe-area-inset-bottom,0px))]">
+        <div className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border/35 bg-background/96 p-3.5 backdrop-blur-xl [padding-bottom:calc(0.95rem+env(safe-area-inset-bottom,0px))]">
           <Button
             type="button"
-            variant="outline"
-            className="min-h-12"
+            className="min-h-12 w-full rounded-xl bg-orange-500 font-semibold text-white hover:bg-orange-600"
+            onClick={onApply}
+          >
+            {text.apply}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-9 text-muted-foreground hover:text-foreground"
             onClick={() => {
               onChange(EMPTY_BROWSE_FILTER_STATE);
               onDynamicValuesChange({});
             }}
           >
             {text.clearAll}
-          </Button>
-          <Button type="button" className="min-h-12" onClick={onApply}>
-            {text.apply}
           </Button>
         </div>
       </div>

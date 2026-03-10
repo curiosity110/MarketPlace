@@ -8,6 +8,7 @@ import {
   getHomePageContent,
   type HomeCategoryHighlight,
 } from "@/components/home";
+import { RecentlyViewedStrip } from "@/components/recently-viewed/recently-viewed-strip";
 import { PageShell } from "@/components/ui/layout";
 import { getSessionUser } from "@/lib/auth";
 import { buildCreateListingHref } from "@/lib/create-listing-href";
@@ -122,6 +123,7 @@ export async function HomePage() {
         currentAuthUserId={sessionUser?.authUserId}
         favoriteListingIdSet={favoriteListingIdSet}
       />
+      <RecentlyViewedStrip locale={locale} className="pt-4" />
       <HomeCtaSection text={text} pricingPlans={pricingPlans} />
     </PageShell>
   );

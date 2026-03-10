@@ -77,6 +77,20 @@ const LISTINGS: ListingSeed[] = [
     fieldValues: { brand: "Audi", model: "A4", year: "2017", km: "88000", fuel: "Diesel", transmission: "Automatic" },
   },
   {
+    title: "Audi R8 V10 2019",
+    description:
+      "Audi R8 V10 in stunning condition. Mid-engine sports car, 5.2 FSI, quattro. Full service history, low mileage. Rare opportunity.",
+    priceCents: 185_000_000, // 1,850,000 ден
+    currency: Currency.MKD,
+    condition: ListingCondition.USED,
+    categorySlug: "cars-sedans",
+    citySlug: "skopje",
+    carMakeSlug: "audi",
+    carModelSlug: "r8",
+    carYear: 2019,
+    fieldValues: { brand: "Audi", model: "R8 V10", year: "2019", km: "22000", fuel: "Petrol", transmission: "Automatic" },
+  },
+  {
     title: "Mercedes C200 2016",
     description:
       "Mercedes C200 in excellent condition. Full options, leather interior. Perfect for business or family.",
@@ -522,7 +536,31 @@ function slugify(value: string): string {
     .replace(/-+/g, "-");
 }
 
+const TEST_TITLE_PATTERNS = ["asdasdasd", "asadsad", "mohooo", "test", "asdasd"];
+
+async function deleteTestListings() {
+  const testListings = await prisma.listing.findMany({
+    where: {
+      OR: [
+        ...TEST_TITLE_PATTERNS.map((p) => ({
+          title: { contains: p, mode: "insensitive" as const },
+        })),
+        { priceCents: 500 },
+        { priceCents: 50000 },
+      ],
+    },
+    select: { id: true },
+  });
+  if (testListings.length > 0) {
+    const r = await prisma.listing.deleteMany({
+      where: { id: { in: testListings.map((l) => l.id) } },
+    });
+    console.log(`Deleted ${r.count} test listings (junk titles or 500 ден).`);
+  }
+}
+
 async function main() {
+  await deleteTestListings();
   console.log("Seed real: nuking all listings...");
   const deleted = await prisma.listing.deleteMany({});
   console.log(`Deleted ${deleted.count} listings.`);
@@ -626,6 +664,11 @@ async function main() {
   }
 
   console.log(`Created ${created} real listings.`);
+  const total = await prisma.listing.count();
+  if (total < 40) {
+    throw new Error(`Expected at least 40 real listings, got ${total}.`);
+  }
+  console.log(`Verified: ${total} listings in database.`);
   console.log("Seed real: done.");
 }
 
