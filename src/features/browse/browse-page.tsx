@@ -579,7 +579,17 @@ export default async function BrowsePage({
       }
 
       if (selectedCategoryId) {
-        andFilters.push({ categoryId: selectedCategoryId });
+        if (validSubcategoryIds.has(selectedCategoryId)) {
+          andFilters.push({ categoryId: selectedCategoryId });
+        } else {
+          // Parent category: include listings in this category or any child
+          andFilters.push({
+            OR: [
+              { categoryId: selectedCategoryId },
+              { category: { is: { parentId: selectedCategoryId } } },
+            ],
+          });
+        }
       }
       if (safeCity) {
         andFilters.push({ cityId: safeCity });
@@ -1146,10 +1156,23 @@ export default async function BrowsePage({
       {listings.length === 0 ? (
         <BrowseEmptyState
           hasAppliedFilters={hasAppliedFilters}
-          noMatchLabel={text.noMatch}
+          noMatchLabel={
+            search
+              ? `${text.noMatch} ${
+                  isMk
+                    ? `Нема резултати за „${search}“ — обиди се со поинакви зборови.`
+                    : `No results for “${search}” — try different keywords.`
+                }`
+              : text.noMatch
+          }
           noListingsYetLabel={text.noListingsYet}
           createHref={createHref}
           firstListLabel={text.firstList}
+          suggestedCategories={categoryOptions.slice(0, 5).map((c) => ({
+            id: c.id,
+            name: localizeCategoryName(c, locale),
+          }))}
+          tryCategoriesLabel={pageText.tryCategoriesLabel}
         />
       ) : (
         <BrowseResultsGrid

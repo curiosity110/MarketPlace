@@ -112,6 +112,8 @@ export function getListingDetailsText(locale: ListingDetailsLocale): ListingDeta
       listedIn: "Град",
       category: "Категорија",
       condition: "Состојба",
+      listed: "Објавено",
+      similarListings: "Слични огласи",
     };
   }
 
@@ -151,6 +153,8 @@ export function getListingDetailsText(locale: ListingDetailsLocale): ListingDeta
     listedIn: "City",
     category: "Category",
     condition: "Condition",
+    listed: "Listed",
+    similarListings: "Similar listings",
   };
 }
 

@@ -291,6 +291,7 @@ export default async function AdminPage() {
       select: {
         id: true,
         name: true,
+        username: true,
         email: true,
         listings: {
           where: { status: ListingStatus.ACTIVE },
@@ -336,7 +337,7 @@ export default async function AdminPage() {
 
       return {
         id: seller.id,
-        name: seller.name || seller.email.split("@")[0],
+        name: seller.name || seller.username || seller.email,
         activeListings,
         openReports: openReportsForSeller,
         plan: hasSubscription ? "Subscription" : "Pay per listing",

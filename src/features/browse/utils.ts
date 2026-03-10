@@ -21,6 +21,7 @@ export function getBrowsePageText(locale: "en" | "mk"): BrowsePageText {
       noListingsYet: "Сè уште нема огласи. Биди прв што ќе објави.",
       firstList: "Биди прв што ќе го објави овој производ",
       popularCategories: "Популарни категории",
+      tryCategoriesLabel: "Обиди се со",
       dbUnavailable:
         "Пребарувањето е привремено недостапно поради проблем со базата.",
     };
@@ -45,6 +46,7 @@ export function getBrowsePageText(locale: "en" | "mk"): BrowsePageText {
     noListingsYet: "No listings yet. Be the first to post.",
     firstList: "Be the first to list this item",
     popularCategories: "Popular categories",
+    tryCategoriesLabel: "Try",
     dbUnavailable:
       "Browse data is temporarily unavailable because the database is unreachable.",
   };

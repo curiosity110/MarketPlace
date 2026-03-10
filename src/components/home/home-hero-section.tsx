@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HomeHeroSearch } from "@/components/home/home-hero-search";
 import { localizeCategoryName } from "@/lib/category-label";
 import type { HomeCategoryHighlight, HomeText } from "@/components/home/home.types";
 import type { Locale } from "@/lib/i18n";
@@ -20,7 +21,7 @@ export function HomeHeroSection({
   createHref,
   categoryHighlights,
 }: Props) {
-  const heroCategories = categoryHighlights.slice(0, 4);
+  const heroCategories = categoryHighlights.slice(0, 5);
   const highlightCategories = categoryHighlights.slice(0, 5);
 
   return (
@@ -40,19 +41,22 @@ export function HomeHeroSection({
             {text.heroDesc}
           </p>
 
-          {heroCategories.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {heroCategories.map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/browse?cat=${category.id}`}
-                  className="rounded-full bg-card/72 px-3 py-1.5 text-[13px] text-foreground/78 ring-1 ring-black/4 transition-colors hover:text-foreground"
-                >
-                  {localizeCategoryName(category, locale)}
-                </Link>
-              ))}
-            </div>
-          ) : null}
+          <div className="flex flex-col gap-3">
+            <HomeHeroSearch locale={locale} />
+            {heroCategories.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {heroCategories.map((category) => (
+                  <Link
+                    key={category.id}
+                    href={`/browse?cat=${category.id}`}
+                    className="rounded-full bg-card/72 px-3.5 py-2 text-[13px] font-medium text-foreground/85 ring-1 ring-black/4 transition-colors hover:bg-card hover:text-foreground"
+                  >
+                    {localizeCategoryName(category, locale)}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <div className="flex flex-wrap gap-2 pt-0.5">
             <Link href="/browse">

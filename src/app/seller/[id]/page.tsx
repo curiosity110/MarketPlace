@@ -92,6 +92,7 @@ export default async function SellerProfilePage({
             select: {
               id: true,
               name: true,
+              username: true,
               email: true,
               phone: true,
             },
@@ -157,7 +158,7 @@ export default async function SellerProfilePage({
     }
   }
 
-  const displayName = seller.name || seller.email.split("@")[0];
+  const displayName = seller.name || seller.username || seller.email;
   const sellerHandle = toHandle(seller.username || displayName);
 
   return (

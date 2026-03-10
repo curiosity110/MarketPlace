@@ -131,6 +131,7 @@ export default async function AdminSubscriptions() {
       select: {
         id: true,
         name: true,
+        username: true,
         email: true,
         createdAt: true,
         listings: {
@@ -225,7 +226,7 @@ export default async function AdminSubscriptions() {
 
     return {
       id: seller.id,
-      username: seller.name || seller.email.split("@")[0],
+      username: seller.name || seller.username || seller.email,
       plan,
       listings: listingCount,
       revenue,

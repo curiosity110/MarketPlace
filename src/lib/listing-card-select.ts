@@ -13,6 +13,7 @@ export const listingCardSelect = Prisma.validator<Prisma.ListingDefaultArgs>()({
     seller: {
       select: {
         name: true,
+        username: true,
         phone: true,
       },
     },

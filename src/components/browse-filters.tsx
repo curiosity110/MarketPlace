@@ -53,17 +53,22 @@ function ChipButton({
   active,
   children,
   onClick,
+  size = "default",
 }: {
   active?: boolean;
   children: React.ReactNode;
   onClick: () => void;
+  size?: "default" | "touch";
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium transition-colors",
+        "inline-flex items-center rounded-full text-sm font-medium transition-colors",
+        size === "touch"
+          ? "min-h-12 px-4 py-3"
+          : "min-h-11 px-3",
         active
           ? "bg-foreground text-background shadow-[0_10px_18px_-18px_rgba(15,23,42,0.34)]"
           : "bg-muted/36 text-foreground/80 ring-1 ring-black/5 hover:bg-muted/54 dark:ring-white/10",
@@ -493,10 +498,11 @@ export function BrowseFilters({
 
       <FilterSection title={text.condition}>
         <div className="flex flex-wrap gap-2">
-          <ChipButton active={!state.condition} onClick={() => setState((prev) => ({ ...prev, condition: "" }))}>
+          <ChipButton size="touch" active={!state.condition} onClick={() => setState((prev) => ({ ...prev, condition: "" }))}>
             {text.anyCondition}
           </ChipButton>
           <ChipButton
+            size="touch"
             active={state.condition === ListingCondition.USED}
             onClick={() =>
               setState((prev) => ({
@@ -508,6 +514,7 @@ export function BrowseFilters({
             {text.usedCondition}
           </ChipButton>
           <ChipButton
+            size="touch"
             active={state.condition === ListingCondition.NEW}
             onClick={() =>
               setState((prev) => ({
@@ -519,6 +526,7 @@ export function BrowseFilters({
             {text.newCondition}
           </ChipButton>
           <ChipButton
+            size="touch"
             active={state.condition === ListingCondition.REFURBISHED}
             onClick={() =>
               setState((prev) => ({

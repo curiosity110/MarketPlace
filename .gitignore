@@ -47,3 +47,12 @@ next-env.d.ts
 .vercel
 .env*.local
 tmpclaude-*
+
+.cursorrules
+CODEX_AUTOPILOT_PROMPT.txt
+CHECKLIST_FOR_YOU.md
+ROADMAP.md
+PRODUCTION_HANDOFF.md
+TASKS.md
+AI_INTEGRATION.md
+archive_root_docs

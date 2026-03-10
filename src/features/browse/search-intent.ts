@@ -417,49 +417,37 @@ function buildTextMatchClauses(term: string): Prisma.ListingWhereInput[] {
 export function buildBrowseSearchFilters(intent: BrowseSearchIntent) {
   if (!intent.normalizedQuery) return [];
 
-  const terms = intent.tokens.length > 0 ? intent.tokens : [intent.phrase];
-  const inferredClauses: Prisma.ListingWhereInput[] = [];
+  // Build a single OR group that searches across:
+  // - title
+  // - description
+  // - dynamic field values
+  // - category / subcategory names
+  // - car make / model names
+  //
+  // Uses case-insensitive `contains` matching in Prisma, and supports both the
+  // full phrase and individual tokens so queries like "Audi R8" match listings
+  // titled "AUDI R8" as well as related fields.
 
-  if (intent.inferredSubcategoryId && intent.confidence !== "low") {
-    inferredClauses.push({ categoryId: intent.inferredSubcategoryId });
-  } else if (intent.inferredCategoryId && intent.confidence !== "low") {
-    inferredClauses.push({
-      OR: [
-        { categoryId: intent.inferredCategoryId },
-        {
-          category: {
-            is: {
-              parentId: intent.inferredCategoryId,
-            },
-          },
-        },
-      ],
-    });
+  const clauses: Prisma.ListingWhereInput[] = [];
+
+  // Prefer matching the full normalized phrase first.
+  if (intent.normalizedQuery) {
+    clauses.push(...buildTextMatchClauses(intent.normalizedQuery));
   }
 
-  if (intent.inferredMakeSlug) {
-    inferredClauses.push({
-      carMake: {
-        is: {
-          slug: intent.inferredMakeSlug,
-        },
-      },
-    });
-  }
+  // Also match each token to catch partials / reordered words.
+  intent.tokens.forEach((token) => {
+    if (!token) return;
+    clauses.push(...buildTextMatchClauses(token));
+  });
 
-  if (intent.inferredModelSlug) {
-    inferredClauses.push({
-      carModel: {
-        is: {
-          slug: intent.inferredModelSlug,
-        },
-      },
-    });
-  }
+  if (clauses.length === 0) return [];
 
-  return terms.map((term) => ({
-    OR: [...buildTextMatchClauses(term), ...inferredClauses],
-  }));
+  return [
+    {
+      OR: clauses,
+    },
+  ];
 }
 
 export function buildImplicitCategoryFilter(input: {

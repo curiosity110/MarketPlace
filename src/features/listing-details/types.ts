@@ -42,6 +42,8 @@ export type ListingDetailsText = {
   listedIn: string;
   category: string;
   condition: string;
+  listed: string;
+  similarListings: string;
 };
 
 export type ListingDetailsTopActionsProps = {

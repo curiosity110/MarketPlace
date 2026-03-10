@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, UserRound } from "lucide-react";
 import { FavoriteToggleButton } from "@/components/favorite-toggle-button";
 import { MarkSoldPopout } from "@/components/mark-sold-popout";
 import {
@@ -7,6 +7,7 @@ import {
   getListingConditionLabel,
   ListingCardMedia,
   ListingCardMeta,
+  ListingCardTag,
 } from "@/components/listing-card/shared";
 import { Button } from "@/components/ui/button";
 import { formatCurrencyFromCents } from "@/lib/currency";
@@ -36,6 +37,9 @@ export function BrowseCard({
   const listingHref = browseQuery
     ? `/listing/${listing.id}?${browseQuery}`
     : `/listing/${listing.id}`;
+  const categoryLabel = listing.category?.parent?.name ?? listing.category?.name ?? "";
+  const displaySellerName =
+    listing.seller?.name || listing.seller?.username || null;
 
   const text =
     locale === "mk"
@@ -51,60 +55,67 @@ export function BrowseCard({
   return (
     <article
       className={cn(
-        "group relative min-w-0 overflow-hidden rounded-[1.1rem] bg-card shadow-[0_18px_34px_-34px_rgba(15,23,42,0.28)] ring-1 ring-black/6 dark:ring-white/10",
+        "group relative min-w-0 overflow-hidden rounded-xl bg-card shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)] ring-1 ring-black/[0.06] transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_16px_40px_-16px_rgba(15,23,42,0.25)] hover:ring-black/[0.08] dark:ring-white/10",
       )}
     >
-      <div className="overflow-hidden rounded-[1.1rem]">
+      <div className="overflow-hidden rounded-t-xl">
         <ListingCardMedia
           href={listingHref}
           title={listing.title}
           imageUrl={listing.images[0]?.url}
           emptyLabel={text.noImage}
           showPrice={false}
-          sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw"
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          imageClassName="transition-transform duration-300 group-hover:scale-[1.03]"
+          roundedTopOnly
           topLeft={
-            isOwner ? (
-              <Link href={`/sell/${listing.id}/edit`} className="relative z-30">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-8 border-white/65 bg-background/78 p-0 text-foreground shadow-sm backdrop-blur"
-                  aria-label={text.edit}
-                >
-                  <Pencil size={12} />
-                </Button>
-              </Link>
-            ) : null
+            <ListingCardTag
+              variant={isSold ? "default" : "secondary"}
+              className="bg-black/50 text-white border-0 backdrop-blur-sm text-[10px] px-2 py-0.5"
+            >
+              {isSold ? "Sold" : conditionLabel}
+            </ListingCardTag>
           }
           topRight={
-            isOwner ? null : (
+            !isOwner ? (
               <FavoriteToggleButton
                 listingId={listing.id}
                 locale={locale}
                 isAuthenticated={Boolean(currentAuthUserId)}
                 initialFavorited={isFavorited}
                 iconOnly
-                className="h-8 w-8 border-white/65 bg-background/78 p-0 text-foreground shadow-sm backdrop-blur"
+                className="h-8 w-8 rounded-full border-0 bg-white/90 backdrop-blur-sm p-0 text-foreground/90 shadow-sm hover:bg-white"
               />
-            )
+            ) : null
           }
-          imageClassName="transition-transform duration-500 group-hover:scale-[1.03]"
         />
       </div>
 
-      <Link href={listingHref} className="block space-y-1 px-3 py-2">
-        <p className="text-[15px] font-semibold leading-none tracking-[-0.03em] text-foreground">
+      <div className="space-y-1.5 px-3 py-2.5">
+        <Link href={listingHref} className="block">
+          <h3 className="truncate text-[13px] font-bold leading-tight tracking-[-0.02em] text-foreground hover:underline">
+            {listing.title}
+          </h3>
+        </Link>
+        <p className="text-base font-bold leading-none tracking-tight text-orange-500">
           {formattedPrice}
         </p>
-        <h3 className="line-clamp-2 text-[13px] font-medium leading-[1.2rem] tracking-[-0.01em] text-foreground/88">
-          <span className="hover:underline">{listing.title}</span>
-        </h3>
         <ListingCardMeta
-          items={[listing.city.name, conditionLabel]}
-          className="text-[11px] text-muted-foreground/82"
+          items={[listing.city.name, categoryLabel].filter(Boolean)}
+          className="text-[11px] text-muted-foreground/80 truncate"
         />
-        <p className="pt-0.5 text-[10px] text-muted-foreground/68">{listedDate}</p>
-      </Link>
+        <p className="text-[10px] text-muted-foreground/60">{listedDate}</p>
+        {displaySellerName && (
+          <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted/80 text-muted-foreground">
+              <UserRound size={10} />
+            </span>
+            <span className="truncate text-[11px] text-muted-foreground/90">
+              {displaySellerName}
+            </span>
+          </div>
+        )}
+      </div>
 
       {isOwner && !isSold ? (
         <div className="px-3 pb-2.5 pt-0">

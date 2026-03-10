@@ -40,7 +40,7 @@ export function getHomePageContent(
       }
     : {
         heroBadge: "Built for Macedonia. Ready for worldwide reach.",
-        heroTitleA: "Buy and Sell Fast",
+        heroTitleA: "Buy and Sell Fast ",
         heroTitleB: "in a Clear Marketplace",
         heroDesc:
           "Comfortable on phone and desktop, focused on readability, and powered by smart help across the full site.",

@@ -55,7 +55,7 @@ export function ListingContact({
         </div>
       </div>
 
-      {primaryAction ? <div className="mt-4">{primaryAction}</div> : null}
+      {primaryAction ? <div className="mt-4 hidden sm:block">{primaryAction}</div> : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         <Link

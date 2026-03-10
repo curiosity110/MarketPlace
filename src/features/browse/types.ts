@@ -28,5 +28,6 @@ export type BrowsePageText = {
   noListingsYet: string;
   firstList: string;
   popularCategories: string;
+  tryCategoriesLabel: string;
   dbUnavailable: string;
 };

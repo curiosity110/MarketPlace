@@ -446,7 +446,11 @@ export function BrowseHeader({
       />
 
       <p className="px-0.5 text-[11px] font-medium tracking-[0.01em] text-muted-foreground/65 sm:text-xs">
-        {totalCount} {resultsLabel}
+        {currentSearchQuery
+          ? (locale === "mk"
+              ? `${totalCount} ${resultsLabel} за „${currentSearchQuery}"`
+              : `${totalCount} ${resultsLabel} for "${currentSearchQuery}"`)
+          : `${totalCount} ${resultsLabel}`}
       </p>
 
       <BrowseFilterSheet

@@ -33,6 +33,7 @@ export function ListingCardMedia({
   topRight,
   sizes,
   imageClassName,
+  roundedTopOnly = false,
 }: {
   href: string;
   title: string;
@@ -44,9 +45,11 @@ export function ListingCardMedia({
   topRight?: React.ReactNode;
   sizes: string;
   imageClassName?: string;
+  roundedTopOnly?: boolean;
 }) {
+  const roundedClass = roundedTopOnly ? "rounded-t-xl" : "rounded-xl";
   return (
-    <div className="group/media relative aspect-[4/3] w-full overflow-hidden bg-muted">
+    <div className={cn("group/media relative aspect-[4/3] w-full overflow-hidden bg-muted", roundedClass)}>
       <Link href={href} className="absolute inset-0 z-10">
         <span className="sr-only">{title}</span>
       </Link>
@@ -59,7 +62,7 @@ export function ListingCardMedia({
           loading="lazy"
           quality={72}
           className={cn(
-            "object-cover transition-transform duration-500 group-hover/media:scale-[1.03]",
+            "object-cover transition-transform duration-300 group-hover/media:scale-[1.03]",
             imageClassName,
           )}
           sizes={sizes}
@@ -72,8 +75,6 @@ export function ListingCardMedia({
           <span className="text-xs font-medium">{emptyLabel}</span>
         </div>
       )}
-
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/62 via-slate-950/14 to-transparent" />
 
       {topLeft ? <div className="absolute left-2.5 top-2.5 z-20 flex flex-wrap gap-2">{topLeft}</div> : null}
       {topRight ? (
