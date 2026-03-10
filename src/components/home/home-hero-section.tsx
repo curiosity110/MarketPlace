@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,14 @@ export function HomeHeroSection({
   createHref,
   categoryHighlights,
 }: Props) {
+  const router = useRouter();
   const openCreateModal = useCallback(() => {
     window.dispatchEvent(
       new CustomEvent(OPEN_CREATE_MODAL_EVENT, { detail: { params: { create: "1" } } }),
     );
-  }, []);
+    // Fallback: URL update opens the modal even if the event was missed
+    router.replace("/?create=1", { scroll: false });
+  }, [router]);
   const heroCategories = categoryHighlights.slice(0, 5);
   const highlightCategories = categoryHighlights.slice(0, 5);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import { isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -24,17 +24,26 @@ export function NavPrimaryLinks({
 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const dashboardHref = isLoggedIn ? "/dashboard" : "/login?next=%2Fdashboard";
   const openCreateListing = useCallback(() => {
+    if (!isLoggedIn) {
+      router.push(`/login?next=${encodeURIComponent(pathname || "/")}`);
+      return;
+    }
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("create", "1");
     const openParams = Object.fromEntries(nextParams.entries());
+    // Dispatch event — caught immediately if CreateListingModalController is already mounted
     window.dispatchEvent(
       new CustomEvent(OPEN_CREATE_MODAL_EVENT, {
         detail: { params: openParams },
       }),
     );
-  }, [searchParams]);
+    // Also update the URL — this guarantees the modal opens even if the
+    // Suspense boundary hasn't resolved yet when the click happens
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }, [isLoggedIn, pathname, router, searchParams]);
 
   const links = [
     { href: "/browse", prefix: "/browse", label: labels.browse },

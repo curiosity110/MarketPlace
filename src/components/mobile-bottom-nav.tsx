@@ -69,11 +69,13 @@ export function MobileBottomNav({ isLoggedIn, isAdmin, labels }: Props) {
       router.push(`/login?next=${encodeURIComponent(createHref)}`);
       return;
     }
+    // Dispatch event AND update URL — dual guarantee the modal opens
     window.dispatchEvent(
       new CustomEvent(OPEN_CREATE_MODAL_EVENT, {
         detail: { params: openParams },
       }),
     );
+    router.replace(createHref, { scroll: false });
   }, [isLoggedIn, pathname, router, searchParams]);
 
   const items: NavItem[] = [
