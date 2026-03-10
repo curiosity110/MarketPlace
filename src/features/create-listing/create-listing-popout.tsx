@@ -92,7 +92,7 @@ export function CreateListingPopout({
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpenControlled = typeof open === "boolean";
   const isOpen = isOpenControlled ? open : internalOpen;
-  const [isActive, setIsActive] = useState(false);
+  const [isActive, setIsActive] = useState(isOpen);
   const previousIsOpenRef = useRef(isOpen);
   const isClosingRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
