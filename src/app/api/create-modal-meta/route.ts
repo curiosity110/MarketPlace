@@ -25,18 +25,39 @@ function fallbackPublishLabel(isMk: boolean) {
   return isMk ? "Објави оглас" : "Publish listing";
 }
 
+function fallbackResponse(isMk: boolean, locale: Locale) {
+  return NextResponse.json({
+    categories: [],
+    cities: [],
+    templatesByCategory: {},
+    publishLabel: fallbackPublishLabel(isMk),
+    paymentProvider: "none" as const,
+    showPlanSelector: false,
+    initial: { currency: "MKD" as const },
+    locale,
+  });
+}
+
 export async function GET() {
-  const locale = await (async (): Promise<Locale> => {
+  let locale: Locale = "en";
+  try {
     const cookieStore = await cookies();
     const fromCookie =
       cookieStore.get(LOCALE_COOKIE)?.value ||
       cookieStore.get(LEGACY_LOCALE_COOKIE)?.value;
-    return normalizeLocale(fromCookie);
-  })();
+    locale = normalizeLocale(fromCookie);
+  } catch {
+    locale = "en";
+  }
   const isMk = locale === "mk";
-  const sessionUser = await getSessionUser();
 
-  if (!shouldSkipPrismaCalls()) {
+  if (shouldSkipPrismaCalls()) {
+    return fallbackResponse(isMk, locale);
+  }
+
+  try {
+    const sessionUser = await getSessionUser();
+
     try {
       const [categories, cities, templates] = await Promise.all([
         prisma.category.findMany({
@@ -146,20 +167,10 @@ export async function GET() {
     } catch (error) {
       if (isPrismaConnectionError(error)) {
         markPrismaUnavailable();
-      } else {
-        throw error;
       }
+      return fallbackResponse(isMk, locale);
     }
+  } catch {
+    return fallbackResponse(isMk, locale);
   }
-
-  return NextResponse.json({
-    categories: [],
-    cities: [],
-    templatesByCategory: {},
-    publishLabel: fallbackPublishLabel(isMk),
-    paymentProvider: "none" as const,
-    showPlanSelector: false,
-    initial: { currency: Currency.MKD },
-    locale,
-  });
 }

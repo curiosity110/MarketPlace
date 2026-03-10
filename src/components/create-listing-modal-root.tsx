@@ -22,6 +22,17 @@ type CreateModalMeta = {
   locale: "en" | "mk";
 };
 
+const FALLBACK_META: CreateModalMeta = {
+  categories: [],
+  cities: [],
+  templatesByCategory: {},
+  publishLabel: "Publish listing",
+  paymentProvider: "none",
+  showPlanSelector: false,
+  initial: { currency: "MKD" },
+  locale: "en",
+};
+
 const CreateListingPopout = dynamic(
   () =>
     import("@/features/create-listing/create-listing-popout").then(
@@ -40,21 +51,26 @@ export function CreateListingModalRoot({ action }: Props) {
 
   const loadAndOpen = useCallback(async () => {
     setError(null);
-    setLoading(true);
     setOpen(true);
+    setMeta(FALLBACK_META);
+    setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 8000);
     try {
       const res = await fetch("/api/create-modal-meta", {
         cache: "no-store",
         headers: { Accept: "application/json" },
+        signal: controller.signal,
       });
+      window.clearTimeout(timeoutId);
       if (!res.ok) {
         setError("Failed to load form");
-        setLoading(false);
         return;
       }
       const data = (await res.json()) as CreateModalMeta;
       setMeta(data);
     } catch {
+      window.clearTimeout(timeoutId);
       setError("Failed to load form");
     } finally {
       setLoading(false);
@@ -105,38 +121,70 @@ export function CreateListingModalRoot({ action }: Props) {
 
   if (!open && !meta) return null;
 
-  if (loading || error) {
+  if (error) {
     return (
       <div
         className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50"
         role="dialog"
         aria-modal="true"
-        aria-busy={loading}
       >
-        <div className="rounded-2xl bg-background px-6 py-8 shadow-xl">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          ) : (
-            <>
-              <p className="text-sm text-destructive">{error}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  setError(null);
-                }}
-                className="mt-3 rounded-full bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
-              >
-                Close
-              </button>
-            </>
-          )}
+        <div className="rounded-2xl bg-background px-6 py-8 shadow-xl text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setError(null);
+                setMeta(null);
+              }}
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                void loadAndOpen();
+              }}
+              className="rounded-full bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   if (!meta) return null;
+
+  if (loading && meta.categories.length === 0) {
+    return (
+      <div
+        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50"
+        role="dialog"
+        aria-modal="true"
+        aria-busy
+      >
+        <div className="rounded-2xl bg-background px-8 py-10 shadow-xl">
+          <p className="text-sm text-muted-foreground">Loading…</p>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setMeta(null);
+              setLoading(false);
+            }}
+            className="mt-4 text-sm text-muted-foreground underline hover:text-foreground"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <CreateListingPopout
